@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b1120">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Interval">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Interval Sayaç</title>
+<style>
+  :root{
+    --bg:#0b1120; --panel:#131c2e; --panel2:#1b2740; --line:#26334d;
+    --txt:#e7eefc; --muted:#8aa0c7; --accent:#38bdf8;
+    --slow:#059669; --fast:#ea580c; --prep:#7c3aed;
+    --ok:#22c55e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.4;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  h1{font-size:20px;margin:0}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  .wrap{max-width:680px;margin:0 auto;padding:16px 14px 120px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.tight{gap:6px}
+  label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  input,select,button{font:inherit;color:var(--txt)}
+  input[type=text],input[type=number],select{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;width:100%;outline:none;
+  }
+  input[type=number]{-moz-appearance:textfield}
+  input:focus,select:focus{border-color:var(--accent)}
+  input[type=color]{width:42px;height:42px;padding:2px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+  .seg-grow{flex:1 1 120px;min-width:0}
+  button{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;cursor:pointer;font-weight:600;transition:.12s;
+  }
+  button:active{transform:scale(.97)}
+  button.primary{background:var(--accent);color:#04243a;border-color:var(--accent)}
+  button.ghost{background:transparent}
+  button.danger{color:#fda4af;border-color:#7f1d2d}
+  button.block{width:100%;justify-content:center}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;
+        border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:14px}
+  .pill.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .legend .lgi{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600}
+  .legend .lgi i{width:14px;height:14px;border-radius:4px;display:inline-block;flex:0 0 auto}
+  .radiorow{display:flex;flex-wrap:wrap;gap:8px}
+  .radiorow label{display:flex;align-items:center;gap:8px;flex:1 1 150px;padding:11px 13px;border:1px solid var(--line);
+                  border-radius:10px;background:var(--panel2);cursor:pointer;font-size:14px;font-weight:600}
+  .radiorow input{accent-color:var(--accent);width:19px;height:19px;margin:0;flex:0 0 auto}
+  .radiorow label:has(input:checked){border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  /* desen kartları (mini grafik) */
+  .patgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .pat{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 6px;
+       border:1px solid var(--line);background:var(--panel2);border-radius:12px;cursor:pointer;
+       font-size:12px;font-weight:600;color:var(--muted);transition:.12s}
+  .pat:active{transform:scale(.97)}
+  .pat svg{width:100%;height:30px;display:block}
+  .pat .ln{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .pat.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .patgrid.cross .g-normal{display:none}
+  .patgrid:not(.cross) .g-cross{display:none}
+  /* lider/eş renkleri; "önce" anahtarıyla takas */
+  .pat .ln.lead{stroke:var(--slow)}
+  .pat .ln.partner{stroke:var(--fast)}
+  .seg{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+       border-radius:12px;padding:8px;margin-bottom:8px}
+  .seg .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+  .seg .name{flex:1 1 auto;font-weight:600;min-width:60px}
+  .seg .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:54px;text-align:right}
+  .seg .acts{display:flex;gap:4px}
+  .seg .acts button{padding:6px 9px;font-size:13px}
+  .timeline{display:flex;height:26px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .timeline > div{height:100%}
+  .totals{display:flex;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:14px}
+  .totals b{color:var(--txt);font-variant-numeric:tabular-nums}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hidden{display:none!important}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* ---- Player (big screen) ---- */
+  #player{position:fixed;inset:0;background:var(--slow);display:flex;flex-direction:column;
+          z-index:50;transition:background-color .35s;overflow:hidden}
+  #player .ptop{display:flex;justify-content:space-between;align-items:center;
+                padding:calc(env(safe-area-inset-top) + 14px) 18px 6px;font-weight:700}
+  #player .ptop .meta{display:flex;gap:14px;font-variant-numeric:tabular-nums;font-size:15px;opacity:.92}
+  #player .pmid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  #player .pname{font-size:clamp(28px,8vw,54px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+  #player .pclock{font-size:min(38vw,30vh);font-weight:800;line-height:.95;font-variant-numeric:tabular-nums;
+                  text-shadow:0 6px 40px rgba(0,0,0,.4)}
+  #player .pnext{font-size:clamp(19px,5vw,30px);opacity:.92;margin-top:8px}
+  #player .pbar{height:8px;background:rgba(255,255,255,.25);margin:0 18px}
+  #player .pbar > div{height:100%;background:#fff;width:0%}
+  #player .pbtns{display:flex;gap:10px;padding:14px 18px calc(env(safe-area-inset-bottom) + 18px)}
+  #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;
+                        padding:18px 10px;font-size:18px;border-radius:14px}
+  #player .pbtns button.big{flex:2;font-size:20px}
+  #player .x{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:14px;z-index:3;
+             background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:8px 12px}
+  /* köşe istatistikleri */
+  #player .stat{line-height:1.12;font-variant-numeric:tabular-nums;text-shadow:0 1px 8px rgba(0,0,0,.3);z-index:2}
+  #player .stat .cap{font-size:clamp(20px,4.6vw,28px);letter-spacing:.04em;text-transform:uppercase;opacity:.92;font-weight:700}
+  #player .stat .val{font-size:clamp(46px,12.5vw,78px);font-weight:800}
+  #player .goalmsg{font-size:clamp(20px,4.6vw,28px);font-weight:700;opacity:.9}
+  #player .srow{display:flex;gap:clamp(16px,4vw,40px);margin-top:8px;align-items:flex-end}
+  #player .ptopnext{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translateX(-50%);max-width:78%;text-align:center;z-index:2}
+  #player .c-tl{position:absolute;top:calc(env(safe-area-inset-top) + 64px);left:18px}
+  #player .c-tr{position:absolute;top:calc(env(safe-area-inset-top) + 64px);right:18px;text-align:right}
+  #player .pbottom{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0 18px 8px;z-index:2}
+  /* desen profili (mini, çizgi) + imleç */
+  #player .pprofile{flex:0 0 auto;width:56%;min-width:260px;max-width:420px;height:186px;background:rgba(0,0,0,.22);border-radius:12px;padding:12px}
+  #player .pchart{position:relative;width:100%;height:100%}
+  #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(26px,6.5vw,42px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
+  #player .pmark:empty{display:none}
+  #player .pmark img{height:1.25em;width:auto;vertical-align:middle}
+  #player .flip{display:inline-block;transform:scaleX(-1)}
+  /* sayacın altındaki tek, sabit hayvan (sağa bakar) */
+  #player .panim{font-size:clamp(66px,17vw,158px);line-height:1;margin-top:8px;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
+  #player .panim img{height:clamp(66px,17vw,158px);width:auto;vertical-align:middle}
+  #player .panim:empty{display:none}
+  #player.done .panim{display:none}
+  #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
+  #player.done .stat,#player.done .pbottom,#player.done .pprofile{display:none}
+  #player.pulse .pclock{animation:pulse .5s ease}
+  @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+  #player.done .pclock{font-size:18vw}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden}
+</style>
+</head>
+<body>
+
+<!-- ===================== BUILDER ===================== -->
+<div class="wrap" id="builder">
+  <div class="row" style="justify-content:space-between;margin-bottom:14px">
+    <h1>⏱️ Interval Sayaç</h1>
+    <div class="row tight">
+      <select id="savedList" style="width:auto;max-width:160px"></select>
+      <button id="loadBtn" class="ghost" title="Yükle">Yükle</button>
+      <button id="delBtn" class="ghost danger" title="Sil">Sil</button>
+    </div>
+  </div>
+
+  <!-- Varyasyonlar -->
+  <div class="card">
+    <h2>Varyasyonlar</h2>
+    <div id="varBox"></div>
+    <div class="hint">Sporun iki modu. İsim ve rengi değiştirebilirsin.</div>
+  </div>
+
+  <!-- Üretici -->
+  <div class="card">
+    <h2>Antrenman Üret</h2>
+
+    <label class="lbl">Süre kaynağı</label>
+    <div class="chips" style="margin-bottom:12px">
+      <div class="pill on" data-src="longest">En uzun interval</div>
+      <div class="pill" data-src="total">Toplam süre</div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:12px">
+      <div id="srcLongest">
+        <label class="lbl">En uzun interval (dk)</label>
+        <input type="number" id="inLongest" value="5" min="1" max="60" step="1">
+      </div>
+      <div id="srcTotal" class="hidden">
+        <label class="lbl">Hedef toplam (dk)</label>
+        <input type="number" id="inTotal" value="40" min="2" max="180" step="1">
+      </div>
+      <div>
+        <label class="lbl">En kısa interval (dk)</label>
+        <input type="number" id="inFloor" value="1" min="1" max="30" step="1">
+      </div>
+    </div>
+
+    <label class="lbl">Adım (süre çözünürlüğü)</label>
+    <div class="radiorow" style="margin-bottom:12px">
+      <label><input type="radio" name="step" value="1" checked> 1 dakika</label>
+      <label><input type="radio" name="step" value="0.5"> 30 saniye</label>
+    </div>
+
+    <label class="lbl">Zaman profili</label>
+    <div class="patgrid" id="patGrid" style="margin-bottom:10px">
+      <div class="pat on" data-pat="azalan">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,6 20,6 20,13 38,13 38,20 56,20"/>
+            <polyline class="ln partner" points="4,9 20,9 20,16 38,16 38,23 56,23"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,6 56,22"/>
+            <polyline class="ln partner" points="4,22 56,6"/>
+          </g>
+        </svg>
+        <span>Azalan</span>
+      </div>
+      <div class="pat" data-pat="artan">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,20 20,20 20,13 38,13 38,6 56,6"/>
+            <polyline class="ln partner" points="4,23 20,23 20,16 38,16 38,9 56,9"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,22 56,6"/>
+            <polyline class="ln partner" points="4,6 56,22"/>
+          </g>
+        </svg>
+        <span>Artan</span>
+      </div>
+      <div class="pat" data-pat="piramit">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,21 30,4 56,21"/>
+            <polyline class="ln partner" points="4,25 30,8 56,25"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,23 30,5 56,23"/>
+            <polyline class="ln partner" points="4,5 30,23 56,5"/>
+          </g>
+        </svg>
+        <span>Piramit</span>
+      </div>
+      <div class="pat" data-pat="terspiramit">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,4 30,21 56,4"/>
+            <polyline class="ln partner" points="4,8 30,25 56,8"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,5 30,23 56,5"/>
+            <polyline class="ln partner" points="4,23 30,5 56,23"/>
+          </g>
+        </svg>
+        <span>Ters piramit</span>
+      </div>
+      <div class="pat" data-pat="genisleyen">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="3,22 10,16 17,22 24,10 31,22 38,4 45,22 52,22"/>
+            <polyline class="ln partner" points="3,25 10,19 17,25 24,13 31,25 38,7 45,25 52,25"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="3,22 10,16 17,22 24,10 31,22 38,4 45,22 52,22"/>
+            <polyline class="ln partner" points="3,6 10,12 17,6 24,18 31,6 38,24 45,6 52,6"/>
+          </g>
+        </svg>
+        <span>Genişleyen</span>
+      </div>
+      <div class="pat" data-pat="genispir">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="3,23 8,17 13,23 18,11 23,23 28,5 33,23 38,11 43,23 48,17 53,23"/>
+            <polyline class="ln partner" points="3,25 8,19 13,25 18,13 23,25 28,7 33,25 38,13 43,25 48,19 53,25"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="3,23 8,17 13,23 18,11 23,23 28,5 33,23 38,11 43,23 48,17 53,23"/>
+            <polyline class="ln partner" points="3,5 8,11 13,5 18,17 23,5 28,23 33,5 38,17 43,5 48,11 53,5"/>
+          </g>
+        </svg>
+        <span>Gen. piramit</span>
+      </div>
+      <div class="pat" data-pat="dalga">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="3,22 11,6 19,22 27,6 35,22 43,6 51,22"/>
+            <polyline class="ln partner" points="3,25 11,9 19,25 27,9 35,25 43,9 51,25"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="3,22 11,6 19,22 27,6 35,22 43,6 51,22"/>
+            <polyline class="ln partner" points="3,6 11,22 19,6 27,22 35,6 43,22 51,6"/>
+          </g>
+        </svg>
+        <span>Dalga</span>
+      </div>
+      <div class="pat" data-pat="fib">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,24 16,22 26,18 36,11 48,3"/>
+            <polyline class="ln partner" points="4,26 16,25 26,21 36,15 48,7"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,24 16,22 26,18 36,11 48,3"/>
+            <polyline class="ln partner" points="4,4 16,6 26,10 36,17 48,25"/>
+          </g>
+        </svg>
+        <span>Hızlanan</span>
+      </div>
+      <div class="pat" data-pat="can">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,24 14,13 24,5 36,5 46,13 56,24"/>
+            <polyline class="ln partner" points="4,26 14,16 24,8 36,8 46,16 56,26"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,24 14,13 24,5 36,5 46,13 56,24"/>
+            <polyline class="ln partner" points="4,4 14,15 24,23 36,23 46,15 56,4"/>
+          </g>
+        </svg>
+        <span>Çan</span>
+      </div>
+    </div>
+
+    <label class="lbl">Zaman profilini çaprazla</label>
+    <div class="radiorow" style="margin-bottom:12px">
+      <label><input type="radio" name="cross" value="off" checked> Normal</label>
+      <label><input type="radio" name="cross" value="on"> Çaprazla (biri inerken diğeri çıkar)</label>
+    </div>
+
+    <label class="lbl">Başlangıç</label>
+    <div class="radiorow" style="margin-bottom:12px">
+      <label><input type="radio" name="first" value="yavas" checked> Önce yavaş intervalle başla (en kısadan)</label>
+      <label><input type="radio" name="first" value="hizli"> Önce hızlı intervalle başla (en uzundan)</label>
+    </div>
+
+    <button id="genBtn" class="primary block">↻ Üret (mevcut listeyi değiştirir)</button>
+    <div class="hint" id="genHint"></div>
+  </div>
+
+  <!-- Segmentler -->
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Segmentler</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div style="margin:12px 0">
+      <div class="timeline" id="timeline"></div>
+      <div class="totals">
+        <span>Segment: <b id="segCount">0</b></span>
+        <span>Toplam süre: <b id="totalTime">0:00</b></span>
+      </div>
+    </div>
+    <div id="segBox" style="margin:12px 0"></div>
+    <div class="row tight">
+      <button id="addSlow" class="ghost">+ Yavaş</button>
+      <button id="addFast" class="ghost">+ Hızlı</button>
+      <button id="clearBtn" class="ghost danger" style="margin-left:auto">Temizle</button>
+    </div>
+  </div>
+
+  <!-- Ayarlar + kaydet -->
+  <div class="card">
+    <h2>Ayarlar</h2>
+    <div class="grid2" style="margin-bottom:12px">
+      <div>
+        <label class="lbl">Hazırlık (sn)</label>
+        <input type="number" id="inPrep" value="5" min="0" max="60" step="1">
+      </div>
+      <div>
+        <label class="lbl">Sesli uyarı</label>
+        <div class="chips"><div class="pill on" id="soundPill">🔊 Açık</div></div>
+      </div>
+    </div>
+    <label class="lbl">Simgeler — kendi emoji/resmini ver (sağa bakar)</label>
+    <div class="grid2" style="margin-bottom:8px">
+      <div>
+        <div class="lbl">Yavaş</div>
+        <div class="row tight">
+          <input type="text" id="iconSlow" value="🚶‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
+          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgSlow" accept="image/*" hidden></label>
+          <button class="ghost" id="imgSlowClear" title="Resmi kaldır">✕</button>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Hızlı</div>
+        <div class="row tight">
+          <input type="text" id="iconFast" value="🏃‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
+          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgFast" accept="image/*" hidden></label>
+          <button class="ghost" id="imgFastClear" title="Resmi kaldır">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="hint" style="margin-bottom:12px">Emoji yaz ya da 📁 ile kendi resmini yükle. Resim varsa emoji yerine o kullanılır.</div>
+
+    <label class="lbl">Antrenman adı</label>
+    <div class="row tight">
+      <input type="text" id="inName" class="seg-grow" placeholder="ör. Salı koşusu — çapraz">
+      <button id="saveBtn" class="ghost">💾 Kaydet</button>
+    </div>
+  </div>
+
+  <button id="startBtn" class="primary block" style="padding:18px;font-size:18px">▶︎ BAŞLAT</button>
+</div>
+
+<!-- ===================== PLAYER ===================== -->
+<div id="player" class="hidden">
+  <button class="x" id="exitBtn">✕</button>
+  <div class="ptopnext"><span class="pnext" id="pNext"></span></div>
+  <div class="stat c-tl"><div class="cap">Interval</div><div class="val" id="pIndex">1/1</div></div>
+  <div class="stat c-tr"><div class="cap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
+  <div class="pmid">
+    <div class="pname" id="pName">—</div>
+    <div class="pclock" id="pClock">0:00</div>
+    <div class="panim" id="pAnim"></div>
+  </div>
+  <div class="pbottom">
+    <div class="stat">
+      <div class="cap">Hedef</div><div class="val"><span id="pEndMin">0:00</span> <span class="goalmsg">. dakikaya ulaşmak!</span></div>
+      <div class="srow">
+        <div><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
+        <div><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
+      </div>
+    </div>
+    <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
+  </div>
+  <div class="pbtns">
+    <button id="prevBtn">⏮</button>
+    <button id="playBtn" class="big">⏸</button>
+    <button id="nextBtn">⏭</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ */
+/* State                                                               */
+/* ------------------------------------------------------------------ */
+const A = 0, B = 1; // Yavaş, Hızlı
+let state = {
+  name: "",
+  variations: [
+    { name: "Yavaş", color: "#059669" },
+    { name: "Hızlı", color: "#ea580c" },
+  ],
+  segments: [], // {v:0|1, sec:Number}
+};
+let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1 };
+let settings = { prepSec: 5, sound: true, icon: ["🚶‍♂️","🏃‍♂️"], iconImg: [null,null] };
+
+const $ = (id) => document.getElementById(id);
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+function fmt(sec){
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return m + ":" + String(s).padStart(2,"0");
+}
+function totalSec(){ return state.segments.reduce((a,x)=>a+x.sec,0); }
+
+/* ------------------------------------------------------------------ */
+/* Generator                                                           */
+/* ------------------------------------------------------------------ */
+// Her desen tek bir "ana dizi" (dakika, adım başına 1 değer) üretir.
+function buildPrimary(pattern, L, F){
+  L = Math.max(1, Math.round(L)); F = Math.max(1, Math.round(F));
+  if (F > L) F = L;
+  const desc = []; for (let v=L; v>=F; v--) desc.push(v);   // L..F
+  const asc  = [...desc].reverse();                          // F..L
+  switch(pattern){
+    case "azalan":      return desc;
+    case "artan":       return asc;
+    case "piramit":     return asc.concat(desc.slice(1));        // çık-in
+    case "terspiramit": return desc.concat(asc.slice(1));        // in-çık
+    case "genisleyen": {                                         // 1, 2,1, 2,3,2,1, ...
+      const out=[F];
+      for (let peak=F+1; peak<=L; peak++){
+        for (let v=F+1; v<=peak; v++) out.push(v);
+        for (let v=peak-1; v>=F; v--) out.push(v);
+      }
+      return out;
+    }
+    case "genispir": {                                           // genişleyen + küçülen (zirvede dönüş)
+      const out=[F];
+      for (let peak=F+1; peak<=L; peak++){                        // büyüyen yarı
+        for (let v=F+1; v<=peak; v++) out.push(v);
+        for (let v=peak-1; v>=F; v--) out.push(v);
+      }
+      for (let peak=L-1; peak>=F+1; peak--){                      // küçülen yarı
+        for (let v=F+1; v<=peak; v++) out.push(v);
+        for (let v=peak-1; v>=F; v--) out.push(v);
+      }
+      return out;
+    }
+    case "dalga": {                                              // F..L..F tekrarlı (salınım)
+      const up=[], down=[];
+      for (let v=F; v<=L; v++) up.push(v);
+      for (let v=L-1; v>=F; v--) down.push(v);
+      const wave=up.concat(down);
+      return wave.concat(wave.slice(1));                          // iki dalga, dipte birleşir
+    }
+    case "fib": {                                                // hızlanan: 1,2,3,5,8..
+      const seq=[1,2];
+      while (seq[seq.length-1] < L) seq.push(seq[seq.length-1]+seq[seq.length-2]);
+      const f=seq.filter(v=>v>=F && v<=L);
+      return f.length?f:[Math.max(1,Math.round(L))];
+    }
+    case "can": {                                                // çan: çık, tepede düz plato, in
+      const out=[];
+      for (let v=F; v<=L; v++) out.push(v);
+      out.push(L, L);                                            // plato
+      for (let v=L-1; v>=F; v--) out.push(v);
+      return out;
+    }
+  }
+  return [];
+}
+
+// Ana diziden segmentleri kurar. Normal: iki mod paralel (aynı değer).
+// Çapraz: eş mod AYNA değeri alır -> biri yüksekken diğeri düşük.
+function buildSegments(pattern, L, F, cross, firstFast, step){
+  step = step || 1;
+  // desenler tamsayı "seviye" üzerinde çalışır; adım (1dk/30sn) ile dakikaya çevrilir
+  const Lc = Math.max(1, Math.round(L/step));
+  const Fc = Math.max(1, Math.round(F/step));
+  let S = buildPrimary(pattern, Lc, Fc);
+  const pivot = Lc + Fc; // ayna ekseni (seviye)
+  // başlangıç: yavaş önce => en KISA'dan, hızlı önce => en UZUN'dan başla
+  const isMaxFirst = (S.length<2) || (S[0] >= S[S.length-1]);
+  if (firstFast !== isMaxFirst) S = [...S].reverse();
+  const lead = firstFast ? B : A, partner = firstFast ? A : B; // ilk oynayan varyasyon
+  const segs = [];
+  for (const lv of S){
+    const other = cross ? (pivot - lv) : lv;
+    segs.push({ v:lead,    sec: Math.round(lv*step*60) });
+    segs.push({ v:partner, sec: Math.round(other*step*60) });
+  }
+  return segs;
+}
+
+function segsTotalMin(segs){ return segs.reduce((a,x)=>a+x.sec,0)/60; }
+
+function generate(){
+  const F = parseInt($("inFloor").value)||1;
+  const step = gen.step||1;
+  const cross = gen.cross, firstFast = gen.firstFast;
+  let segs, note = "";
+
+  if (gen.src === "longest"){
+    const L = parseInt($("inLongest").value)||1;
+    segs = buildSegments(gen.pattern, L, F, cross, firstFast, step);
+    note = `En uzun ${L} dk → ${segs.length} segment, toplam ${fmt(segsTotalMin(segs)*60)} dk.`;
+  } else {
+    // Toplam hedefe en yakın L'yi ara (adım kadar artarak)
+    const T = parseInt($("inTotal").value)||10;
+    let best=null;
+    for (let L=F; L<=120+1e-9; L+=step){
+      const s = buildSegments(gen.pattern, L, F, cross, firstFast, step);
+      const diff = Math.abs(segsTotalMin(s) - T);
+      if (!best || diff < best.diff) best = {L, s, diff, tot:segsTotalMin(s)};
+    }
+    segs = best.s;
+    const sign = best.tot>=T ? "+" : "−";
+    note = `Hedef ${T} dk → en uzun ${fmt(best.L*60)} dk. Gerçek toplam ${fmt(best.tot*60)} dk (fark ${sign}${Math.abs(best.tot-T).toFixed(1)} dk).`;
+  }
+  state.segments = segs;
+  $("genHint").textContent = note;
+  renderSegments();
+}
+
+/* ------------------------------------------------------------------ */
+/* Render: Variations                                                  */
+/* ------------------------------------------------------------------ */
+function renderVars(){
+  const box = $("varBox"); box.innerHTML = "";
+  state.variations.forEach((v,i)=>{
+    const row = document.createElement("div");
+    row.className = "row tight"; row.style.marginBottom = i===0?"8px":"0";
+    row.innerHTML = `
+      <input type="color" value="${v.color}" data-vc="${i}">
+      <input type="text" class="seg-grow" value="${v.name}" data-vn="${i}">`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll("[data-vc]").forEach(el=>el.oninput=e=>{
+    state.variations[+e.target.dataset.vc].color = e.target.value; renderSegments();
+  });
+  box.querySelectorAll("[data-vn]").forEach(el=>el.oninput=e=>{
+    state.variations[+e.target.dataset.vn].name = e.target.value; renderSegments();
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Render: Segments + timeline                                         */
+/* ------------------------------------------------------------------ */
+function renderSegments(){
+  const box = $("segBox"); box.innerHTML = "";
+  state.segments.forEach((s,i)=>{
+    const v = state.variations[s.v];
+    const m = Math.floor(s.sec/60), sec = s.sec%60;
+    const el = document.createElement("div");
+    el.className = "seg";
+    el.innerHTML = `
+      <span class="dot" style="background:${v.color}"></span>
+      <span class="name">${v.name}</span>
+      <input type="number" value="${m}"   min="0" style="width:58px" data-min="${i}">
+      <span style="color:var(--muted)">:</span>
+      <input type="number" value="${sec}" min="0" max="59" style="width:58px" data-sec="${i}">
+      <div class="acts">
+        <button data-up="${i}">↑</button>
+        <button data-dn="${i}">↓</button>
+        <button data-dup="${i}">⧉</button>
+        <button class="danger" data-del="${i}">✕</button>
+      </div>`;
+    box.appendChild(el);
+  });
+  // bind
+  box.querySelectorAll("[data-min]").forEach(el=>el.onchange=e=>{
+    const i=+e.target.dataset.min; state.segments[i].sec = (parseInt(e.target.value)||0)*60 + state.segments[i].sec%60; renderSegments();
+  });
+  box.querySelectorAll("[data-sec]").forEach(el=>el.onchange=e=>{
+    const i=+e.target.dataset.sec; const m=Math.floor(state.segments[i].sec/60);
+    state.segments[i].sec = m*60 + Math.min(59,parseInt(e.target.value)||0); renderSegments();
+  });
+  box.querySelectorAll("[data-up]").forEach(el=>el.onclick=e=>move(+e.target.dataset.up,-1));
+  box.querySelectorAll("[data-dn]").forEach(el=>el.onclick=e=>move(+e.target.dataset.dn,1));
+  box.querySelectorAll("[data-dup]").forEach(el=>el.onclick=e=>{
+    const i=+e.target.dataset.dup; state.segments.splice(i+1,0,{...state.segments[i]}); renderSegments();
+  });
+  box.querySelectorAll("[data-del]").forEach(el=>el.onclick=e=>{
+    state.segments.splice(+e.target.dataset.del,1); renderSegments();
+  });
+
+  // timeline
+  const tl = $("timeline"); tl.innerHTML = "";
+  const tot = totalSec()||1;
+  state.segments.forEach(s=>{
+    const d=document.createElement("div");
+    d.style.flexBasis=(s.sec/tot*100)+"%";
+    d.style.background=state.variations[s.v].color;
+    tl.appendChild(d);
+  });
+  $("segCount").textContent = state.segments.length;
+  $("totalTime").textContent = fmt(tot===1&&state.segments.length===0?0:tot);
+  const lg=$("legend");
+  if(lg) lg.innerHTML = state.variations.map(v=>`<span class="lgi"><i style="background:${v.color}"></i>${v.name}</span>`).join("");
+}
+function move(i,dir){
+  const j=i+dir; if(j<0||j>=state.segments.length) return;
+  [state.segments[i],state.segments[j]]=[state.segments[j],state.segments[i]];
+  renderSegments();
+}
+
+/* ------------------------------------------------------------------ */
+/* Persistence                                                         */
+/* ------------------------------------------------------------------ */
+const LS_KEY="intervalWorkouts";
+function loadAll(){ try{return JSON.parse(localStorage.getItem(LS_KEY))||{}}catch(e){return{}} }
+function saveAll(o){ localStorage.setItem(LS_KEY, JSON.stringify(o)); }
+function refreshSaved(){
+  const all=loadAll(); const sel=$("savedList"); sel.innerHTML="";
+  const names=Object.keys(all);
+  if(!names.length){ const o=document.createElement("option"); o.textContent="(kayıt yok)"; o.value=""; sel.appendChild(o); return;}
+  names.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o); });
+}
+
+/* ------------------------------------------------------------------ */
+/* Audio (optional beep)                                               */
+/* ------------------------------------------------------------------ */
+let actx=null;
+function beep(freq=880,dur=0.12,vol=0.25){
+  if(!settings.sound) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.frequency.value=freq; o.type="sine"; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(vol,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+dur);
+    o.start(); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+
+/* ------------------------------------------------------------------ */
+/* Player                                                              */
+/* ------------------------------------------------------------------ */
+let P = null; // {timeline, idx, segLeft, running, raf, lastWhole, wakeLock}
+function buildTimeline(){
+  const t=[];
+  if(settings.prepSec>0) t.push({name:"Hazırlık",color:"#f59e0b",sec:settings.prepSec});
+  state.segments.forEach(s=>t.push({name:state.variations[s.v].name,color:state.variations[s.v].color,sec:s.sec}));
+  return t;
+}
+async function startPlayer(){
+  if(!state.segments.length){ alert("Önce segment ekle ya da üret."); return; }
+  P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
+  P.segLeft=P.timeline[0].sec;
+  P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
+  $("player").classList.remove("hidden","done");
+  $("builder").style.display="none";
+  requestWake();
+  try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){}
+  buildProfile(); renderPlayer(); loop();
+}
+function exitPlayer(){
+  P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
+  releaseWake();
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  $("player").classList.add("hidden");
+  $("builder").style.display="";
+}
+function remainingTotal(){
+  // hazırlık süresi toplama dahil değil
+  const prepIdx = settings.prepSec>0 ? 0 : -1;
+  let r = (P.idx!==prepIdx) ? P.segLeft : 0;
+  for(let i=P.idx+1;i<P.timeline.length;i++) r+=P.timeline[i].sec;
+  return r;
+}
+// Antrenman profilini giriş ekranındaki gibi çizgi-desen olarak çizer
+// (her varyasyon kendi renginde bir çizgi).
+function buildProfile(){
+  const segs=state.segments;
+  if(!segs.length){ $("pProfile").innerHTML=""; return; }
+  const n=segs.length;
+  const vals=segs.map(s=>s.sec);
+  const mx=Math.max(...vals), mn=Math.min(...vals), flat=(mx===mn);
+  const hFor=v=> flat ? 24 : 8+((v-mn)/(mx-mn))*30;   // süre -> yükseklik (8..38)
+  // her parça EŞİT genişlikte (yükseklik = süre); peş peşe, boş çerçeve + soldan dolan
+  let outline="", fillBars="";
+  segs.forEach((s,i)=>{
+    const x0=i/n*100, w=100/n, h=hFor(s.sec), y=40-h, c=state.variations[s.v].color;
+    outline +=`<rect x="${x0.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="none" stroke="#fff" stroke-opacity="0.92" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`;
+    fillBars+=`<rect x="${x0.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="${c}"/>`;
+  });
+  $("pProfile").innerHTML =
+    `<defs><clipPath id="pClip"><rect id="pClipRect" x="0" y="0" width="0" height="40"/></clipPath></defs>`+
+    `<g clip-path="url(#pClip)">${fillBars}</g>`+
+    outline +
+    `<line id="pCur" stroke="#7f1010" stroke-width="4" vector-effect="non-scaling-stroke" x1="0" y1="0" x2="0" y2="40"/>`;
+}
+// İmleci antrenman zamanına göre kaydırır (hazırlık hariç).
+function updateCursor(){
+  if(!P||!P.totalSec) return;
+  const c=document.getElementById("pCur"); if(!c) return;
+  const n=state.segments.length||1;
+  const realIdx=P.idx-(settings.prepSec>0?1:0);
+  let x=0;
+  if(realIdx>=0){
+    const cur=P.timeline[P.idx];
+    const frac=cur.sec>0?(cur.sec-P.segLeft)/cur.sec:0;
+    x=Math.min(100,(realIdx+frac)/n*100);
+  }
+  x=Math.max(0,x);
+  const xs=x.toFixed(2);
+  c.setAttribute("x1",xs); c.setAttribute("x2",xs);
+  const clip=document.getElementById("pClipRect");
+  if(clip) clip.setAttribute("width",xs);
+  const mk=$("pMark"); if(mk) mk.style.left=xs+"%";
+}
+
+// Varyasyona göre hayvan: kendi resmin varsa o, yoksa emoji (sağa bakar).
+function animalHTML(vidx){
+  const img=settings.iconImg[vidx];
+  if(img) return `<img src="${img}" alt="">`;
+  const e=settings.icon[vidx] || (vidx===1?"🏃‍♂️":"🚶‍♂️");
+  return `<span class="flip">${e}</span>`;
+}
+
+function renderPlayer(){
+  const cur=P.timeline[P.idx];
+  $("player").style.background=cur.color;
+  const isPrep = settings.prepSec>0 && P.idx===0;
+  $("pName").textContent = isPrep ? "Hazırlık"
+    : (cur.sec%60===0 ? `${cur.sec/60} dakika ${cur.name}` : `${fmt(cur.sec)} ${cur.name}`);
+  $("pClock").textContent=fmt(P.segLeft);
+  const nx=P.timeline[P.idx+1];
+  $("pNext").textContent = nx
+    ? "Bir sonraki interval: " + (nx.sec%60===0 ? `${nx.sec/60} dakika ${nx.name}` : `${fmt(nx.sec)} ${nx.name}`)
+    : "Son interval";
+  $("playBtn").textContent=P.running?"⏸":"▶︎";
+
+  // köşe istatistikleri
+  const hasPrep = settings.prepSec>0;
+  const realIdx = P.idx - (hasPrep?1:0);
+  if(realIdx<0){                              // hazırlık aşaması
+    $("pIndex").textContent="Hazırlık";
+    $("pSegLen").textContent=fmt(cur.sec);
+    $("pEndMin").textContent="0:00";
+  } else {
+    $("pIndex").textContent=(realIdx+1)+" / "+state.segments.length;
+    $("pSegLen").textContent=fmt(cur.sec);
+    let cum=0; for(let i=0;i<=realIdx;i++) cum+=state.segments[i].sec;
+    $("pEndMin").textContent=fmt(cum);
+  }
+  const workoutTotal = state.segments.reduce((a,s)=>a+s.sec,0);
+  const rem = remainingTotal();
+  $("pElapsed").textContent = fmt(workoutTotal - rem);
+  $("pTotal").textContent = fmt(rem);
+  // tek sabit hayvan (sayaç altı) + konum çizgisi markeri
+  const vidx = realIdx>=0 ? state.segments[realIdx].v : -1;
+  const html = vidx<0 ? "" : animalHTML(vidx);
+  $("pAnim").innerHTML = html;
+  $("pMark").innerHTML = html;
+  updateCursor();
+}
+function gotoSeg(i){
+  if(i<0||i>=P.timeline.length) return;
+  P.idx=i; P.segLeft=P.timeline[i].sec; P.lastWhole=-1; beep(660,.12); renderPlayer();
+}
+function finish(){
+  P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
+  const pl=$("player"); pl.classList.add("done"); pl.style.background="#16a34a";
+  $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
+  $("pNext").textContent="Aferin.";
+  beep(523,.15); setTimeout(()=>beep(784,.25),160);
+  releaseWake();
+}
+function loop(){
+  P.raf=requestAnimationFrame(loop);
+  const now=performance.now();
+  const dt=(now-P.last)/1000; P.last=now;
+  if(!P.running) return;
+  P.segLeft-=dt;
+  const whole=Math.ceil(P.segLeft);
+  if(whole!==P.lastWhole){
+    P.lastWhole=whole;
+    if(whole<=3 && whole>0) { beep(880,.1); $("player").classList.add("pulse"); setTimeout(()=>$("player").classList.remove("pulse"),300); }
+    renderPlayer();
+  } else {
+    $("pClock").textContent=fmt(P.segLeft);
+    updateCursor();
+  }
+  if(P.segLeft<=0){
+    if(P.idx+1<P.timeline.length){ P.idx++; P.segLeft=P.timeline[P.idx].sec; P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
+    else finish();
+  }
+}
+
+/* Wake lock */
+let wakeLock=null;
+async function requestWake(){ try{ if("wakeLock" in navigator) wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
+function releaseWake(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && P && P.running) requestWake(); });
+
+/* ------------------------------------------------------------------ */
+/* Wiring                                                              */
+/* ------------------------------------------------------------------ */
+// source pills
+document.querySelectorAll("[data-src]").forEach(p=>p.onclick=()=>{
+  document.querySelectorAll("[data-src]").forEach(x=>x.classList.remove("on"));
+  p.classList.add("on"); gen.src=p.dataset.src;
+  $("srcLongest").classList.toggle("hidden",gen.src!=="longest");
+  $("srcTotal").classList.toggle("hidden",gen.src!=="total");
+});
+// pattern pills
+document.querySelectorAll("[data-pat]").forEach(p=>p.onclick=()=>{
+  document.querySelectorAll("[data-pat]").forEach(x=>x.classList.remove("on"));
+  p.classList.add("on"); gen.pattern=p.dataset.pat; generate();
+});
+// çapraz (radio)
+document.querySelectorAll('input[name="cross"]').forEach(r=>r.onchange=()=>{
+  gen.cross = document.querySelector('input[name="cross"]:checked').value==="on";
+  $("patGrid").classList.toggle("cross",gen.cross);
+  generate();
+});
+// başlangıç yönü (radio)
+document.querySelectorAll('input[name="first"]').forEach(r=>r.onchange=()=>{
+  gen.firstFast = document.querySelector('input[name="first"]:checked').value==="hizli";
+  generate();
+});
+// adım (radio)
+document.querySelectorAll('input[name="step"]').forEach(r=>r.onchange=()=>{
+  gen.step = parseFloat(document.querySelector('input[name="step"]:checked').value);
+  generate();
+});
+$("genBtn").onclick=generate;
+["inLongest","inTotal","inFloor"].forEach(id=>$(id).addEventListener("change",generate));
+
+$("addSlow").onclick=()=>{ state.segments.push({v:A,sec:60}); renderSegments(); };
+$("addFast").onclick=()=>{ state.segments.push({v:B,sec:60}); renderSegments(); };
+$("clearBtn").onclick=()=>{ state.segments=[]; renderSegments(); $("genHint").textContent=""; };
+
+$("soundPill").onclick=()=>{
+  settings.sound=!settings.sound;
+  $("soundPill").classList.toggle("on",settings.sound);
+  $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
+  if(settings.sound) beep(880,.08);
+};
+$("inPrep").onchange=e=>settings.prepSec=Math.max(0,parseInt(e.target.value)||0);
+
+// simgeler (emoji + resim)
+$("iconSlow").oninput=e=>settings.icon[0]=e.target.value||"🚶‍♂️";
+$("iconFast").oninput=e=>settings.icon[1]=e.target.value||"🏃‍♂️";
+function readIcon(file,idx){ const r=new FileReader(); r.onload=()=>settings.iconImg[idx]=r.result; r.readAsDataURL(file); }
+$("imgSlow").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],0); };
+$("imgFast").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],1); };
+$("imgSlowClear").onclick=()=>{ settings.iconImg[0]=null; $("imgSlow").value=""; };
+$("imgFastClear").onclick=()=>{ settings.iconImg[1]=null; $("imgFast").value=""; };
+
+$("saveBtn").onclick=()=>{
+  const name=($("inName").value||"").trim();
+  if(!name){ alert("Bir ad gir."); return; }
+  if(!state.segments.length){ alert("Boş antrenman kaydedilmez."); return; }
+  const all=loadAll();
+  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, icon:[...settings.icon], iconImg:[...settings.iconImg] };
+  saveAll(all); state.name=name; refreshSaved();
+  $("savedList").value=name; alert("Kaydedildi: "+name);
+};
+$("loadBtn").onclick=()=>{
+  const n=$("savedList").value; if(!n) return;
+  const all=loadAll(); const w=all[n]; if(!w) return;
+  state.variations=w.variations; state.segments=w.segments;
+  settings.prepSec=w.prepSec??5; settings.sound=w.sound??true; state.name=n;
+  settings.icon=w.icon||["🚶‍♂️","🏃‍♂️"]; settings.iconImg=w.iconImg||[null,null];
+  $("inName").value=n; $("inPrep").value=settings.prepSec;
+  $("iconSlow").value=settings.icon[0]; $("iconFast").value=settings.icon[1];
+  $("soundPill").classList.toggle("on",settings.sound);
+  $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
+  renderVars(); renderSegments();
+};
+$("delBtn").onclick=()=>{
+  const n=$("savedList").value; if(!n) return;
+  if(!confirm(n+" silinsin mi?")) return;
+  const all=loadAll(); delete all[n]; saveAll(all); refreshSaved();
+};
+
+$("startBtn").onclick=startPlayer;
+$("exitBtn").onclick=exitPlayer;
+$("playBtn").onclick=()=>{ if($("player").classList.contains("done")) return; P.running=!P.running; P.last=performance.now(); renderPlayer(); };
+$("prevBtn").onclick=()=>gotoSeg(P.idx-1);
+$("nextBtn").onclick=()=>gotoSeg(P.idx+1);
+
+/* çevrimdışı PWA */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+
+/* init */
+renderVars(); renderSegments(); refreshSaved(); generate();
+</script>
+</body>
+</html>
