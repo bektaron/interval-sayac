@@ -202,7 +202,7 @@
             <polyline class="ln partner" points="4,22 56,6"/>
           </g>
         </svg>
-        <span>Azalan</span>
+        <span>Doğrusal</span>
       </div>
       <div class="pat" data-pat="piramit">
         <svg viewBox="0 0 60 28">
@@ -294,6 +294,19 @@
           </g>
         </svg>
         <span>Çan</span>
+      </div>
+      <div class="pat" data-pat="ikiztepe">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal">
+            <polyline class="ln lead" points="4,23 18,4 30,14 42,4 56,23"/>
+            <polyline class="ln partner" points="4,26 18,7 30,17 42,7 56,26"/>
+          </g>
+          <g class="g-cross">
+            <polyline class="ln lead" points="4,23 18,4 30,14 42,4 56,23"/>
+            <polyline class="ln partner" points="4,4 18,23 30,13 42,23 56,4"/>
+          </g>
+        </svg>
+        <span>İkiz tepe</span>
       </div>
     </div>
 
@@ -493,6 +506,15 @@ function buildPrimary(pattern, L, F){
       for (let v=F; v<=L; v++) out.push(v);
       out.push(L, L);                                            // plato
       for (let v=L-1; v>=F; v--) out.push(v);
+      return out;
+    }
+    case "ikiztepe": {                                           // M: çık, yarıya in, tekrar zirve, in
+      const out=[];
+      const mid=Math.max(F, Math.ceil((L+F)/2));
+      for (let v=F; v<=L; v++) out.push(v);                      // 1. tırmanış
+      for (let v=L-1; v>=mid; v--) out.push(v);                  // ortaya in
+      for (let v=mid+1; v<=L; v++) out.push(v);                  // 2. zirve
+      for (let v=L-1; v>=F; v--) out.push(v);                    // iniş
       return out;
     }
   }
