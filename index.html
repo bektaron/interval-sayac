@@ -105,7 +105,7 @@
   #player .stat .cap{font-size:clamp(11px,3.2vw,17px);letter-spacing:.03em;text-transform:uppercase;opacity:.9;font-weight:700}
   #player .stat .val{font-size:clamp(22px,7vw,42px);font-weight:800}
   /* sıradaki interval satırı */
-  #player .pnextline{flex:0 0 auto;text-align:center;font-size:clamp(14px,4.2vw,26px);font-weight:600;opacity:.92;padding:0 4px}
+  #player .pnextline{flex:0 0 auto;text-align:center;font-size:clamp(14px,4.2vw,26px);font-weight:600;opacity:.92;padding:0 4px;margin-top:clamp(14px,4vh,44px)}
   /* orta: ad + sayaç + hayvan */
   #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
   #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
@@ -119,7 +119,7 @@
   #player .binfo .stat{flex:1 1 0;min-width:0}
   #player .goalmsg{font-size:clamp(10px,2.6vw,14px);font-weight:700;opacity:.8;line-height:1.05;margin-top:2px}
   /* profil */
-  #player .pprofile{flex:0 0 auto;height:clamp(52px,8vh,84px);background:rgba(0,0,0,.22);border-radius:12px;padding:8px}
+  #player .pprofile{flex:0 0 auto;height:clamp(130px,20vh,220px);background:rgba(0,0,0,.22);border-radius:12px;padding:10px}
   #player .pchart{position:relative;width:100%;height:100%}
   #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
   #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(20px,5vw,30px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
@@ -405,12 +405,12 @@
     <div class="pclock" id="pClock">0:00</div>
     <div class="panim" id="pAnim"></div>
   </div>
+  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
   <div class="binfo">
     <div class="stat"><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
     <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg">. dakikaya ulaşmak!</div></div>
     <div class="stat"><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
   </div>
-  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
   <div class="pbtns">
     <button id="prevBtn">⏮</button>
     <button id="playBtn" class="big">⏸</button>
