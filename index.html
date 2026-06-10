@@ -73,6 +73,7 @@
   .pat.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
   .patgrid.cross .g-normal{display:none}
   .patgrid:not(.cross) .g-cross{display:none}
+  .patgrid.flip .pat svg{transform:scaleX(-1)}   /* ters çevir: ikonlar da aynalanır */
   /* lider/eş renkleri; "önce" anahtarıyla takas */
   .pat .ln.lead{stroke:var(--slow)}
   .pat .ln.partner{stroke:var(--fast)}
@@ -202,19 +203,6 @@
           </g>
         </svg>
         <span>Azalan</span>
-      </div>
-      <div class="pat" data-pat="artan">
-        <svg viewBox="0 0 60 28">
-          <g class="g-normal">
-            <polyline class="ln lead" points="4,20 20,20 20,13 38,13 38,6 56,6"/>
-            <polyline class="ln partner" points="4,23 20,23 20,16 38,16 38,9 56,9"/>
-          </g>
-          <g class="g-cross">
-            <polyline class="ln lead" points="4,22 56,6"/>
-            <polyline class="ln partner" points="4,6 56,22"/>
-          </g>
-        </svg>
-        <span>Artan</span>
       </div>
       <div class="pat" data-pat="piramit">
         <svg viewBox="0 0 60 28">
@@ -868,6 +856,7 @@ document.querySelectorAll('input[name="step"]').forEach(r=>r.onchange=()=>{
 // ters yüz (radio)
 document.querySelectorAll('input[name="flip"]').forEach(r=>r.onchange=()=>{
   gen.flip = document.querySelector('input[name="flip"]:checked').value==="on";
+  $("patGrid").classList.toggle("flip",gen.flip);
   generate();
 });
 $("genBtn").onclick=generate;
