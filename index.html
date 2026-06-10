@@ -57,6 +57,11 @@
   .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
   .legend .lgi{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600}
   .legend .lgi i{width:14px;height:14px;border-radius:4px;display:inline-block;flex:0 0 auto}
+  .geninfo{display:flex;gap:10px;margin-bottom:10px}
+  .geninfo>div{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+               padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+  .geninfo .gcap{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .geninfo .gnum{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
   .radiorow{display:flex;flex-wrap:wrap;gap:8px}
   .radiorow label{display:flex;align-items:center;gap:8px;flex:1 1 150px;padding:11px 13px;border:1px solid var(--line);
                   border-radius:10px;background:var(--panel2);cursor:pointer;font-size:14px;font-weight:600}
@@ -328,6 +333,10 @@
       <label><input type="radio" name="flip" value="on"> Ters çevir</label>
     </div>
 
+    <div class="geninfo">
+      <div><span class="gcap">Segment</span><span class="gnum" id="giSeg">—</span></div>
+      <div><span class="gcap">Toplam süre</span><span class="gnum" id="giTot">—</span></div>
+    </div>
     <button id="genBtn" class="primary block">↻ Üret (mevcut listeyi değiştirir)</button>
     <div class="hint" id="genHint"></div>
   </div>
@@ -553,7 +562,7 @@ function generate(){
   if (gen.src === "longest"){
     const L = parseInt($("inLongest").value)||1;
     segs = buildSegments(gen.pattern, L, F, cross, firstFast, step, flip);
-    note = `En uzun ${L} dk → ${segs.length} segment, toplam ${fmt(segsTotalMin(segs)*60)} dk.`;
+    note = "";
   } else {
     // Toplam hedefe en yakın L'yi ara (adım kadar artarak)
     const T = parseInt($("inTotal").value)||10;
@@ -565,7 +574,7 @@ function generate(){
     }
     segs = best.s;
     const sign = best.tot>=T ? "+" : "−";
-    note = `Hedef ${T} dk → en uzun ${fmt(best.L*60)} dk. Gerçek toplam ${fmt(best.tot*60)} dk (fark ${sign}${Math.abs(best.tot-T).toFixed(1)} dk).`;
+    note = `Hedef ${T} dk → en uzun interval ${fmt(best.L*60)} seçildi (hedeften fark ${sign}${Math.abs(best.tot-T).toFixed(1)} dk).`;
   }
   state.segments = segs;
   $("genHint").textContent = note;
@@ -645,6 +654,8 @@ function renderSegments(){
   });
   $("segCount").textContent = state.segments.length;
   $("totalTime").textContent = fmt(tot===1&&state.segments.length===0?0:tot);
+  $("giSeg").textContent = state.segments.length;
+  $("giTot").textContent = fmt(tot===1&&state.segments.length===0?0:tot);
   const lg=$("legend");
   if(lg) lg.innerHTML = state.variations.map(v=>`<span class="lgi"><i style="background:${v.color}"></i>${v.name}</span>`).join("");
 }
