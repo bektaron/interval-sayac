@@ -91,52 +91,49 @@
   .hidden{display:none!important}
   .hint{font-size:12px;color:var(--muted);margin-top:8px}
 
-  /* ---- Player (big screen) ---- */
-  #player{position:fixed;inset:0;background:var(--slow);display:flex;flex-direction:column;
-          z-index:50;transition:background-color .35s;overflow:hidden}
-  #player .ptop{display:flex;justify-content:space-between;align-items:center;
-                padding:calc(env(safe-area-inset-top) + 14px) 18px 6px;font-weight:700}
-  #player .ptop .meta{display:flex;gap:14px;font-variant-numeric:tabular-nums;font-size:15px;opacity:.92}
-  #player .pmid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-  #player .pname{font-size:clamp(28px,8vw,54px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
-  #player .pclock{font-size:min(38vw,30vh);font-weight:800;line-height:.95;font-variant-numeric:tabular-nums;
-                  text-shadow:0 6px 40px rgba(0,0,0,.4)}
-  #player .pnext{font-size:clamp(19px,5vw,30px);opacity:.92;margin-top:8px}
-  #player .pbar{height:8px;background:rgba(255,255,255,.25);margin:0 18px}
-  #player .pbar > div{height:100%;background:#fff;width:0%}
-  #player .pbtns{display:flex;gap:10px;padding:14px 18px calc(env(safe-area-inset-bottom) + 18px)}
-  #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;
-                        padding:18px 10px;font-size:18px;border-radius:14px}
-  #player .pbtns button.big{flex:2;font-size:20px}
-  #player .x{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:14px;z-index:3;
-             background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:8px 12px}
-  /* köşe istatistikleri */
-  #player .stat{line-height:1.12;font-variant-numeric:tabular-nums;text-shadow:0 1px 8px rgba(0,0,0,.3);z-index:2}
-  #player .stat .cap{font-size:clamp(20px,4.6vw,28px);letter-spacing:.04em;text-transform:uppercase;opacity:.92;font-weight:700}
-  #player .stat .val{font-size:clamp(46px,12.5vw,78px);font-weight:800}
-  #player .goalmsg{font-size:clamp(20px,4.6vw,28px);font-weight:700;opacity:.9}
-  #player .srow{display:flex;gap:clamp(16px,4vw,40px);margin-top:8px;align-items:flex-end}
-  #player .ptopnext{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:50%;transform:translateX(-50%);max-width:78%;text-align:center;z-index:2}
-  #player .c-tl{position:absolute;top:calc(env(safe-area-inset-top) + 64px);left:18px}
-  #player .c-tr{position:absolute;top:calc(env(safe-area-inset-top) + 64px);right:18px;text-align:right}
-  #player .pbottom{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0 18px 8px;z-index:2}
-  /* desen profili (mini, çizgi) + imleç */
-  #player .pprofile{flex:0 0 auto;width:56%;min-width:260px;max-width:420px;height:186px;background:rgba(0,0,0,.22);border-radius:12px;padding:12px}
+  /* ---- Player (big screen) — akışkan dikey düzen, çakışmasız ---- */
+  #player{position:fixed;inset:0;background:var(--slow);display:flex;flex-direction:column;gap:4px;
+          z-index:50;transition:background-color .35s;overflow:hidden;
+          padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 10px)}
+  #player .ptop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex:0 0 auto}
+  #player .ptr{display:flex;align-items:flex-start;gap:8px}
+  #player .x{flex:0 0 auto;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.3);color:#fff;
+             border-radius:10px;padding:6px 11px;font-size:16px;line-height:1}
+  /* istatistik bloğu */
+  #player .stat{line-height:1.1;font-variant-numeric:tabular-nums;text-shadow:0 1px 8px rgba(0,0,0,.3)}
+  #player .stat.right{text-align:right}
+  #player .stat .cap{font-size:clamp(11px,3.2vw,17px);letter-spacing:.03em;text-transform:uppercase;opacity:.9;font-weight:700}
+  #player .stat .val{font-size:clamp(22px,7vw,42px);font-weight:800}
+  /* sıradaki interval satırı */
+  #player .pnextline{flex:0 0 auto;text-align:center;font-size:clamp(14px,4.2vw,26px);font-weight:600;opacity:.92;padding:0 4px}
+  /* orta: ad + sayaç + hayvan */
+  #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
+  #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+  #player .pclock{font-size:min(30vw,19vh);font-weight:800;line-height:.92;font-variant-numeric:tabular-nums;text-shadow:0 6px 40px rgba(0,0,0,.4)}
+  #player .panim{font-size:min(15vw,10vh);line-height:1;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
+  #player .panim img{height:min(15vw,10vh);width:auto;vertical-align:middle}
+  #player .panim:empty{display:none}
+  #player .flip{display:inline-block;transform:scaleX(-1)}
+  /* alt 3'lü istatistik */
+  #player .binfo{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-align:center}
+  #player .binfo .stat{flex:1 1 0;min-width:0}
+  #player .goalmsg{font-size:clamp(10px,2.6vw,14px);font-weight:700;opacity:.8;line-height:1.05;margin-top:2px}
+  /* profil */
+  #player .pprofile{flex:0 0 auto;height:clamp(52px,8vh,84px);background:rgba(0,0,0,.22);border-radius:12px;padding:8px}
   #player .pchart{position:relative;width:100%;height:100%}
-  #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(26px,6.5vw,42px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
+  #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
+  #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(20px,5vw,30px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
   #player .pmark:empty{display:none}
   #player .pmark img{height:1.25em;width:auto;vertical-align:middle}
-  #player .flip{display:inline-block;transform:scaleX(-1)}
-  /* sayacın altındaki tek, sabit hayvan (sağa bakar) */
-  #player .panim{font-size:clamp(66px,17vw,158px);line-height:1;margin-top:8px;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
-  #player .panim img{height:clamp(66px,17vw,158px);width:auto;vertical-align:middle}
-  #player .panim:empty{display:none}
-  #player.done .panim{display:none}
-  #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
-  #player.done .stat,#player.done .pbottom,#player.done .pprofile{display:none}
+  /* butonlar */
+  #player .pbtns{flex:0 0 auto;display:flex;gap:10px}
+  #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;padding:14px 10px;font-size:18px;border-radius:14px}
+  #player .pbtns button.big{flex:2;font-size:20px}
+  /* bitiş + durumlar */
+  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .panim,#player.done .pnextline{display:none}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
-  #player.done .pclock{font-size:18vw}
+  #player.done .pclock{font-size:22vw}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden}
 </style>
 </head>
@@ -395,25 +392,25 @@
 
 <!-- ===================== PLAYER ===================== -->
 <div id="player" class="hidden">
-  <button class="x" id="exitBtn">✕</button>
-  <div class="ptopnext"><span class="pnext" id="pNext"></span></div>
-  <div class="stat c-tl"><div class="cap">Interval</div><div class="val" id="pIndex">1/1</div></div>
-  <div class="stat c-tr"><div class="cap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
+  <div class="ptop">
+    <div class="stat"><div class="cap">Interval</div><div class="val" id="pIndex">1/1</div></div>
+    <div class="ptr">
+      <div class="stat right"><div class="cap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
+      <button class="x" id="exitBtn">✕</button>
+    </div>
+  </div>
+  <div class="pnextline" id="pNext"></div>
   <div class="pmid">
     <div class="pname" id="pName">—</div>
     <div class="pclock" id="pClock">0:00</div>
     <div class="panim" id="pAnim"></div>
   </div>
-  <div class="pbottom">
-    <div class="stat">
-      <div class="cap">Hedef</div><div class="val"><span id="pEndMin">0:00</span> <span class="goalmsg">. dakikaya ulaşmak!</span></div>
-      <div class="srow">
-        <div><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
-        <div><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
-      </div>
-    </div>
-    <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
+  <div class="binfo">
+    <div class="stat"><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
+    <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg">. dakikaya ulaşmak!</div></div>
+    <div class="stat"><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
   </div>
+  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
   <div class="pbtns">
     <button id="prevBtn">⏮</button>
     <button id="playBtn" class="big">⏸</button>
