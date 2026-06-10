@@ -315,10 +315,16 @@
       <label><input type="radio" name="cross" value="on"> Çaprazla (biri inerken diğeri çıkar)</label>
     </div>
 
-    <label class="lbl">Başlangıç</label>
+    <label class="lbl">İlk interval</label>
     <div class="radiorow" style="margin-bottom:12px">
-      <label><input type="radio" name="first" value="yavas" checked> Önce yavaş intervalle başla (en kısadan)</label>
-      <label><input type="radio" name="first" value="hizli"> Önce hızlı intervalle başla (en uzundan)</label>
+      <label><input type="radio" name="first" value="yavas" checked> Yavaş ile başla</label>
+      <label><input type="radio" name="first" value="hizli"> Hızlı ile başla</label>
+    </div>
+
+    <label class="lbl">Ters yüz et (profili baştan sona çevirir; çaprazda azalan rolü diğer moda geçer)</label>
+    <div class="radiorow" style="margin-bottom:12px">
+      <label><input type="radio" name="flip" value="off" checked> Normal</label>
+      <label><input type="radio" name="flip" value="on"> Ters çevir</label>
     </div>
 
     <button id="genBtn" class="primary block">↻ Üret (mevcut listeyi değiştirir)</button>
@@ -432,7 +438,7 @@ let state = {
   ],
   segments: [], // {v:0|1, sec:Number}
 };
-let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1 };
+let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1, flip: false };
 let settings = { prepSec: 5, sound: true, icon: ["🚶‍♂️","🏃‍♂️"], iconImg: [null,null] };
 
 const $ = (id) => document.getElementById(id);
@@ -507,22 +513,21 @@ function buildPrimary(pattern, L, F){
 
 // Ana diziden segmentleri kurar. Normal: iki mod paralel (aynı değer).
 // Çapraz: eş mod AYNA değeri alır -> biri yüksekken diğeri düşük.
-function buildSegments(pattern, L, F, cross, firstFast, step){
+function buildSegments(pattern, L, F, cross, firstFast, step, flip){
   step = step || 1;
   // desenler tamsayı "seviye" üzerinde çalışır; adım (1dk/30sn) ile dakikaya çevrilir
   const Lc = Math.max(1, Math.round(L/step));
   const Fc = Math.max(1, Math.round(F/step));
   let S = buildPrimary(pattern, Lc, Fc);
-  const pivot = Lc + Fc; // ayna ekseni (seviye)
-  // başlangıç: yavaş önce => en KISA'dan, hızlı önce => en UZUN'dan başla
-  const isMaxFirst = (S.length<2) || (S[0] >= S[S.length-1]);
-  if (firstFast !== isMaxFirst) S = [...S].reverse();
-  const lead = firstFast ? B : A, partner = firstFast ? A : B; // ilk oynayan varyasyon
+  if (flip) S = [...S].reverse();        // ters yüz: profili baştan sona çevir
+  const pivot = Lc + Fc;                  // ayna ekseni (seviye)
+  // Yavaş ana diziyi izler; Hızlı çaprazda aynayı, normalde aynısını alır.
+  // "İlk interval" yalnızca çiftin sırasını belirler, diziyi değiştirmez.
   const segs = [];
   for (const lv of S){
-    const other = cross ? (pivot - lv) : lv;
-    segs.push({ v:lead,    sec: Math.round(lv*step*60) });
-    segs.push({ v:partner, sec: Math.round(other*step*60) });
+    const a = { v:A, sec: Math.round(lv*step*60) };
+    const b = { v:B, sec: Math.round((cross ? pivot-lv : lv)*step*60) };
+    if (firstFast) segs.push(b, a); else segs.push(a, b);
   }
   return segs;
 }
@@ -532,19 +537,19 @@ function segsTotalMin(segs){ return segs.reduce((a,x)=>a+x.sec,0)/60; }
 function generate(){
   const F = parseInt($("inFloor").value)||1;
   const step = gen.step||1;
-  const cross = gen.cross, firstFast = gen.firstFast;
+  const cross = gen.cross, firstFast = gen.firstFast, flip = gen.flip;
   let segs, note = "";
 
   if (gen.src === "longest"){
     const L = parseInt($("inLongest").value)||1;
-    segs = buildSegments(gen.pattern, L, F, cross, firstFast, step);
+    segs = buildSegments(gen.pattern, L, F, cross, firstFast, step, flip);
     note = `En uzun ${L} dk → ${segs.length} segment, toplam ${fmt(segsTotalMin(segs)*60)} dk.`;
   } else {
     // Toplam hedefe en yakın L'yi ara (adım kadar artarak)
     const T = parseInt($("inTotal").value)||10;
     let best=null;
     for (let L=F; L<=120+1e-9; L+=step){
-      const s = buildSegments(gen.pattern, L, F, cross, firstFast, step);
+      const s = buildSegments(gen.pattern, L, F, cross, firstFast, step, flip);
       const diff = Math.abs(segsTotalMin(s) - T);
       if (!best || diff < best.diff) best = {L, s, diff, tot:segsTotalMin(s)};
     }
@@ -858,6 +863,11 @@ document.querySelectorAll('input[name="first"]').forEach(r=>r.onchange=()=>{
 // adım (radio)
 document.querySelectorAll('input[name="step"]').forEach(r=>r.onchange=()=>{
   gen.step = parseFloat(document.querySelector('input[name="step"]:checked').value);
+  generate();
+});
+// ters yüz (radio)
+document.querySelectorAll('input[name="flip"]').forEach(r=>r.onchange=()=>{
+  gen.flip = document.querySelector('input[name="flip"]:checked').value==="on";
   generate();
 });
 $("genBtn").onclick=generate;
