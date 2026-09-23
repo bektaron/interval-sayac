@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b1120">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yemek">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Yemek Günlüğü</title>
+<style>
+  :root{
+    --bg:#0b1120; --panel:#131c2e; --panel2:#1b2740; --line:#26334d;
+    --txt:#e7eefc; --muted:#8aa0c7; --accent:#38bdf8;
+    --prot:#38bdf8; --carb:#fbbf24; --fat:#fb7185;
+    --ok:#22c55e; --warn:#f97316;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.4;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  h1{font-size:20px;margin:0}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  .wrap{max-width:680px;margin:0 auto;padding:16px 14px 80px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.tight{gap:6px}
+  .row.between{justify-content:space-between}
+  label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  input,select,button{font:inherit;color:var(--txt)}
+  input[type=text],input[type=number],input[type=date],input[type=search],select{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;width:100%;outline:none;min-height:44px;
+  }
+  input[type=number]{-moz-appearance:textfield}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input:focus,select:focus{border-color:var(--accent)}
+  input[type=date]{color-scheme:dark}
+  button{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;cursor:pointer;font-weight:600;transition:.12s;min-height:44px;
+  }
+  button:active{transform:scale(.97)}
+  button.primary{background:var(--accent);color:#04243a;border-color:var(--accent)}
+  button.ghost{background:transparent}
+  button.danger{color:#fda4af;border-color:#7f1d2d}
+  button.block{width:100%;justify-content:center;margin-top:10px}
+  button.sm{padding:6px 10px;font-size:13px;min-height:36px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;
+        border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:14px}
+  .pill.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .hidden{display:none!important}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .tag{font-size:10px;padding:2px 6px;border-radius:6px;background:#0e2a3d;color:var(--accent);margin-left:6px;vertical-align:middle;font-weight:700}
+
+  /* üst şerit + sekmeler */
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px}
+  .tab{background:transparent;border:0;padding:8px 12px;border-radius:9px;color:var(--muted);min-height:36px}
+  .tab.on{background:var(--panel2);color:var(--txt)}
+
+  /* tarih çubuğu */
+  .datebar{display:flex;gap:8px;align-items:center;padding:10px}
+  .datebar input[type=date]{flex:1 1 auto;min-width:0;text-align:center;font-weight:700}
+  .datebar button{flex:0 0 auto;padding:10px 12px}
+  .datelbl{text-align:center;font-size:13px;color:var(--muted);margin:-6px 0 12px}
+
+  /* özet */
+  .geninfo{display:flex;gap:10px;margin-bottom:10px}
+  .geninfo>div{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+               padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+  .geninfo .gcap{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .geninfo .gnum{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+  .geninfo .gnum small{font-size:13px;font-weight:600;color:var(--muted);margin-left:4px}
+  .tgt{margin:4px 0 8px}
+  .tgtl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .tbar{height:8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
+  .tbar>div{height:100%;transition:width .3s}
+  .mtab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px;margin-top:8px;table-layout:auto}
+  .mtab th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:right;padding:6px 3px;font-weight:700;white-space:nowrap}
+  .mtab th:first-child,.mtab td:first-child{text-align:left}
+  .mtab td{padding:9px 3px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+  .mtab td:first-child{white-space:normal}
+  .mtab tr.tot td{color:var(--muted);font-weight:700}
+  .mtab small{color:var(--muted);font-size:11px;margin-left:3px}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:middle}
+  .barlbl{font-size:12px;color:var(--muted);margin:12px 0 4px;display:flex;justify-content:space-between}
+  .bar{display:flex;height:24px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--panel2)}
+  .bar>div{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0b1120;overflow:hidden;white-space:nowrap;transition:width .3s}
+  .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .legend .lgi{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600}
+  .legend .lgi i{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+  /* arama + ekleme */
+  .results{margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
+  .results:empty{display:none}
+  .res{display:flex;justify-content:space-between;gap:8px;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer;align-items:center}
+  .res:first-child{border-top:0}
+  .res:active,.res.hl{background:#0e2a3d}
+  .res .muted{font-size:12px;white-space:nowrap}
+  .selbox{margin-top:12px;border:1px solid var(--accent);border-radius:12px;padding:12px;background:#0e2a3d33}
+  .selname{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+  .selname .muted{font-size:12px}
+  .calc{margin-top:10px;font-variant-numeric:tabular-nums;font-size:14px}
+  .gline{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;display:flex;align-items:center;font-variant-numeric:tabular-nums;font-weight:700}
+  .res.ai{color:var(--accent);font-weight:600}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .conf{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin-left:6px}
+  .calc b{font-size:18px}
+  details summary{cursor:pointer;color:var(--muted);font-weight:600;padding:8px 0;list-style:none}
+  details summary::before{content:"▸ ";}
+  details[open] summary::before{content:"▾ ";}
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:10px;cursor:pointer}
+  .chk input{accent-color:var(--accent);width:18px;height:18px;margin:0}
+
+  /* günlük kayıtları */
+  .mealh{display:flex;justify-content:space-between;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:12px 0 6px;font-variant-numeric:tabular-nums}
+  .mealh:first-child{margin-top:0}
+  .ent,.food{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:6px}
+  .ent .en,.food .en{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+  .ent .en b,.food .en b{overflow-wrap:anywhere;line-height:1.25}
+  .ent .en .muted,.food .en .muted{font-size:12px;overflow-wrap:anywhere}
+  .ent .ev{text-align:right;display:flex;flex-direction:column;font-variant-numeric:tabular-nums;flex:0 0 auto}
+  .mini{font-size:11px;color:var(--muted);white-space:nowrap}
+  .mini i{font-style:normal;font-weight:700}
+  .acts{display:flex;gap:4px;flex:0 0 auto}
+  .acts button{padding:6px 9px;font-size:14px;min-height:36px}
+  .ent.edit{flex-direction:column;align-items:stretch;border-color:var(--accent)}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px}
+
+  /* geçmiş */
+  .htab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+  .htab th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:right;padding:6px 4px;font-weight:700}
+  .htab th:first-child,.htab td:first-child{text-align:left}
+  .htab td{padding:8px 4px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+  .htab tr[data-date]{cursor:pointer}
+  .htab tr.dim td{color:var(--muted);opacity:.55}
+  .htab tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+  .htab .mini{font-size:11px}
+  @media (max-width:420px){ .grid4{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>🍽️ Yemek Günlüğü</h1>
+    <nav class="tabs">
+      <button class="tab on" data-tab="gunluk">Günlük</button>
+      <button class="tab" data-tab="yiyecek">Yiyecekler</button>
+      <button class="tab" data-tab="gecmis">Geçmiş</button>
+    </nav>
+  </div>
+
+  <!-- ===================== GÜNLÜK ===================== -->
+  <section id="tab-gunluk">
+    <div class="card datebar">
+      <button id="prevDay" title="Önceki gün">◀</button>
+      <input type="date" id="dateInp">
+      <button id="nextDay" title="Sonraki gün">▶</button>
+      <button id="todayBtn" class="ghost">Bugün</button>
+    </div>
+    <div class="datelbl" id="dateLbl"></div>
+
+    <div class="card">
+      <h2>Özet</h2>
+      <div class="geninfo">
+        <div><span class="gcap">Toplam kalori</span><span class="gnum"><span id="sumKcal">0</span><small>kcal</small></span></div>
+        <div><span class="gcap">Yenen ağırlık</span><span class="gnum"><span id="sumG">0</span><small>g</small></span></div>
+      </div>
+      <div id="targetBox"></div>
+      <table class="mtab">
+        <thead><tr><th>Makro</th><th>Gram</th><th>kcal</th><th>Enerji %</th><th>Ağırlık %</th></tr></thead>
+        <tbody id="mtabBody"></tbody>
+      </table>
+      <div class="barlbl"><span>Enerji dağılımı</span><span id="barELbl"></span></div>
+      <div class="bar" id="barE"></div>
+      <div class="barlbl"><span>Ağırlık dağılımı</span><span id="barWLbl"></span></div>
+      <div class="bar" id="barW"></div>
+      <div class="legend">
+        <span class="lgi"><i style="background:var(--prot)"></i>Protein</span>
+        <span class="lgi"><i style="background:var(--carb)"></i>Karbonhidrat</span>
+        <span class="lgi"><i style="background:var(--fat)"></i>Yağ</span>
+      </div>
+      <div class="hint" id="sumHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>Ekle</h2>
+      <input type="search" id="q" placeholder="Yiyecek ara… (yumurta, pilav, elma)" autocomplete="off" autocorrect="off" autocapitalize="off">
+      <div id="results" class="results"></div>
+      <div id="recentBox" style="margin-top:10px"></div>
+
+      <div id="selBox" class="selbox hidden">
+        <div class="selname"><b id="selName"></b><span class="muted" id="selPer100"></span></div>
+        <div class="grid2" style="grid-template-columns:1fr 1.8fr">
+          <div><label class="lbl">Miktar</label><input type="number" id="selQ" min="0" step="any" inputmode="decimal"></div>
+          <div><label class="lbl">Birim</label><select id="selUnit"></select></div>
+        </div>
+        <div class="chips" id="qtyChips" style="margin-top:8px"></div>
+        <div class="grid2" style="margin-top:8px">
+          <div><label class="lbl">Öğün</label><select id="selMeal"></select></div>
+          <div><label class="lbl">Ağırlık</label><div class="gline" id="selGrams"></div></div>
+        </div>
+        <div class="calc" id="selCalc"></div>
+        <button class="primary block" id="addBtn">Günlüğe ekle</button>
+        <div class="hint" id="selUnitHint"></div>
+      </div>
+
+      <div id="aiBox" class="selbox hidden"></div>
+
+      <details style="margin-top:8px">
+        <summary>Elle gir (etiket değerleriyle)</summary>
+        <div class="grid2" style="margin-top:6px">
+          <div><label class="lbl">Ad</label><input type="text" id="mName" placeholder="Örn. Protein bar"></div>
+          <div><label class="lbl">Miktar (g, isteğe bağlı)</label><input type="number" id="mG" min="0" step="1" inputmode="decimal"></div>
+        </div>
+        <label class="lbl" style="margin-top:8px">Yenen porsiyon için değerler</label>
+        <div class="grid4">
+          <div><label class="lbl">kcal</label><input type="number" id="mKcal" min="0" step="1" inputmode="decimal"></div>
+          <div><label class="lbl">Protein g</label><input type="number" id="mP" min="0" step="0.1" inputmode="decimal"></div>
+          <div><label class="lbl">Karb g</label><input type="number" id="mC" min="0" step="0.1" inputmode="decimal"></div>
+          <div><label class="lbl">Yağ g</label><input type="number" id="mF" min="0" step="0.1" inputmode="decimal"></div>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <div><label class="lbl">Öğün</label><select id="mMeal"></select></div>
+          <div><label class="chk"><input type="checkbox" id="mSave"> Yiyecek listesine de kaydet</label></div>
+        </div>
+        <button class="block" id="mAddBtn">Elle ekle</button>
+        <div class="hint">Kalori boş bırakılırsa makrolardan (4/4/9) hesaplanır. Listeye kaydetmek için miktar (g) gerekir.</div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Günün kayıtları</h2>
+      <div id="logBody"></div>
+    </div>
+  </section>
+
+  <!-- ===================== YİYECEKLER ===================== -->
+  <section id="tab-yiyecek" class="hidden">
+    <div class="card">
+      <div class="row between" style="margin-bottom:10px">
+        <h2 style="margin:0">Yiyecekler <span class="muted" id="foodCount"></span></h2>
+        <button class="primary sm" id="newFood">+ Yeni</button>
+      </div>
+      <input type="search" id="fq" placeholder="Ara…" autocomplete="off" autocorrect="off" autocapitalize="off">
+
+      <div id="foodForm" class="selbox hidden">
+        <h2 id="fTitle">Yeni yiyecek</h2>
+        <label class="lbl">Ad</label>
+        <input type="text" id="fName" placeholder="Örn. Ev yapımı granola">
+        <label class="lbl" style="margin-top:8px">100 g için değerler</label>
+        <div class="grid4">
+          <div><label class="lbl">kcal</label><input type="number" id="fKcal" min="0" step="1" inputmode="decimal"></div>
+          <div><label class="lbl">Protein g</label><input type="number" id="fP" min="0" step="0.1" inputmode="decimal"></div>
+          <div><label class="lbl">Karb g</label><input type="number" id="fC" min="0" step="0.1" inputmode="decimal"></div>
+          <div><label class="lbl">Yağ g</label><input type="number" id="fF" min="0" step="0.1" inputmode="decimal"></div>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <div><label class="lbl">Porsiyon adı (isteğe bağlı)</label><input type="text" id="fPl" placeholder="1 dilim"></div>
+          <div><label class="lbl">Porsiyon (g)</label><input type="number" id="fPg" min="0" step="1" inputmode="decimal"></div>
+        </div>
+        <label class="lbl" style="margin-top:8px">Kategori (kaşık/kase/tabak gram varsayılanları için)</label>
+        <select id="fCat"></select>
+        <details style="margin-top:4px">
+          <summary>Ölçü birimleri (gram karşılıkları)</summary>
+          <div class="grid4" style="margin-top:6px">
+            <div><label class="lbl">Yemek kaşığı</label><input type="number" id="fU_yk" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Tatlı kaşığı</label><input type="number" id="fU_tk" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Çay kaşığı</label><input type="number" id="fU_ck" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Kase</label><input type="number" id="fU_kase" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Yemek tabağı</label><input type="number" id="fU_tabak" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Su bardağı</label><input type="number" id="fU_bardak" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="lbl">Porsiyon</label><input type="number" id="fU_porsiyon" min="0" step="1" inputmode="decimal"></div>
+          </div>
+          <div class="hint">Boş bırakılan alanlar kategori varsayılanını kullanır.</div>
+        </details>
+        <div class="hint" id="fNote"></div>
+        <div class="hint" id="fCalcHint"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="fSave">Kaydet</button>
+          <button class="ghost" id="fCancel">İptal</button>
+          <button class="ghost hidden" id="fReset">Varsayılana dön</button>
+          <button class="ghost danger hidden" id="fDel" style="margin-left:auto">Sil</button>
+        </div>
+      </div>
+
+      <div id="foodList" style="margin-top:10px"></div>
+      <div id="hiddenBox"></div>
+      <div class="hint">Değerler 100 g başınadır. Temel gıdalar (yumurta, süt ürünleri, tahıl, yağ, kuruyemiş, meyve-sebze) standart besin tablosu ortalamalarıdır; karma Türk yemekleri (çorba, kebap, zeytinyağlı, börek, tatlı) tarife göre değişen yaklaşık değerlerdir (±%20). Etiket veya kendi tarifin farklıysa ✎ ile düzenle; düzenlemeler bu cihazda saklanır.</div>
+    </div>
+
+    <div class="card hidden" id="wishCard">
+      <h2>Araştırılacaklar <span class="muted" id="wishCount"></span></h2>
+      <div id="wishList"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="wishCopy">Listeyi kopyala</button>
+        <button class="ghost danger" id="wishClear" style="margin-left:auto">Temizle</button>
+      </div>
+      <div class="hint">Listede olmayan yemekler burada birikir. API anahtarı girdiysen 🔎 ile tek tek Claude'a sorabilirsin; girmediysen listeyi kopyalayıp Claude'a sohbette gönder, değerler yerleşik tabloya eklensin.</div>
+    </div>
+  </section>
+
+  <!-- ===================== GEÇMİŞ ===================== -->
+  <section id="tab-gecmis" class="hidden">
+    <div class="card">
+      <h2>Son 14 gün</h2>
+      <table class="htab">
+        <thead><tr><th>Gün</th><th>kcal</th><th>P g</th><th>K g</th><th>Y g</th><th>E% P/K/Y</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+      <div class="hint">Satıra dokununca o güne gider. E%: enerjinin protein / karbonhidrat / yağ payı.</div>
+    </div>
+
+    <div class="card">
+      <h2>Hedefler</h2>
+      <div class="grid4">
+        <div><label class="lbl">Günlük kcal</label><input type="number" id="tKcal" min="0" step="10" inputmode="numeric" placeholder="2000"></div>
+        <div><label class="lbl">Protein E%</label><input type="number" id="tP" min="0" max="100" step="1" inputmode="numeric" placeholder="30"></div>
+        <div><label class="lbl">Karb E%</label><input type="number" id="tC" min="0" max="100" step="1" inputmode="numeric" placeholder="40"></div>
+        <div><label class="lbl">Yağ E%</label><input type="number" id="tF" min="0" max="100" step="1" inputmode="numeric" placeholder="30"></div>
+      </div>
+      <div class="hint" id="tHint"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="tSave">Kaydet</button>
+        <span class="muted" id="tMsg" style="font-size:13px"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Claude ile araştırma</h2>
+      <label class="lbl">Anthropic API anahtarı</label>
+      <input type="password" id="aiKey" placeholder="sk-ant-…" autocomplete="off">
+      <label class="chk"><input type="checkbox" id="aiWeb"> Önce internette güvenilir tarif/kaynak ara (daha isabetli; biraz daha yavaş ve pahalı)</label>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="aiKeySave">Kaydet</button>
+        <span class="muted" id="aiMsg" style="font-size:13px"></span>
+      </div>
+      <div class="hint">Listede olmayan bir yemeği aradığında “Claude'a sor” ile en yaygın/güvenilir tarife göre 100 g besin değeri, porsiyon ve kaşık/kase/tabak gramları hesaplanır ve “AI” etiketiyle listene kaydedilir; liste böyle zamanla dolar. Anahtar yalnızca bu cihazda saklanır ve doğrudan api.anthropic.com'a gönderilir; her sorgu Anthropic hesabından ücretlendirilir. Anahtar almak için: console.anthropic.com → API Keys.</div>
+    </div>
+
+    <div class="card">
+      <h2>Veri</h2>
+      <div class="row">
+        <button id="exportBtn">Dışa aktar (JSON)</button>
+        <button id="importBtn">İçe aktar</button>
+        <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+        <button class="ghost danger" id="wipeBtn" style="margin-left:auto">Tüm veriyi sil</button>
+      </div>
+      <div class="hint">Veriler yalnızca bu cihazda (tarayıcı depolamasında) tutulur. Yedek almak için dışa aktar.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const MEALS = ["Kahvaltı", "Öğle", "Akşam", "Ara öğün"];
+// [anahtar, ad, css rengi, kcal/g (Atwater)]
+const MAC = [["p", "Protein", "--prot", 4], ["c", "Karbonhidrat", "--carb", 4], ["f", "Yağ", "--fat", 9]];
+
+/* ------------------------------------------------------------------ */
+/* Ölçü birimleri — kategoriye göre yaklaşık gram karşılıkları         */
+/* ------------------------------------------------------------------ */
+const CATS = {corba:"Çorba", yemek:"Sulu / etli / zeytinyağlı yemek", tahil:"Pilav, makarna, tahıl", hamur:"Ekmek, börek, hamur işi",
+  et:"Et, tavuk, balık, yumurta", baklagil:"Baklagil", sebze:"Sebze, salata", meyve:"Meyve", sut:"Süt, yoğurt, ayran",
+  peynir:"Peynir, kaymak", meze:"Meze, ezme, sos", yag:"Yağ, bal, reçel, tahin", kuruyemis:"Kuruyemiş, kuru meyve",
+  tatli:"Tatlı, atıştırmalık", icecek:"İçecek", diger:"Diğer"};
+const UNITS = [["yk", "yemek kaşığı"], ["tk", "tatlı kaşığı"], ["ck", "çay kaşığı"], ["kase", "kase"], ["tabak", "yemek tabağı"], ["bardak", "su bardağı"], ["porsiyon", "porsiyon"]];
+const UNIT_DEF = {
+  corba:    {yk:15, tk:8,  ck:5, kase:250, tabak:300, bardak:200, porsiyon:250},
+  yemek:    {yk:25, tk:12, ck:6, kase:200, tabak:300, bardak:200, porsiyon:250},
+  tahil:    {yk:20, tk:10, ck:5, kase:200, tabak:250, bardak:180, porsiyon:150},
+  hamur:    {yk:15, tk:8,  ck:4, kase:100, tabak:200, bardak:100, porsiyon:100},
+  et:       {yk:20, tk:10, ck:5, kase:150, tabak:200, bardak:150, porsiyon:150},
+  baklagil: {yk:20, tk:10, ck:5, kase:200, tabak:250, bardak:180, porsiyon:200},
+  sebze:    {yk:20, tk:10, ck:5, kase:150, tabak:250, bardak:150, porsiyon:150},
+  meyve:    {yk:15, tk:8,  ck:5, kase:150, tabak:250, bardak:200, porsiyon:150},
+  sut:      {yk:15, tk:8,  ck:5, kase:200, tabak:250, bardak:200, porsiyon:200},
+  peynir:   {yk:25, tk:12, ck:6, kase:150, tabak:150, bardak:150, porsiyon:30},
+  meze:     {yk:25, tk:12, ck:6, kase:150, tabak:200, bardak:150, porsiyon:100},
+  yag:      {yk:14, tk:7,  ck:4, kase:100, tabak:100, bardak:200, porsiyon:10},
+  kuruyemis:{yk:10, tk:5,  ck:3, kase:100, tabak:100, bardak:120, porsiyon:30},
+  tatli:    {yk:20, tk:10, ck:5, kase:150, tabak:200, bardak:200, porsiyon:100},
+  icecek:   {yk:15, tk:8,  ck:5, kase:250, tabak:250, bardak:200, porsiyon:200},
+  diger:    {yk:15, tk:8,  ck:5, kase:200, tabak:250, bardak:200, porsiyon:100},
+};
+const STD_UNIT = {"yemek kaşığı":"yk", "tatlı kaşığı":"tk", "çay kaşığı":"ck", "kase":"kase", "yemek tabağı":"tabak", "su bardağı":"bardak", "porsiyon":"porsiyon"};
+function unitDefaults(f){ return Object.assign({}, UNIT_DEF[f.cat] || UNIT_DEF.diger, f.u || {}); }
+// Yiyeceğin kendi porsiyonu ("1 dilim" 25 g, "1/2 su bardağı" 40 g …) → birim
+function ownUnit(f){
+  if (!(f.pg > 0)) return null;
+  const m = String(f.pl || "1 porsiyon").trim().match(/^(\d+\/\d+|½|\d+(?:[.,]\d+)?)?\s*(.*)$/);
+  const qs = m[1] || "", label = (m[2] || "").trim() || "porsiyon";
+  let q = 1;
+  if (qs === "½") q = 0.5;
+  else if (qs.includes("/")){ const [a, b] = qs.split("/").map(Number); q = b ? a / b : 1; }
+  else if (qs) q = parseFloat(qs.replace(",", ".")) || 1;
+  return {key:"own", label, g:f.pg / q, std:STD_UNIT[label] || null};
+}
+function unitList(f){
+  const d = unitDefaults(f), own = ownUnit(f), list = [];
+  if (own) list.push(own);
+  for (const [k, label] of UNITS){ if (own && own.std === k) continue; list.push({key:k, label, g:d[k]}); }
+  list.push({key:"g", label:"gram", g:1});
+  return list;
+}
+function fmtQ(q){ if (q === 0.5) return "½"; if (q === 1.5) return "1½"; return fmt1(q); }
+
+/* ------------------------------------------------------------------ */
+/* Yerleşik yiyecek tablosu — 100 g başına yaklaşık değerler           */
+/* [id, ad, kcal, protein, karbonhidrat, yağ, porsiyon adı, porsiyon g, kategori] */
+/* ------------------------------------------------------------------ */
+const BUILTIN = [
+  // Ekmek & tahıl
+  ["ekmek-beyaz","Beyaz ekmek",265,9,49,3.2,"1 dilim",25,"hamur"],
+  ["ekmek-tam","Tam buğday ekmeği",247,13,41,3.4,"1 dilim",25,"hamur"],
+  ["ekmek-cavdar","Çavdar ekmeği",259,8.5,48,3.3,"1 dilim",25,"hamur"],
+  ["lavas","Lavaş",275,9,56,1.5,"1 adet",60,"hamur"],
+  ["yufka","Yufka",300,9,60,2,"1 adet",120,"hamur"],
+  ["simit","Simit",300,9.5,56,4.5,"1 adet",100,"hamur"],
+  ["pogaca","Poğaça",370,8,40,20,"1 adet",80,"hamur"],
+  ["borek","Börek (peynirli)",300,9,30,16,"1 dilim",100,"hamur"],
+  ["pirinc-sade","Pirinç (pişmiş, sade)",130,2.7,28,0.3,"1 porsiyon",150,"tahil"],
+  ["pilav","Pirinç pilavı (yağlı)",165,3,27,5,"1 porsiyon",150,"tahil"],
+  ["bulgur-sade","Bulgur (pişmiş, sade)",83,3.1,18.6,0.2,"1 porsiyon",150,"tahil"],
+  ["bulgur-pilav","Bulgur pilavı (yağlı)",120,3.5,20,3.5,"1 porsiyon",150,"tahil"],
+  ["makarna","Makarna (pişmiş)",158,5.8,31,0.9,"1 porsiyon",200,"tahil"],
+  ["pirinc-cig","Pirinç (çiğ)",365,7,80,0.7,"1 su bardağı",200,"tahil"],
+  ["bulgur-cig","Bulgur (çiğ)",342,12.3,76,1.3,"1 su bardağı",180,"tahil"],
+  ["makarna-cig","Makarna (çiğ)",371,13,75,1.5,"1 porsiyon",80,"tahil"],
+  ["un","Un (beyaz)",364,10.3,76,1,"1 su bardağı",130,"tahil"],
+  ["yulaf","Yulaf ezmesi (kuru)",389,17,66,7,"1/2 su bardağı",40,"tahil"],
+  ["musli","Müsli",350,10,65,6,"1 kase",50,"tahil"],
+  ["misir-gevregi","Mısır gevreği",357,7,84,0.4,"1 kase",30,"tahil"],
+  ["kinoa","Kinoa (pişmiş)",120,4.4,21,1.9,"1 porsiyon",150,"tahil"],
+  ["patates-has","Patates (haşlanmış)",87,1.9,20,0.1,"1 orta boy",150,"tahil"],
+  ["patates-kiz","Patates kızartması",312,3.4,41,15,"1 porsiyon",150,"tahil"],
+  ["misir","Mısır (haşlanmış)",96,3.4,21,1.5,"1 adet",100,"tahil"],
+  // Yumurta
+  ["yumurta","Yumurta (haşlanmış)",155,12.6,1.1,10.6,"1 adet",50,"diger"],
+  ["yumurta-beyazi","Yumurta beyazı",52,10.9,0.7,0.2,"1 adet",33,"diger"],
+  ["yumurta-sarisi","Yumurta sarısı",322,15.9,3.6,26.5,"1 adet",17,"diger"],
+  ["menemen","Menemen",110,5,5,8,"1 porsiyon",200,"yemek"],
+  // Süt ürünleri
+  ["sut-tam","Süt (tam yağlı)",61,3.2,4.8,3.3,"1 bardak",200,"sut"],
+  ["sut-yarim","Süt (yarım yağlı)",47,3.3,4.8,1.6,"1 bardak",200,"sut"],
+  ["yogurt","Yoğurt (tam yağlı)",61,3.5,4.7,3.3,"1 kase",200,"sut"],
+  ["suzme-yogurt","Süzme yoğurt",97,9,3.9,5,"1 kase",200,"sut"],
+  ["ayran","Ayran",36,1.7,2.4,2,"1 bardak",200,"sut"],
+  ["kefir","Kefir",55,3.3,4.5,3,"1 bardak",200,"sut"],
+  ["cacik","Cacık",45,2,3,2.5,"1 kase",200,"sut"],
+  ["beyaz-peynir","Beyaz peynir (tam yağlı)",270,16,2,22,"1 dilim",30,"peynir"],
+  ["kasar","Kaşar peyniri",375,24,2,30,"1 dilim",25,"peynir"],
+  ["lor","Lor peyniri",98,12,3,4,"1 yemek kaşığı",25,"peynir"],
+  ["labne","Labne",240,6,4,22,"1 yemek kaşığı",20,"peynir"],
+  ["kaymak","Kaymak",400,3,3,42,"1 yemek kaşığı",20,"peynir"],
+  ["krema","Krema",340,2,3,36,"1 yemek kaşığı",15,"peynir"],
+  ["tereyagi","Tereyağı",717,0.9,0.1,81,"1 yemek kaşığı",14,"yag"],
+  // Et, tavuk, balık
+  ["tavuk-gogus","Tavuk göğsü (ızgara, derisiz)",165,31,0,3.6,"1 porsiyon",150,"et"],
+  ["tavuk-but","Tavuk but (derisiz, pişmiş)",209,26,0,11,"1 adet",120,"et"],
+  ["tavuk-sote","Tavuk sote",150,20,4,6,"1 porsiyon",200,"et"],
+  ["hindi","Hindi göğsü (pişmiş)",135,30,0,1,"1 porsiyon",150,"et"],
+  ["dana","Dana eti (yağsız, pişmiş)",250,26,0,15,"1 porsiyon",150,"et"],
+  ["kiyma","Dana kıyma (pişmiş)",254,25.5,0,16,"1 porsiyon",120,"et"],
+  ["kuzu","Kuzu eti (pişmiş)",294,25,0,21,"1 porsiyon",150,"et"],
+  ["kofte","Köfte (ızgara)",250,18,6,17,"1 adet",35,"et"],
+  ["et-sote","Et sote",190,20,4,11,"1 porsiyon",200,"et"],
+  ["doner-tavuk","Tavuk döner",220,20,8,12,"1 porsiyon",150,"et"],
+  ["doner-et","Et döner",260,20,6,17,"1 porsiyon",150,"et"],
+  ["sucuk","Sucuk",450,20,2,40,"1 dilim",10,"et"],
+  ["salam","Salam",300,13,3,26,"1 dilim",15,"et"],
+  ["sosis","Sosis",300,12,3,27,"1 adet",40,"et"],
+  ["pastirma","Pastırma",250,35,0,12,"1 dilim",8,"et"],
+  ["somon","Somon (pişmiş)",208,20,0,13,"1 porsiyon",150,"et"],
+  ["levrek","Levrek / çipura (ızgara)",124,24,0,2.5,"1 adet",250,"et"],
+  ["balik-beyaz","Balık (beyaz, ızgara)",120,23,0,2.5,"1 porsiyon",150,"et"],
+  ["ton","Ton balığı (konserve, suda)",116,26,0,1,"1 kutu (süzülmüş)",120,"et"],
+  ["karides","Karides (pişmiş)",99,24,0.3,0.3,"1 porsiyon",100,"et"],
+  // Baklagil & vejetaryen
+  ["mercimek-corba","Mercimek çorbası",60,3.5,9,1.5,"1 kase",250,"corba"],
+  ["mercimek-kirmizi","Kırmızı mercimek (pişmiş)",116,9,20,0.4,"1 porsiyon",200,"baklagil"],
+  ["mercimek-yesil","Yeşil mercimek (pişmiş)",116,9,20,0.4,"1 porsiyon",200,"baklagil"],
+  ["nohut","Nohut (pişmiş)",164,8.9,27.4,2.6,"1 porsiyon",200,"baklagil"],
+  ["fasulye-sade","Kuru fasulye (haşlanmış)",139,9.7,25,0.4,"1 porsiyon",200,"baklagil"],
+  ["fasulye-yemek","Kuru fasulye yemeği",120,6,13,5,"1 porsiyon",250,"baklagil"],
+  ["bezelye","Bezelye (pişmiş)",84,5.4,15.6,0.2,"1 porsiyon",150,"baklagil"],
+  ["humus","Humus",166,8,14.3,9.6,"1 yemek kaşığı",25,"meze"],
+  ["tofu","Tofu",76,8,1.9,4.8,"1 porsiyon",100,"baklagil"],
+  ["mercimek-kofte","Mercimek köftesi",170,6,25,6,"1 adet",30,"baklagil"],
+  ["cig-kofte","Çiğ köfte (etsiz)",180,5,30,5,"1 adet",25,"baklagil"],
+  ["kisir","Kısır",150,4,24,5,"1 porsiyon",150,"tahil"],
+  // Sebze
+  ["domates","Domates",18,0.9,3.9,0.2,"1 orta boy",120,"sebze"],
+  ["salatalik","Salatalık",15,0.7,3.6,0.1,"1 adet",150,"sebze"],
+  ["biber","Yeşil biber",20,0.9,4.6,0.2,"1 adet",40,"sebze"],
+  ["sogan","Soğan",40,1.1,9.3,0.1,"1 orta boy",100,"sebze"],
+  ["marul","Marul / yeşil salata",15,1.4,2.9,0.2,"1 kase",80,"sebze"],
+  ["havuc","Havuç",41,0.9,9.6,0.2,"1 adet",70,"sebze"],
+  ["brokoli","Brokoli (haşlanmış)",35,2.4,7.2,0.4,"1 porsiyon",150,"sebze"],
+  ["ispanak","Ispanak (pişmiş)",23,3,3.8,0.3,"1 porsiyon",200,"sebze"],
+  ["kabak","Kabak (pişmiş)",15,1.1,2.7,0.4,"1 porsiyon",200,"sebze"],
+  ["patlican","Patlıcan (pişmiş)",35,0.8,8.7,0.2,"1 porsiyon",150,"sebze"],
+  ["lahana","Lahana",25,1.3,5.8,0.1,"1 kase",80,"sebze"],
+  ["mantar","Mantar (pişmiş)",28,2.2,5.3,0.5,"1 porsiyon",100,"sebze"],
+  ["pancar","Pancar",44,1.7,10,0.2,"1 adet",80,"sebze"],
+  ["zeytinyagli","Zeytinyağlı sebze yemeği",90,2,7,6,"1 porsiyon",200,"yemek"],
+  ["yesil-fasulye","Zeytinyağlı taze fasulye",70,2,7,4,"1 porsiyon",200,"yemek"],
+  ["imam","İmam bayıldı",120,2,8,9,"1 adet",200,"yemek"],
+  ["karniyarik","Karnıyarık",130,5,8,9,"1 adet",200,"yemek"],
+  ["sarma","Yaprak sarma (zeytinyağlı)",160,3,20,8,"1 adet",20,"diger"],
+  ["avokado","Avokado",160,2,8.5,14.7,"1/2 adet",70,"meyve"],
+  // Yağ, tatlandırıcı, ezme
+  ["zeytin-siyah","Zeytin (siyah)",115,0.8,6,10.7,"1 adet",4,"diger"],
+  ["zeytin-yesil","Zeytin (yeşil)",145,1,3.8,15,"1 adet",4,"diger"],
+  ["zeytinyagi","Zeytinyağı",884,0,0,100,"1 yemek kaşığı",10,"yag"],
+  ["aycicek","Ayçiçek yağı",884,0,0,100,"1 yemek kaşığı",10,"yag"],
+  ["tahin","Tahin",595,17,21,54,"1 yemek kaşığı",15,"yag"],
+  ["pekmez","Pekmez",290,0.5,72,0,"1 yemek kaşığı",20,"yag"],
+  ["bal","Bal",304,0.3,82,0,"1 yemek kaşığı",20,"yag"],
+  ["recel","Reçel",278,0.4,69,0.1,"1 yemek kaşığı",20,"yag"],
+  ["seker","Şeker",400,0,100,0,"1 çay kaşığı",4,"yag"],
+  ["fistik-ezmesi","Fıstık ezmesi",588,25,20,50,"1 yemek kaşığı",16,"yag"],
+  // Kuruyemiş & kuru meyve
+  ["findik","Fındık",628,15,16.7,60.8,"1 avuç",30,"kuruyemis"],
+  ["ceviz","Ceviz",654,15.2,13.7,65.2,"1 avuç",30,"kuruyemis"],
+  ["badem","Badem",579,21.2,21.6,49.9,"1 avuç",30,"kuruyemis"],
+  ["yer-fistigi","Yer fıstığı",567,25.8,16.1,49.2,"1 avuç",30,"kuruyemis"],
+  ["antep","Antep fıstığı",560,20.2,27.2,45.3,"1 avuç",30,"kuruyemis"],
+  ["cekirdek","Ay çekirdeği (iç)",584,20.8,20,51.5,"1 avuç",30,"kuruyemis"],
+  ["kuru-kayisi","Kuru kayısı",241,3.4,62.6,0.5,"1 adet",8,"kuruyemis"],
+  ["kuru-uzum","Kuru üzüm",299,3.1,79,0.5,"1 avuç",30,"kuruyemis"],
+  ["hurma","Hurma",277,1.8,75,0.2,"1 adet",8,"kuruyemis"],
+  // Meyve
+  ["muz","Muz",89,1.1,22.8,0.3,"1 orta boy",120,"meyve"],
+  ["elma","Elma",52,0.3,13.8,0.2,"1 orta boy",180,"meyve"],
+  ["portakal","Portakal",47,0.9,11.8,0.1,"1 orta boy",150,"meyve"],
+  ["mandalina","Mandalina",53,0.8,13.3,0.3,"1 adet",90,"meyve"],
+  ["uzum","Üzüm",69,0.7,18,0.2,"1 salkım",150,"meyve"],
+  ["cilek","Çilek",32,0.7,7.7,0.3,"1 kase",150,"meyve"],
+  ["karpuz","Karpuz",30,0.6,7.6,0.2,"1 dilim",300,"meyve"],
+  ["kavun","Kavun",34,0.8,8.2,0.2,"1 dilim",200,"meyve"],
+  ["seftali","Şeftali",39,0.9,9.5,0.3,"1 adet",150,"meyve"],
+  ["armut","Armut",57,0.4,15,0.1,"1 adet",170,"meyve"],
+  // Hazır / dışarı yemekleri
+  ["lahmacun","Lahmacun",230,11,28,8,"1 adet",120,"hamur"],
+  ["pide","Kıymalı pide",250,12,30,9,"1 adet",250,"hamur"],
+  ["manti","Mantı (yoğurtlu)",200,9,26,6,"1 porsiyon",250,"yemek"],
+  ["pizza","Pizza",266,11,33,10,"1 dilim",100,"hamur"],
+  ["hamburger","Hamburger",250,13,25,11,"1 adet",220,"hamur"],
+  ["tost","Peynirli tost",300,13,33,13,"1 adet",120,"hamur"],
+  // Tatlı & atıştırmalık
+  ["cikolata","Sütlü çikolata",535,7.7,59,30,"1 paket",80,"tatli"],
+  ["bitter","Bitter çikolata (%70)",598,7.8,46,43,"1 kare",10,"tatli"],
+  ["biskuvi","Bisküvi",480,6,65,21,"1 adet",10,"tatli"],
+  ["kek","Kek",380,5,50,17,"1 dilim",60,"tatli"],
+  ["baklava","Baklava",430,6,50,23,"1 dilim",40,"tatli"],
+  ["sutlac","Sütlaç",130,3.5,22,3,"1 kase",200,"tatli"],
+  ["dondurma","Dondurma",207,3.5,24,11,"1 top",60,"tatli"],
+  ["cips","Patates cipsi",536,7,53,35,"1 küçük paket",40,"tatli"],
+  // İçecek & diğer
+  ["kola","Kola",42,0,10.6,0,"1 kutu",330,"icecek"],
+  ["portakal-suyu","Portakal suyu",45,0.7,10.4,0.2,"1 bardak",200,"icecek"],
+  ["cay","Çay (şekersiz)",1,0,0.3,0,"1 bardak",150,"icecek"],
+  ["kahve","Kahve / Türk kahvesi (sade)",2,0.1,0,0,"1 fincan",60,"icecek"],
+  ["bira","Bira",43,0.5,3.6,0,"1 şişe (50 cl)",500,"icecek"],
+  ["sarap","Şarap (kırmızı)",85,0.1,2.6,0,"1 kadeh",150,"icecek"],
+  ["protein-tozu","Protein tozu (whey)",400,80,8,6,"1 ölçek",30,"diger"],
+  // ---- Türk mutfağı: çorbalar ----
+  ["ezogelin","Ezogelin çorbası",65,3,10,1.5,"1 kase",250,"corba"],
+  ["tarhana","Tarhana çorbası",60,2.5,9,1.8,"1 kase",250,"corba"],
+  ["yayla","Yayla çorbası",70,3,8,3,"1 kase",250,"corba"],
+  ["domates-corba","Domates çorbası",50,1.5,7,2,"1 kase",250,"corba"],
+  ["tavuk-corba","Tavuk suyu çorbası (şehriyeli)",45,3,5,1.5,"1 kase",250,"corba"],
+  ["iskembe","İşkembe çorbası",90,6,4,6,"1 kase",250,"corba"],
+  // ---- Türk mutfağı: etli / sulu yemekler ----
+  ["etli-nohut","Etli nohut",125,8,11,5,"1 porsiyon",250,"yemek"],
+  ["etli-fasulye","Etli kuru fasulye",130,8,12,5.5,"1 porsiyon",250,"yemek"],
+  ["etli-taze-fasulye","Etli taze fasulye",85,4,6,5,"1 porsiyon",250,"yemek"],
+  ["etli-patates","Etli patates yemeği",110,5,10,5.5,"1 porsiyon",250,"yemek"],
+  ["etli-bamya","Etli bamya",70,4,6,3.5,"1 porsiyon",200,"yemek"],
+  ["turlu","Türlü (sebze güveç)",80,3,8,4,"1 porsiyon",250,"yemek"],
+  ["musakka","Patlıcan musakka",110,5,7,7,"1 porsiyon",250,"yemek"],
+  ["kiymali-ispanak","Kıymalı ıspanak",90,6,4,6,"1 porsiyon",200,"yemek"],
+  ["etli-sarma","Etli yaprak sarma",170,7,14,9,"1 adet",25,"yemek"],
+  ["lahana-sarma","Lahana sarması",120,5,12,6,"1 adet",40,"yemek"],
+  ["etli-dolma","Etli biber dolma",110,5,10,5,"1 adet",100,"yemek"],
+  ["zy-dolma","Zeytinyağlı biber dolma",120,2.5,15,5.5,"1 adet",100,"yemek"],
+  ["mucver","Kabak mücver",180,6,14,11,"1 adet",50,"yemek"],
+  ["cigar-tava","Ciğer tava",210,22,6,10,"1 porsiyon",150,"et"],
+  ["icli-kofte","İçli köfte",260,10,28,12,"1 adet",80,"yemek"],
+  ["kadinbudu","Kadınbudu köfte",240,14,12,15,"1 adet",60,"yemek"],
+  // ---- Türk mutfağı: zeytinyağlılar & mezeler ----
+  ["barbunya","Zeytinyağlı barbunya",110,5,14,4,"1 porsiyon",200,"yemek"],
+  ["enginar","Zeytinyağlı enginar",70,2,8,3.5,"1 adet",150,"yemek"],
+  ["pirasa","Zeytinyağlı pırasa",75,1.5,8,4.5,"1 porsiyon",200,"yemek"],
+  ["kereviz","Zeytinyağlı kereviz",65,1.5,7,3.5,"1 porsiyon",200,"yemek"],
+  ["piyaz","Piyaz",130,6,14,5.5,"1 porsiyon",200,"sebze"],
+  ["coban","Çoban salata (zeytinyağlı)",55,1.2,5,3.5,"1 porsiyon",200,"sebze"],
+  ["mevsim-salata","Mevsim salata (sossuz)",20,1.2,3.5,0.3,"1 porsiyon",150,"sebze"],
+  ["haydari","Haydari",110,5,4,8,"1 yemek kaşığı",30,"meze"],
+  ["acili-ezme","Acılı ezme",60,1.5,8,2.5,"1 yemek kaşığı",30,"meze"],
+  ["tursu","Turşu",15,0.5,3,0.1,"1 adet",30,"sebze"],
+  // ---- Türk mutfağı: kebap, sokak yemeği ----
+  ["tavuk-sis","Tavuk şiş",170,25,2,7,"1 şiş",120,"et"],
+  ["adana","Adana kebap",270,17,3,21,"1 porsiyon",150,"et"],
+  ["urfa","Urfa kebap",250,18,3,19,"1 porsiyon",150,"et"],
+  ["iskender","İskender kebap",220,13,14,13,"1 porsiyon",350,"et"],
+  ["durum-tavuk","Tavuk döner dürüm",220,13,24,8,"1 adet",250,"hamur"],
+  ["durum-et","Et döner dürüm",250,13,22,12,"1 adet",250,"hamur"],
+  ["tantuni","Tantuni (dürüm)",200,12,18,9,"1 adet",200,"hamur"],
+  ["kokorec","Kokoreç",290,15,4,24,"1 porsiyon",120,"et"],
+  ["midye-dolma","Midye dolma",140,6,20,4,"1 adet",25,"diger"],
+  ["balik-ekmek","Balık ekmek",230,12,25,9,"1 adet",250,"hamur"],
+  ["kumpir","Kumpir",150,4,22,5,"1 adet",400,"diger"],
+  // ---- Türk mutfağı: hamur işi & kahvaltılık ----
+  ["gozleme","Gözleme (peynirli)",260,9,34,10,"1 adet",200,"hamur"],
+  ["su-boregi","Su böreği",270,10,28,13,"1 dilim",120,"hamur"],
+  ["sigara-boregi","Sigara böreği",320,9,28,19,"1 adet",35,"hamur"],
+  ["acma","Açma",340,8,45,14,"1 adet",80,"hamur"],
+  ["pisi","Pişi",380,7,45,19,"1 adet",40,"hamur"],
+  ["bazlama","Bazlama",280,8,52,4,"1 adet",150,"hamur"],
+  ["pide-ekmek","Pide ekmeği (ramazan pidesi)",270,9,52,2.5,"1 adet",250,"hamur"],
+  ["eriste","Erişte (pişmiş)",160,6,30,2,"1 porsiyon",200,"tahil"],
+  ["mercimekli-bulgur","Mercimekli bulgur pilavı",110,5,19,2,"1 porsiyon",200,"tahil"],
+  ["sahanda","Sahanda yumurta (tereyağlı)",200,13,1,16,"1 adet",55,"diger"],
+  ["omlet","Kaşarlı omlet",190,13,1.5,15,"1 porsiyon",120,"diger"],
+  ["tulum","Tulum peyniri",330,22,1,27,"1 dilim",30,"peynir"],
+  ["hellim","Hellim",320,22,2,25,"1 dilim",30,"peynir"],
+  ["cokelek","Çökelek",100,14,2,4,"1 yemek kaşığı",25,"peynir"],
+  ["yogurt-yagsiz","Yoğurt (yağsız)",45,4.5,6,0.2,"1 kase",200,"sut"],
+  // ---- Türk mutfağı: tatlılar ----
+  ["kunefe","Künefe",340,6,45,16,"1 porsiyon",150,"tatli"],
+  ["kadayif","Tel kadayıf",380,5,50,18,"1 dilim",80,"tatli"],
+  ["kazandibi","Kazandibi",170,4,28,5,"1 porsiyon",150,"tatli"],
+  ["muhallebi","Muhallebi",120,3.5,20,3,"1 kase",150,"tatli"],
+  ["kemalpasa","Kemalpaşa tatlısı",300,4,55,8,"1 adet",50,"tatli"],
+  ["lokma","Lokma",350,4,50,15,"1 porsiyon",100,"tatli"],
+  ["revani","Revani",330,5,55,10,"1 dilim",80,"tatli"],
+  ["tulumba","Tulumba",380,4,55,17,"1 adet",30,"tatli"],
+  ["sekerpare","Şekerpare",400,4,65,14,"1 adet",40,"tatli"],
+  ["asure","Aşure",150,3,32,1.5,"1 kase",200,"tatli"],
+  ["gullac","Güllaç",140,4,22,4,"1 porsiyon",150,"tatli"],
+  ["lokum","Lokum",350,0.5,88,0.2,"1 adet",15,"tatli"],
+  ["helva","Tahin helvası",520,12,55,30,"1 dilim",40,"tatli"],
+  ["pismaniye","Pişmaniye",450,4,70,17,"1 porsiyon",40,"tatli"],
+  ["cezerye","Cezerye",330,2,78,1,"1 adet",20,"tatli"],
+  // ---- meyve, kuruyemiş, içecek ek ----
+  ["nar","Nar",83,1.7,18.7,1.2,"1 adet",250,"meyve"],
+  ["incir","İncir (taze)",74,0.8,19,0.3,"1 adet",50,"meyve"],
+  ["kuru-incir","Kuru incir",249,3.3,64,0.9,"1 adet",20,"meyve"],
+  ["kayisi","Kayısı",48,1.4,11,0.4,"1 adet",35,"meyve"],
+  ["kiraz","Kiraz",63,1.1,16,0.2,"1 kase",150,"meyve"],
+  ["visne","Vişne",50,1,12,0.3,"1 kase",150,"meyve"],
+  ["erik","Erik",46,0.7,11.4,0.3,"1 adet",60,"meyve"],
+  ["ayva","Ayva",57,0.4,15.3,0.1,"1 adet",200,"meyve"],
+  ["kivi","Kivi",61,1.1,14.7,0.5,"1 adet",75,"meyve"],
+  ["leblebi","Leblebi",360,20,60,5,"1 avuç",30,"kuruyemis"],
+  ["kestane","Kestane (kavrulmuş)",245,3.2,53,2.2,"1 avuç",50,"kuruyemis"],
+  ["salgam","Şalgam suyu",10,0.5,2,0,"1 bardak",200,"icecek"],
+  ["boza","Boza",100,1,22,0.5,"1 bardak",250,"icecek"],
+  ["sahlep","Sahlep",90,3,16,2,"1 fincan",200,"icecek"],
+  ["limonata","Limonata",45,0,11,0,"1 bardak",250,"icecek"],
+  ["raki","Rakı",230,0,0,0,"1 duble",70,"icecek"],
+];
+
+/* ------------------------------------------------------------------ */
+/* Depolama                                                            */
+/* ------------------------------------------------------------------ */
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish" };
+function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
+
+let log = load(LS.log, {});                 // { "YYYY-MM-DD": [kayıt] }
+let customFoods = load(LS.foods, []);       // özel yiyecekler (100 g başına)
+let overrides = load(LS.over, {});          // yerleşik yiyecek düzenlemeleri {id:{...}}
+let hidden = load(LS.hidden, []);           // silinmiş yerleşik id'leri
+let targets = Object.assign({kcal:0, p:0, c:0, f:0}, load(LS.targets, {}));
+let recent = load(LS.recent, []);           // son eklenen yiyecek id'leri
+let ai = Object.assign({key:"", web:true}, load(LS.ai, {}));   // Claude araştırma ayarları (anahtar yalnızca bu cihazda)
+let wish = load(LS.wish, []);               // araştırılacak yemek adları
+
+/* ------------------------------------------------------------------ */
+/* Yardımcılar                                                         */
+/* ------------------------------------------------------------------ */
+const fmt0 = (n) => Math.round(n || 0).toLocaleString("tr-TR");
+const fmt1 = (n) => (Math.round((n || 0) * 10) / 10).toLocaleString("tr-TR", {maximumFractionDigits:1});
+const pct = (n) => "%" + fmt0(n);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const TRMAP = {"ı":"i","İ":"i","ş":"s","Ş":"s","ğ":"g","Ğ":"g","ü":"u","Ü":"u","ö":"o","Ö":"o","ç":"c","Ç":"c"};
+function norm(s){ return String(s || "").replace(/[ıİşŞğĞüÜöÖçÇ]/g, (ch) => TRMAP[ch]).toLowerCase(); }
+
+function ymd(d){ return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function todayStr(){ return ymd(new Date()); }
+function parseYmd(s){ const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function shiftDay(s, n){ const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
+function fmtDate(s){ return parseYmd(s).toLocaleDateString("tr-TR", {weekday:"long", day:"numeric", month:"long", year:"numeric"}); }
+function shortDate(s){ return parseYmd(s).toLocaleDateString("tr-TR", {weekday:"short", day:"numeric", month:"short"}); }
+function defaultMeal(){ const h = new Date().getHours(); if (h < 11) return "Kahvaltı"; if (h < 15) return "Öğle"; if (h >= 18 && h < 22) return "Akşam"; return "Ara öğün"; }
+
+/* ------------------------------------------------------------------ */
+/* Yiyecek listesi                                                     */
+/* ------------------------------------------------------------------ */
+function allFoods(){
+  const base = [];
+  for (const a of BUILTIN){
+    if (hidden.includes(a[0])) continue;
+    const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", builtin:true};
+    base.push(overrides[a[0]] ? Object.assign(f, overrides[a[0]]) : f);
+  }
+  return base.concat(customFoods.map((f) => Object.assign({pl:"", pg:0, cat:"diger"}, f, {builtin:false})));
+}
+function foodById(id){ return allFoods().find((f) => f.id === id); }
+function searchFoods(q){
+  q = norm(q).trim();
+  const list = allFoods();
+  if (!q) return list.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  const words = q.split(/\s+/);
+  return list
+    .filter((f) => { const n = norm(f.name); return words.every((w) => n.includes(w)); })
+    .sort((a, b) => (norm(a.name).startsWith(q) ? 0 : 1) - (norm(b.name).startsWith(q) ? 0 : 1) || a.name.localeCompare(b.name, "tr"));
+}
+
+/* ------------------------------------------------------------------ */
+/* Kayıtlar ve hesaplar                                                */
+/* ------------------------------------------------------------------ */
+// kayıt: {id, fid, name, g, kcal, p, c, f, meal, ref:{kcal,p,c,f} | null}  (kcal/p/c/f = yenen porsiyonun toplamı; ref = 100 g başına)
+function entries(date){ return log[date] || []; }
+function addEntry(date, e){ (log[date] = log[date] || []).push(e); save(LS.log, log); }
+function removeEntry(date, id){
+  const list = entries(date); const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) list.splice(i, 1);
+  if (!list.length) delete log[date];
+  save(LS.log, log);
+}
+function sumEntries(list){
+  const s = {kcal:0, p:0, c:0, f:0, g:0};
+  for (const e of list){ s.kcal += +e.kcal || 0; s.p += +e.p || 0; s.c += +e.c || 0; s.f += +e.f || 0; s.g += +e.g || 0; }
+  return s;
+}
+// Enerji %: Atwater 4/4/9 kcal/g. Ağırlık %: makro gramlarının kendi aralarındaki payı.
+function macroStats(s){
+  const eP = s.p * 4, eC = s.c * 4, eF = s.f * 9, eT = eP + eC + eF;
+  const wT = s.p + s.c + s.f;
+  return {
+    e:{p:eP, c:eC, f:eF, t:eT},
+    ePct:{p:eT ? eP / eT * 100 : 0, c:eT ? eC / eT * 100 : 0, f:eT ? eF / eT * 100 : 0},
+    wPct:{p:wT ? s.p / wT * 100 : 0, c:wT ? s.c / wT * 100 : 0, f:wT ? s.f / wT * 100 : 0},
+    wT
+  };
+}
+function macroKcal(p, c, f){ return p * 4 + c * 4 + f * 9; }
+
+/* ------------------------------------------------------------------ */
+/* Günlük sekmesi                                                      */
+/* ------------------------------------------------------------------ */
+let curDate = todayStr();
+let sel = null;      // seçili yiyecek
+let editId = null;   // düzenlenen kayıt
+
+function setDate(s){ curDate = s; $("dateInp").value = s; editId = null; renderDay(); }
+function renderDay(){
+  const list = entries(curDate);
+  $("dateLbl").textContent = fmtDate(curDate) + (curDate === todayStr() ? " · bugün" : "");
+  renderSummary(list);
+  renderLog(list);
+}
+
+function bar(pc){
+  const t = pc.p + pc.c + pc.f;
+  if (!t) return "";
+  return MAC.map(([k, name, cv]) =>
+    `<div style="width:${pc[k]}%;background:var(${cv})" title="${name} ${pct(pc[k])}">${pc[k] >= 11 ? pct(pc[k]) : ""}</div>`).join("");
+}
+function renderSummary(list){
+  const s = sumEntries(list), m = macroStats(s);
+  $("sumKcal").textContent = fmt0(s.kcal);
+  $("sumG").textContent = fmt0(s.g);
+
+  let th = "";
+  if (targets.kcal > 0){
+    const ratio = Math.min(100, s.kcal / targets.kcal * 100);
+    const left = targets.kcal - s.kcal;
+    th = `<div class="tgt"><div class="tgtl"><span>Hedef ${fmt0(targets.kcal)} kcal</span><span>${left >= 0 ? fmt0(left) + " kcal kaldı" : fmt0(-left) + " kcal aşıldı"}</span></div>
+          <div class="tbar"><div style="width:${ratio}%;background:${left >= 0 ? "var(--ok)" : "var(--warn)"}"></div></div></div>`;
+  }
+  $("targetBox").innerHTML = th;
+
+  $("mtabBody").innerHTML = MAC.map(([k, name, cv, kc]) => {
+    const tgt = targets[k] > 0 ? `<small>/ ${pct(targets[k])}</small>` : "";
+    return `<tr><td><i class="sw" style="background:var(${cv})"></i>${name}</td><td>${fmt1(s[k])}</td><td>${fmt0(s[k] * kc)}</td><td>${pct(m.ePct[k])}${tgt}</td><td>${pct(m.wPct[k])}</td></tr>`;
+  }).join("") +
+  `<tr class="tot"><td>Toplam</td><td>${fmt1(m.wT)}</td><td>${fmt0(m.e.t)}</td><td>${m.e.t ? "%100" : "–"}</td><td>${m.wT ? "%100" : "–"}</td></tr>`;
+
+  $("barE").innerHTML = bar(m.ePct);
+  $("barW").innerHTML = bar(m.wPct);
+  $("barELbl").textContent = m.e.t ? fmt0(m.e.t) + " kcal" : "";
+  $("barWLbl").textContent = m.wT ? fmt1(m.wT) + " g" : "";
+
+  let hint;
+  if (!list.length) hint = "Bu gün için kayıt yok. Aşağıdan yiyecek arayıp ekle.";
+  else {
+    hint = `Enerji %: 4/4/9 kcal/g (Atwater) ile makrolardan hesaplanır. Ağırlık %: makro gramlarının kendi aralarındaki payı. Yenen ${fmt0(s.g)} g'ın ${fmt1(m.wT)} g'ı makro`
+      + (s.g > m.wT ? ` (${pct(m.wT / s.g * 100)}); kalanı su, lif ve mineral.` : ".");
+    const diff = s.kcal - m.e.t;
+    if (Math.abs(diff) >= Math.max(20, s.kcal * 0.05))
+      hint += ` Etiket kalorisi (${fmt0(s.kcal)}) ile makrolardan hesaplanan (${fmt0(m.e.t)}) arasında ${fmt0(Math.abs(diff))} kcal fark var: lif, alkol veya yuvarlama kaynaklı.`;
+  }
+  $("sumHint").textContent = hint;
+}
+
+function macroLine(e){
+  return `<i style="color:var(--prot)">P ${fmt1(e.p)}</i> · <i style="color:var(--carb)">K ${fmt1(e.c)}</i> · <i style="color:var(--fat)">Y ${fmt1(e.f)}</i>`;
+}
+function renderLog(list){
+  if (!list.length){ $("logBody").innerHTML = `<div class="hint" style="margin:0">Henüz bir şey eklenmedi.</div>`; return; }
+  let h = "";
+  for (const meal of MEALS){
+    const items = list.filter((e) => e.meal === meal);
+    if (!items.length) continue;
+    const s = sumEntries(items);
+    h += `<div class="mealh"><span>${meal}</span><span>${fmt0(s.kcal)} kcal</span></div>`;
+    for (const e of items){
+      if (e.id === editId){ h += editForm(e); continue; }
+      h += `<div class="ent" data-id="${e.id}">
+        <div class="en"><b>${esc(e.name)}</b><span class="muted">${e.ul ? fmtQ(e.q) + " " + esc(e.ul) + " · " : ""}${e.g > 0 ? fmt0(e.g) + " g" : "miktar girilmedi"}</span></div>
+        <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span></div>
+        <div class="acts"><button data-act="edit" title="Düzenle">✎</button><button data-act="del" class="danger" title="Sil">✕</button></div>
+      </div>`;
+    }
+  }
+  h += `<button class="ghost danger block" id="clearDay">Günü temizle</button>`;
+  $("logBody").innerHTML = h;
+}
+function editForm(e){
+  const manual = !e.ref;
+  return `<div class="ent edit" data-id="${e.id}">
+    <div class="egrid">
+      <div><label class="lbl">Ad</label><input type="text" id="eName" value="${esc(e.name)}"></div>
+      <div><label class="lbl">Miktar (g)</label><input type="number" id="eG" value="${e.g || ""}" min="0" step="1" inputmode="decimal"></div>
+      <div><label class="lbl">Öğün</label><select id="eMeal">${MEALS.map((m) => `<option ${m === e.meal ? "selected" : ""}>${m}</option>`).join("")}</select></div>
+      ${manual ? `
+      <div><label class="lbl">kcal</label><input type="number" id="eKcal" value="${fmt1(e.kcal).replace(",", ".")}" min="0" inputmode="decimal"></div>
+      <div><label class="lbl">Protein g</label><input type="number" id="eP" value="${fmt1(e.p).replace(",", ".")}" min="0" step="0.1" inputmode="decimal"></div>
+      <div><label class="lbl">Karb g</label><input type="number" id="eC" value="${fmt1(e.c).replace(",", ".")}" min="0" step="0.1" inputmode="decimal"></div>
+      <div><label class="lbl">Yağ g</label><input type="number" id="eF" value="${fmt1(e.f).replace(",", ".")}" min="0" step="0.1" inputmode="decimal"></div>` : ""}
+    </div>
+    ${manual ? "" : `<div class="hint" style="margin:0 0 8px">Miktar değişince değerler 100 g referansından (${fmt0(e.ref.kcal)} kcal · P ${fmt1(e.ref.p)} · K ${fmt1(e.ref.c)} · Y ${fmt1(e.ref.f)}) yeniden hesaplanır.</div>`}
+    <div class="row"><button class="primary" data-act="save">Kaydet</button><button class="ghost" data-act="cancel">İptal</button></div>
+  </div>`;
+}
+function saveEdit(id){
+  const e = entries(curDate).find((x) => x.id === id);
+  if (!e) return;
+  e.name = $("eName").value.trim() || e.name;
+  e.meal = $("eMeal").value;
+  const g = Math.max(0, +$("eG").value || 0);
+  if (Math.abs(g - (e.g || 0)) > 0.01){ e.q = null; e.ul = null; }
+  if (e.ref){
+    e.g = g; const k = g / 100;
+    e.kcal = e.ref.kcal * k; e.p = e.ref.p * k; e.c = e.ref.c * k; e.f = e.ref.f * k;
+  } else {
+    e.g = g;
+    e.p = +$("eP").value || 0; e.c = +$("eC").value || 0; e.f = +$("eF").value || 0;
+    e.kcal = +$("eKcal").value || macroKcal(e.p, e.c, e.f);
+    if (g > 0) e.ref = {kcal:e.kcal / g * 100, p:e.p / g * 100, c:e.c / g * 100, f:e.f / g * 100};
+  }
+  save(LS.log, log);
+  editId = null;
+  renderDay();
+}
+
+/* --- arama ve seçim --- */
+function renderResults(){
+  const q = $("q").value;
+  if (!q.trim()){ $("results").innerHTML = ""; return; }
+  const list = searchFoods(q).slice(0, 12);
+  let h = list.map((f) =>
+    `<div class="res" data-id="${f.id}"><span>${esc(f.name)}${f.builtin ? "" : `<span class="tag">${f.src === "ai" ? "AI" : "özel"}</span>`}</span><span class="muted">${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} · K ${fmt1(f.c)} · Y ${fmt1(f.f)}</span></div>`).join("");
+  if (!list.length) h += `<div class="res"><span class="muted">Listede yok.</span></div>`;
+  if (q.trim().length >= 3){
+    h += `<div class="res ai" data-ask="${esc(q.trim())}"><span>🔎 Claude'a sor: “${esc(q.trim())}”</span><span class="muted">${ai.key ? "tarife göre hesapla" : "API anahtarı gerekli"}</span></div>`;
+    if (!ai.key) h += `<div class="res" data-wish="${esc(q.trim())}"><span>📝 Araştırılacaklar listesine ekle</span><span class="muted">${wish.includes(q.trim()) ? "listede" : ""}</span></div>`;
+  }
+  $("results").innerHTML = h;
+}
+
+/* ------------------------------------------------------------------ */
+/* Claude ile araştırma — bilinmeyen yemeğin tarifinden besin değeri  */
+/* ------------------------------------------------------------------ */
+const AI_MODEL = "claude-opus-5";
+const AI_SYSTEM = `Sen Türk mutfağını iyi bilen bir beslenme uzmanısın. Kullanıcı bir yemek, gıda veya paketli ürün adı verir; sen bunun 100 g başına besin değerlerini hesaplarsın.
+
+Yöntem:
+1. Yemeğin en yaygın ve güvenilir tarifini esas al. Kaynak önceliği: TÜRKOMP (Ulusal Gıda Kompozisyon Veri Tabanı), T.C. Sağlık Bakanlığı / Türkiye Diyetisyenler Derneği yayınları, USDA FoodData Central, sonra yaygın ev tarifleri. Web araması varsa önce bu kaynaklarda ara; bulamazsan bilgine göre hesapla.
+2. Değerler yemeğin tüketildiği (pişmiş) hâli için, 100 g başına olsun. Kalori makrolarla tutarlı olsun (protein 4, karbonhidrat 4, yağ 9 kcal/g; alkol veya lif farkı varsa notta belirt).
+3. Türk ev ölçülerine göre gram karşılıkları ver: 1 yemek kaşığı, 1 kase, 1 yemek tabağı (dolu tabak) ve tipik 1 porsiyon. Yemeğe uygun olmayan ölçü için makul bir tahmin yaz.
+4. Kategori şunlardan biri: corba, yemek, tahil, hamur, et, baklagil, sebze, meyve, sut, peynir, meze, yag, kuruyemis, tatli, icecek, diger.
+
+Yanıtın YALNIZCA aşağıdaki JSON nesnesi olsun; öncesinde veya sonrasında başka metin yazma:
+{"name":"yemeğin düzgün Türkçe adı","kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"category":"yemek","portion_label":"1 porsiyon","portion_g":0,"units":{"yemek_kasigi_g":0,"kase_g":0,"yemek_tabagi_g":0},"recipe_note":"esas alınan tarif/varsayımlar, 1-2 cümle","source":"kaynak adı veya URL","confidence":"yüksek|orta|düşük"}`;
+
+async function claudeRequest(name){
+  const url = "https://api.anthropic.com/v1/messages";
+  const headers = {"content-type":"application/json", "x-api-key":ai.key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"};
+  const body = {model:AI_MODEL, max_tokens:4000, system:AI_SYSTEM, output_config:{effort:"medium"}, messages:[{role:"user", content:`Yemek / gıda: "${name}"`}]};
+  if (ai.web) body.tools = [{type:"web_search_20260209", name:"web_search", max_uses:3}];
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 120000);
+  try{
+    // Önce güvenlik reddi durumunda otomatik yedek modele geçen istek; kabul edilmezse sade istek
+    let r = await fetch(url, {method:"POST", signal:ctrl.signal, headers:Object.assign({"anthropic-beta":"server-side-fallback-2026-07-01"}, headers), body:JSON.stringify(Object.assign({fallbacks:"default"}, body))});
+    if (r.status === 400) r = await fetch(url, {method:"POST", signal:ctrl.signal, headers, body:JSON.stringify(body)});
+    let data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((data.error && data.error.message) || ("HTTP " + r.status));
+    // web araması uzun sürerse API "pause_turn" ile ara verebilir: kaldığı yerden sürdür
+    for (let i = 0; i < 3 && data.stop_reason === "pause_turn"; i++){
+      body.messages = body.messages.concat([{role:"assistant", content:data.content}]);
+      r = await fetch(url, {method:"POST", signal:ctrl.signal, headers, body:JSON.stringify(body)});
+      data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data.error && data.error.message) || ("HTTP " + r.status));
+    }
+    if (data.stop_reason === "refusal") throw new Error("Model bu isteği yanıtlamadı.");
+    const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+    return parseAiJson(text);
+  } finally { clearTimeout(timer); }
+}
+function parseAiJson(text){
+  const last = text.lastIndexOf("}");
+  for (let i = text.indexOf("{"); i >= 0 && i < last; i = text.indexOf("{", i + 1)){
+    try{ const j = JSON.parse(text.slice(i, last + 1)); if (j && typeof j === "object") return j; }catch(e){}
+  }
+  throw new Error("Yanıt çözümlenemedi.");
+}
+function aiToFood(j, asked){
+  const num = (v) => Math.max(0, +v || 0);
+  const p = num(j.protein_g), c = num(j.carb_g), f = num(j.fat_g), kcal = num(j.kcal) || macroKcal(p, c, f);
+  if (!(kcal > 0 || p > 0 || c > 0 || f > 0)) throw new Error("Geçerli besin değeri gelmedi.");
+  const u = {}; const uu = j.units || {};
+  if (num(uu.yemek_kasigi_g)) u.yk = num(uu.yemek_kasigi_g);
+  if (num(uu.kase_g)) u.kase = num(uu.kase_g);
+  if (num(uu.yemek_tabagi_g)) u.tabak = num(uu.yemek_tabagi_g);
+  const cat = CATS[j.category] ? j.category : "diger";
+  const pg = num(j.portion_g) || unitDefaults({cat}).porsiyon;
+  return {id:"c_" + uid(), name:String(j.name || asked).trim().slice(0, 80) || asked, kcal, p, c, f, cat, u,
+          pl:String(j.portion_label || "1 porsiyon").slice(0, 40), pg, src:"ai",
+          note:String(j.recipe_note || "").slice(0, 400), source:String(j.source || "").slice(0, 200), conf:String(j.confidence || "").slice(0, 10)};
+}
+let aiPending = null;
+async function askClaude(name){
+  if (!ai.key){
+    $("aiBox").classList.remove("hidden");
+    $("aiBox").innerHTML = `<div class="selname"><b>Claude'a sormak için API anahtarı gerekli</b><span class="muted">Geçmiş sekmesindeki "Claude ile araştırma" kartına Anthropic API anahtarını gir. Anahtar yalnızca bu cihazda kalır; her sorgu hesabından ücretlendirilir.</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="aiGoSettings">Ayarlara git</button><button class="ghost" id="aiClose">Kapat</button></div>`;
+    return;
+  }
+  $("selBox").classList.add("hidden"); sel = null;
+  $("aiBox").classList.remove("hidden");
+  $("aiBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Claude “${esc(name)}” için tarif araştırıyor…</b><span class="muted">${ai.web ? "Önce web'de güvenilir kaynak aranıyor; 15-60 sn sürebilir." : "10-30 sn sürebilir."}</span></div>`;
+  try{
+    const j = await claudeRequest(name);
+    const f = aiToFood(j, name);
+    f._asked = name; aiPending = f;
+    const d = unitDefaults(f);
+    $("aiBox").innerHTML = `<div class="selname"><b>${esc(f.name)}<span class="tag">AI</span>${f.conf ? `<span class="conf">güven: ${esc(f.conf)}</span>` : ""}</b>
+        <span class="muted">100 g: ${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} g · K ${fmt1(f.c)} g · Y ${fmt1(f.f)} g · kategori: ${esc(CATS[f.cat])}</span></div>
+      <div class="hint" style="margin:0 0 6px">Ölçüler: ${esc(f.pl)} ≈ ${fmt0(f.pg)} g · 1 yemek kaşığı ≈ ${fmt0(d.yk)} g · 1 kase ≈ ${fmt0(d.kase)} g · 1 yemek tabağı ≈ ${fmt0(d.tabak)} g</div>
+      ${f.note ? `<div class="hint" style="margin:0 0 6px">Tarif: ${esc(f.note)}</div>` : ""}
+      ${f.source ? `<div class="hint" style="margin:0 0 6px">Kaynak: ${esc(f.source)}</div>` : ""}
+      <div class="row" style="margin-top:8px"><button class="primary" id="aiAccept">Listeye kaydet ve seç</button><button class="ghost" id="aiClose">Vazgeç</button></div>
+      <div class="hint">Kaydedince Yiyecekler listesine "AI" etiketiyle eklenir; ✎ ile her zaman düzeltebilirsin.</div>`;
+  }catch(e){
+    $("aiBox").innerHTML = `<div class="selname"><b>Araştırma başarısız</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="aiRetry" data-name="${esc(name)}">Tekrar dene</button><button class="ghost" id="aiClose">Kapat</button>${ai.key ? "" : ""}</div>
+      <div class="hint">Anahtar hatalıysa Geçmiş sekmesinden düzelt. İnternet yoksa “Araştırılacaklar” listesine ekleyip sonra sorabilirsin.</div>`;
+  }
+}
+function acceptAi(){
+  if (!aiPending) return;
+  const f = aiPending; aiPending = null;
+  const asked = f._asked || ""; delete f._asked;
+  customFoods.push(f); save(LS.foods, customFoods);
+  wish = wish.filter((w) => norm(w) !== norm(f.name) && norm(w) !== norm(asked)); save(LS.wish, wish);
+  $("aiBox").classList.add("hidden");
+  renderWish();
+  selectFood(foodById(f.id));
+}
+function addWish(name){
+  name = name.trim(); if (!name) return;
+  if (!wish.some((w) => norm(w) === norm(name))){ wish.push(name); save(LS.wish, wish); }
+  $("q").value = ""; $("results").innerHTML = "";
+  $("aiBox").classList.remove("hidden");
+  $("aiBox").innerHTML = `<div class="selname"><b>“${esc(name)}” araştırılacaklara eklendi</b><span class="muted">Listeyi Yiyecekler sekmesinde görürsün. Şimdilik "Elle gir" ile yaklaşık değer girebilirsin.</span></div>
+    <div class="row" style="margin-top:8px"><button class="ghost" id="aiClose">Kapat</button></div>`;
+  renderWish();
+}
+function renderWish(){
+  $("wishCard").classList.toggle("hidden", !wish.length);
+  $("wishCount").textContent = "(" + wish.length + ")";
+  $("wishList").innerHTML = wish.map((w, i) => `<div class="food"><div class="en"><b>${esc(w)}</b></div><div class="acts">${ai.key ? `<button data-wask="${i}" title="Claude'a sor">🔎</button>` : ""}<button class="danger" data-wdel="${i}" title="Sil">✕</button></div></div>`).join("");
+}
+function renderAiSettings(){
+  $("aiKey").value = ai.key || ""; $("aiWeb").checked = !!ai.web;
+}
+function saveAiSettings(){
+  ai = {key:$("aiKey").value.trim(), web:$("aiWeb").checked};
+  save(LS.ai, ai);
+  $("aiMsg").textContent = ai.key ? "Kaydedildi." : "Anahtar silindi.";
+  setTimeout(() => $("aiMsg").textContent = "", 2000);
+  renderWish();
+}
+let selUnits = [];
+function selectFood(f){
+  sel = f;
+  $("aiBox").classList.add("hidden");
+  $("selBox").classList.remove("hidden");
+  $("selName").innerHTML = esc(f.name) + (f.src === "ai" ? '<span class="tag">AI</span>' : "");
+  $("selPer100").textContent = `100 g: ${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} g · K ${fmt1(f.c)} g · Y ${fmt1(f.f)} g`;
+  selUnits = unitList(f);
+  $("selUnit").innerHTML = selUnits.map((u, i) => `<option value="${i}">${esc(u.label)}${u.key === "g" ? "" : ` (${fmt0(u.g)} g)`}</option>`).join("");
+  // varsayılan birim: yiyeceğin kendi porsiyonu; yoksa kategoriye göre
+  const pref = {corba:"kase", yemek:"porsiyon", tahil:"porsiyon", sut:"bardak", icecek:"bardak", baklagil:"porsiyon", sebze:"porsiyon", et:"porsiyon"}[f.cat];
+  let idx = selUnits.findIndex((u) => u.key === "own");
+  if (idx < 0 && pref) idx = selUnits.findIndex((u) => u.key === pref);
+  if (idx < 0) idx = selUnits.findIndex((u) => u.key === "g");
+  $("selUnit").value = idx;
+  $("selQ").value = selUnits[idx].key === "g" ? 100 : 1;
+  $("results").innerHTML = "";
+  $("q").value = f.name;
+  renderQtyChips();
+  renderCalc();
+  $("selQ").focus(); $("selQ").select();
+}
+function selUnitObj(){ return selUnits[+$("selUnit").value] || selUnits[0]; }
+function selGrams(){ const u = selUnitObj(); return Math.max(0, (+$("selQ").value || 0) * (u ? u.g : 0)); }
+function renderQtyChips(){
+  const u = selUnitObj();
+  const vals = u && u.key === "g" ? [50, 100, 150, 200, 300] : [0.5, 1, 1.5, 2, 3];
+  $("qtyChips").innerHTML = vals.map((v) => `<div class="pill" data-q="${v}">${u && u.key === "g" ? v + " g" : fmtQ(v)}</div>`).join("");
+}
+function renderCalc(){
+  if (!sel) return;
+  const u = selUnitObj(), g = selGrams(), k = g / 100, q = +$("selQ").value || 0;
+  $("selGrams").textContent = "≈ " + fmt0(g) + " g";
+  $("selCalc").innerHTML = `<b>${fmt0(sel.kcal * k)} kcal</b> &nbsp; <span class="mini" style="font-size:13px">${macroLine({p:sel.p * k, c:sel.c * k, f:sel.f * k})}</span>`;
+  $("qtyChips").querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", Math.abs(+p.dataset.q - q) < 0.001));
+  $("selUnitHint").textContent = u && u.key !== "g" && u.key !== "own"
+    ? `1 ${u.label} ≈ ${fmt0(u.g)} g kabul edildi ("${CATS[sel.cat] || CATS.diger}" için yaklaşık). Farklıysa Yiyecekler sekmesinden ✎ ile düzelt.` : "";
+}
+function addSelected(){
+  if (!sel) return;
+  const g = selGrams(), u = selUnitObj(), q = +$("selQ").value || 0;
+  if (!(g > 0)){ $("selQ").focus(); return; }
+  const k = g / 100;
+  addEntry(curDate, {id:uid(), fid:sel.id, name:sel.name, g, q:u.key === "g" ? null : q, ul:u.key === "g" ? null : u.label,
+                     kcal:sel.kcal * k, p:sel.p * k, c:sel.c * k, f:sel.f * k,
+                     meal:$("selMeal").value, ref:{kcal:sel.kcal, p:sel.p, c:sel.c, f:sel.f}});
+  pushRecent(sel.id);
+  clearSelection();
+  renderDay(); renderRecent();
+}
+function clearSelection(){ sel = null; $("selBox").classList.add("hidden"); $("q").value = ""; $("results").innerHTML = ""; }
+function pushRecent(id){ recent = [id].concat(recent.filter((x) => x !== id)).slice(0, 10); save(LS.recent, recent); }
+function renderRecent(){
+  const foods = recent.map(foodById).filter(Boolean);
+  $("recentBox").innerHTML = foods.length
+    ? `<label class="lbl">Son eklenenler</label><div class="chips">${foods.map((f) => `<div class="pill" data-id="${f.id}">${esc(f.name)}</div>`).join("")}</div>` : "";
+}
+
+/* --- elle giriş --- */
+function addManual(){
+  const name = $("mName").value.trim() || "Elle giriş";
+  const g = Math.max(0, +$("mG").value || 0);
+  const p = +$("mP").value || 0, c = +$("mC").value || 0, f = +$("mF").value || 0;
+  const kcal = +$("mKcal").value || macroKcal(p, c, f);
+  if (!(kcal > 0 || p > 0 || c > 0 || f > 0)){ alert("En az bir değer gir (kcal veya makro)."); return; }
+  const ref = g > 0 ? {kcal:kcal / g * 100, p:p / g * 100, c:c / g * 100, f:f / g * 100} : null;
+  const meal = $("mMeal").value;
+  if ($("mSave").checked){
+    if (!ref){ alert("Listeye kaydetmek için miktar (g) gerekli."); return; }
+    customFoods.push({id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, pl:"1 porsiyon", pg:g, cat:"diger"});
+    save(LS.foods, customFoods);
+  }
+  addEntry(curDate, {id:uid(), fid:null, name, g, kcal, p, c, f, meal, ref});
+  ["mName", "mG", "mKcal", "mP", "mC", "mF"].forEach((id) => $(id).value = "");
+  $("mSave").checked = false;
+  renderDay();
+}
+
+/* ------------------------------------------------------------------ */
+/* Yiyecekler sekmesi                                                  */
+/* ------------------------------------------------------------------ */
+let fEdit = null; // "new" | yiyecek id
+function renderFoods(){
+  const list = searchFoods($("fq").value);
+  $("foodCount").textContent = "(" + list.length + ")";
+  $("foodList").innerHTML = list.map((f) =>
+    `<div class="food" data-id="${f.id}">
+      <div class="en"><b>${esc(f.name)}${f.builtin ? (overrides[f.id] ? '<span class="tag">düzenlendi</span>' : "") : `<span class="tag">${f.src === "ai" ? "AI" : "özel"}</span>`}</b>
+        <span class="muted">${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} · K ${fmt1(f.c)} · Y ${fmt1(f.f)}${f.pg ? ` · ${esc(f.pl)} ≈ ${fmt0(f.pg)} g` : ""}</span></div>
+      <div class="acts"><button data-act="use" title="Günlüğe ekle">＋</button><button data-act="fedit" title="Düzenle">✎</button></div>
+    </div>`).join("") || `<div class="hint">Sonuç yok.</div>`;
+  $("hiddenBox").innerHTML = hidden.length
+    ? `<button class="ghost sm" id="restoreHidden" style="margin-top:6px">Silinen yerleşik yiyecekleri geri getir (${hidden.length})</button>` : "";
+}
+function openFoodForm(f){
+  fEdit = f ? f.id : "new";
+  $("fTitle").textContent = f ? "Düzenle" : "Yeni yiyecek";
+  $("fName").value = f ? f.name : "";
+  $("fKcal").value = f ? f.kcal : ""; $("fP").value = f ? f.p : ""; $("fC").value = f ? f.c : ""; $("fF").value = f ? f.f : "";
+  $("fPl").value = f ? f.pl || "" : ""; $("fPg").value = f && f.pg ? f.pg : "";
+  $("fCat").value = f ? (CATS[f.cat] ? f.cat : "diger") : "diger";
+  const u = f && f.u ? f.u : {};
+  for (const [k] of UNITS) $("fU_" + k).value = u[k] || "";
+  fillUnitPlaceholders();
+  $("fNote").textContent = f && f.src === "ai" ? `Claude tarafından hesaplandı${f.conf ? " (güven: " + f.conf + ")" : ""}. ${f.note || ""} ${f.source ? "Kaynak: " + f.source : ""}` : "";
+  $("fDel").classList.toggle("hidden", !f);
+  $("fReset").classList.toggle("hidden", !(f && f.builtin && overrides[f.id]));
+  $("foodForm").classList.remove("hidden");
+  renderFoodCalcHint();
+  $("foodForm").scrollIntoView({behavior:"smooth", block:"start"});
+  $("fName").focus();
+}
+function closeFoodForm(){ fEdit = null; $("foodForm").classList.add("hidden"); }
+function fillUnitPlaceholders(){
+  const d = UNIT_DEF[$("fCat").value] || UNIT_DEF.diger;
+  for (const [k] of UNITS) $("fU_" + k).placeholder = d[k];
+}
+function renderFoodCalcHint(){
+  const p = +$("fP").value || 0, c = +$("fC").value || 0, f = +$("fF").value || 0, kcal = +$("fKcal").value || 0;
+  const mk = macroKcal(p, c, f);
+  $("fCalcHint").textContent = (p || c || f) ? `Makrolardan hesaplanan: ${fmt0(mk)} kcal/100 g` + (kcal ? ` (etiket: ${fmt0(kcal)})` : " — kcal boşsa bu kullanılır") : "";
+}
+function saveFood(){
+  const name = $("fName").value.trim();
+  if (!name){ alert("Ad gerekli."); $("fName").focus(); return; }
+  const p = +$("fP").value || 0, c = +$("fC").value || 0, f = +$("fF").value || 0;
+  const o = {name, kcal:+$("fKcal").value || macroKcal(p, c, f), p, c, f, pl:$("fPl").value.trim(), pg:Math.max(0, +$("fPg").value || 0), cat:$("fCat").value || "diger", u:{}};
+  for (const [k] of UNITS){ const v = +$("fU_" + k).value; if (v > 0) o.u[k] = v; }
+  if (fEdit === "new"){ customFoods.push(Object.assign({id:"c_" + uid()}, o)); save(LS.foods, customFoods); }
+  else {
+    const cf = customFoods.find((x) => x.id === fEdit);
+    if (cf){ Object.assign(cf, o); save(LS.foods, customFoods); }
+    else { overrides[fEdit] = o; save(LS.over, overrides); }
+  }
+  closeFoodForm(); renderFoods(); renderRecent();
+}
+function deleteFood(){
+  if (!confirm("Bu yiyecek listeden silinsin mi? Günlükteki eski kayıtlar etkilenmez.")) return;
+  const i = customFoods.findIndex((x) => x.id === fEdit);
+  if (i >= 0){ customFoods.splice(i, 1); save(LS.foods, customFoods); }
+  else { if (!hidden.includes(fEdit)) hidden.push(fEdit); save(LS.hidden, hidden); delete overrides[fEdit]; save(LS.over, overrides); }
+  closeFoodForm(); renderFoods(); renderRecent();
+}
+function resetFood(){
+  delete overrides[fEdit]; save(LS.over, overrides);
+  closeFoodForm(); renderFoods(); renderRecent();
+}
+
+/* ------------------------------------------------------------------ */
+/* Geçmiş sekmesi                                                      */
+/* ------------------------------------------------------------------ */
+function renderHistory(){
+  let rows = "", acc = {kcal:0, p:0, c:0, f:0, n:0};
+  for (let i = 0; i < 14; i++){
+    const d = shiftDay(todayStr(), -i), l = entries(d), s = sumEntries(l), m = macroStats(s), has = l.length > 0;
+    if (has){ acc.kcal += s.kcal; acc.p += s.p; acc.c += s.c; acc.f += s.f; acc.n++; }
+    const e = has ? `${fmt0(m.ePct.p)} / ${fmt0(m.ePct.c)} / ${fmt0(m.ePct.f)}` : "–";
+    rows += `<tr class="${has ? "" : "dim"}" data-date="${d}"><td>${shortDate(d)}</td><td>${has ? fmt0(s.kcal) : "–"}</td><td>${has ? fmt1(s.p) : "–"}</td><td>${has ? fmt1(s.c) : "–"}</td><td>${has ? fmt1(s.f) : "–"}</td><td class="mini">${e}</td></tr>`;
+  }
+  if (acc.n){
+    const a = {kcal:acc.kcal / acc.n, p:acc.p / acc.n, c:acc.c / acc.n, f:acc.f / acc.n}, m = macroStats(a);
+    rows += `<tr class="tot"><td>Ort. (${acc.n} gün)</td><td>${fmt0(a.kcal)}</td><td>${fmt1(a.p)}</td><td>${fmt1(a.c)}</td><td>${fmt1(a.f)}</td><td class="mini">${fmt0(m.ePct.p)} / ${fmt0(m.ePct.c)} / ${fmt0(m.ePct.f)}</td></tr>`;
+  }
+  $("histBody").innerHTML = rows;
+}
+function renderTargets(){
+  $("tKcal").value = targets.kcal || ""; $("tP").value = targets.p || ""; $("tC").value = targets.c || ""; $("tF").value = targets.f || "";
+  renderTargetHint();
+}
+function renderTargetHint(){
+  const kcal = +$("tKcal").value || 0, p = +$("tP").value || 0, c = +$("tC").value || 0, f = +$("tF").value || 0, s = p + c + f;
+  let h = "";
+  if (s && Math.abs(s - 100) > 0.5) h = `Yüzdeler toplamı ${fmt0(s)}; 100 olmalı.`;
+  else if (kcal && s) h = `Gram karşılığı: P ${fmt0(kcal * p / 100 / 4)} g · K ${fmt0(kcal * c / 100 / 4)} g · Y ${fmt0(kcal * f / 100 / 9)} g`;
+  else h = "Boş bırakılan hedefler gösterilmez. Yüzdeler enerji payıdır (toplam 100).";
+  $("tHint").textContent = h;
+}
+function saveTargets(){
+  const t = {kcal:Math.max(0, +$("tKcal").value || 0), p:+$("tP").value || 0, c:+$("tC").value || 0, f:+$("tF").value || 0};
+  const s = t.p + t.c + t.f;
+  if (s && Math.abs(s - 100) > 0.5){ alert("Makro yüzdelerinin toplamı 100 olmalı (şu an " + fmt0(s) + ")."); return; }
+  targets = t; save(LS.targets, targets);
+  $("tMsg").textContent = "Kaydedildi.";
+  setTimeout(() => $("tMsg").textContent = "", 2000);
+  renderDay();
+}
+
+/* --- dışa/içe aktar --- */
+function exportData(){
+  const data = {app:"yemek-gunlugu", version:2, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish};
+  const blob = new Blob([JSON.stringify(data, null, 1)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "yemek-gunlugu-" + todayStr() + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function importData(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if (!d || typeof d !== "object" || typeof d.log !== "object") throw new Error("format");
+      if (!confirm("Mevcut tüm veriler dosyadakilerle değiştirilecek. Devam edilsin mi?")) return;
+      log = d.log || {}; customFoods = Array.isArray(d.customFoods) ? d.customFoods : [];
+      overrides = d.overrides || {}; hidden = Array.isArray(d.hidden) ? d.hidden : [];
+      targets = Object.assign({kcal:0, p:0, c:0, f:0}, d.targets || {}); recent = []; wish = Array.isArray(d.wish) ? d.wish : [];
+      save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish);
+      renderAll(); alert("İçe aktarıldı.");
+    }catch(e){ alert("Dosya okunamadı: geçerli bir Yemek Günlüğü yedeği değil."); }
+  };
+  r.readAsText(file);
+}
+function wipeAll(){
+  if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
+  if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
+  Object.values(LS).forEach((k) => localStorage.removeItem(k));
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true};
+  renderAll();
+}
+
+/* ------------------------------------------------------------------ */
+/* Sekmeler ve olaylar                                                 */
+/* ------------------------------------------------------------------ */
+function showTab(t){
+  document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  ["gunluk", "yiyecek", "gecmis"].forEach((x) => $("tab-" + x).classList.toggle("hidden", x !== t));
+  if (t === "yiyecek"){ renderFoods(); renderWish(); }
+  if (t === "gecmis"){ renderHistory(); renderTargets(); }
+  window.scrollTo(0, 0);
+}
+function renderAll(){ renderDay(); renderRecent(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); }
+
+function init(){
+  for (const id of ["selMeal", "mMeal"]) $(id).innerHTML = MEALS.map((m) => `<option>${m}</option>`).join("");
+  $("selMeal").value = $("mMeal").value = defaultMeal();
+  $("dateInp").value = curDate;
+
+  document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  $("dateInp").addEventListener("change", () => { if ($("dateInp").value) setDate($("dateInp").value); });
+  $("prevDay").addEventListener("click", () => setDate(shiftDay(curDate, -1)));
+  $("nextDay").addEventListener("click", () => setDate(shiftDay(curDate, 1)));
+  $("todayBtn").addEventListener("click", () => setDate(todayStr()));
+
+  $("q").addEventListener("input", () => { if (sel && $("q").value !== sel.name){ sel = null; $("selBox").classList.add("hidden"); } renderResults(); });
+  $("q").addEventListener("keydown", (ev) => { if (ev.key === "Enter"){ const first = $("results").querySelector(".res[data-id]"); if (first) selectFood(foodById(first.dataset.id)); ev.preventDefault(); } });
+  $("results").addEventListener("click", (ev) => {
+    const r = ev.target.closest(".res"); if (!r) return;
+    if (r.dataset.id) selectFood(foodById(r.dataset.id));
+    else if (r.dataset.ask) askClaude(r.dataset.ask);
+    else if (r.dataset.wish) addWish(r.dataset.wish);
+  });
+  $("aiBox").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.id === "aiAccept") acceptAi();
+    else if (b.id === "aiClose"){ $("aiBox").classList.add("hidden"); aiPending = null; }
+    else if (b.id === "aiRetry") askClaude(b.dataset.name);
+    else if (b.id === "aiGoSettings"){ $("aiBox").classList.add("hidden"); showTab("gecmis"); $("aiKey").focus(); }
+  });
+  $("recentBox").addEventListener("click", (ev) => { const p = ev.target.closest(".pill[data-id]"); if (p) selectFood(foodById(p.dataset.id)); });
+  $("selQ").addEventListener("input", renderCalc);
+  $("selQ").addEventListener("keydown", (ev) => { if (ev.key === "Enter") addSelected(); });
+  $("selUnit").addEventListener("change", () => { const u = selUnitObj(); $("selQ").value = u.key === "g" ? 100 : 1; renderQtyChips(); renderCalc(); });
+  $("qtyChips").addEventListener("click", (ev) => { const p = ev.target.closest(".pill[data-q]"); if (p){ $("selQ").value = +p.dataset.q; renderCalc(); } });
+  $("addBtn").addEventListener("click", addSelected);
+  $("mAddBtn").addEventListener("click", addManual);
+
+  $("logBody").addEventListener("click", (ev) => {
+    if (ev.target.id === "clearDay"){ if (confirm("Bu günün tüm kayıtları silinsin mi?")){ delete log[curDate]; save(LS.log, log); editId = null; renderDay(); } return; }
+    const btn = ev.target.closest("button[data-act]"); if (!btn) return;
+    const row = btn.closest("[data-id]"); const id = row && row.dataset.id;
+    if (btn.dataset.act === "del"){ removeEntry(curDate, id); renderDay(); }
+    else if (btn.dataset.act === "edit"){ editId = id; renderDay(); $("eG") && $("eG").focus(); }
+    else if (btn.dataset.act === "save") saveEdit(id);
+    else if (btn.dataset.act === "cancel"){ editId = null; renderDay(); }
+  });
+
+  $("fq").addEventListener("input", renderFoods);
+  $("newFood").addEventListener("click", () => openFoodForm(null));
+  $("fSave").addEventListener("click", saveFood);
+  $("fCancel").addEventListener("click", closeFoodForm);
+  $("fDel").addEventListener("click", deleteFood);
+  $("fReset").addEventListener("click", resetFood);
+  ["fKcal", "fP", "fC", "fF"].forEach((id) => $(id).addEventListener("input", renderFoodCalcHint));
+  $("fCat").innerHTML = Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  $("fCat").addEventListener("change", fillUnitPlaceholders);
+  $("wishList").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.wdel != null){ wish.splice(+b.dataset.wdel, 1); save(LS.wish, wish); renderWish(); }
+    else if (b.dataset.wask != null){ const name = wish[+b.dataset.wask]; showTab("gunluk"); askClaude(name); $("aiBox").scrollIntoView({behavior:"smooth", block:"center"}); }
+  });
+  $("wishCopy").addEventListener("click", async () => {
+    const txt = "Şu yemeklerin 100 g besin değerlerini (kcal, protein, karbonhidrat, yağ) ve porsiyon gramlarını en güvenilir tarife göre hesaplayıp yemek günlüğü tablosuna ekle:\n- " + wish.join("\n- ");
+    try{ await navigator.clipboard.writeText(txt); alert("Kopyalandı. Claude'a yapıştırabilirsin."); }catch(e){ prompt("Kopyala:", txt); }
+  });
+  $("wishClear").addEventListener("click", () => { if (confirm("Araştırılacaklar listesi temizlensin mi?")){ wish = []; save(LS.wish, wish); renderWish(); } });
+  $("aiKeySave").addEventListener("click", saveAiSettings);
+  $("foodList").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button[data-act]"); if (!btn) return;
+    const f = foodById(btn.closest("[data-id]").dataset.id); if (!f) return;
+    if (btn.dataset.act === "fedit") openFoodForm(f);
+    else if (btn.dataset.act === "use"){ showTab("gunluk"); selectFood(f); $("selBox").scrollIntoView({behavior:"smooth", block:"center"}); }
+  });
+  $("hiddenBox").addEventListener("click", (ev) => { if (ev.target.id === "restoreHidden"){ hidden = []; save(LS.hidden, hidden); renderFoods(); } });
+
+  $("histBody").addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-date]"); if (tr){ showTab("gunluk"); setDate(tr.dataset.date); } });
+  ["tKcal", "tP", "tC", "tF"].forEach((id) => $(id).addEventListener("input", renderTargetHint));
+  $("tSave").addEventListener("click", saveTargets);
+  $("exportBtn").addEventListener("click", exportData);
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", () => { const f = $("importFile").files[0]; if (f) importData(f); $("importFile").value = ""; });
+  $("wipeBtn").addEventListener("click", wipeAll);
+
+  renderAll();
+}
+init();
+
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
