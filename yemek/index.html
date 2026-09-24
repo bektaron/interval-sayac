@@ -74,6 +74,8 @@
   .datebar input[type=date]{flex:1 1 auto;min-width:0;text-align:center;font-weight:700}
   .datebar button{flex:0 0 auto;padding:10px 12px}
   .datelbl{text-align:center;font-size:13px;color:var(--muted);margin:-6px 0 12px}
+  .card.backup{padding:10px 14px;border-color:#7c5a12;background:#1f1a0f}
+  .card.backup .muted{font-size:13px}
 
   /* özet */
   .geninfo{display:flex;gap:10px;margin-bottom:10px}
@@ -182,6 +184,12 @@
       <button id="todayBtn" class="ghost">Bugün</button>
     </div>
     <div class="datelbl" id="dateLbl"></div>
+    <div class="card backup hidden" id="backupBar">
+      <div class="row between">
+        <div><b>💾 Yedek</b> <span class="muted" id="backupMsg"></span></div>
+        <div class="row tight"><button class="primary sm" id="backupNow">iCloud'a yedekle</button><button class="ghost sm" id="backupLater">Sonra</button></div>
+      </div>
+    </div>
 
     <div class="card">
       <h2>Özet</h2>
@@ -375,12 +383,13 @@
     <div class="card">
       <h2>Veri</h2>
       <div class="row">
-        <button id="exportBtn">Dışa aktar (JSON)</button>
-        <button id="importBtn">İçe aktar</button>
+        <button class="primary" id="exportBtn">💾 Yedekle (iCloud / Dosyalar)</button>
+        <button id="importBtn">Yedekten geri yükle</button>
         <input type="file" id="importFile" accept="application/json,.json" class="hidden">
         <button class="ghost danger" id="wipeBtn" style="margin-left:auto">Tüm veriyi sil</button>
       </div>
-      <div class="hint">Veriler yalnızca bu cihazda (tarayıcı depolamasında) tutulur. Yedek almak için dışa aktar.</div>
+      <div class="hint" id="backupInfo"></div>
+      <div class="hint">Veriler yalnızca bu cihazda tutulur; iOS arka planda otomatik yedek almaya izin vermez. "Yedekle" iPhone'da paylaşım menüsünü açar: <b>Dosyalara Kaydet → iCloud Drive</b> seçersen yedek iCloud'a gider. Telefon değişince aynı dosyayı "Yedekten geri yükle" ile alırsın. Yedek 7 günden eskiyse Günlük ekranında hatırlatma çıkar.</div>
     </div>
   </section>
 </div>
@@ -712,7 +721,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -877,6 +886,7 @@ function renderDay(){
   $("dateLbl").textContent = fmtDate(curDate) + (curDate === todayStr() ? " · bugün" : "");
   renderSummary(list);
   renderLog(list);
+  renderBackup();
 }
 
 function bar(pc){
@@ -1454,13 +1464,40 @@ function saveTargets(){
 }
 
 /* --- dışa/içe aktar --- */
-function exportData(){
-  const data = {app:"yemek-gunlugu", version:3, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn};
-  const blob = new Blob([JSON.stringify(data, null, 1)], {type:"application/json"});
+function exportPayload(){
+  return {app:"yemek-gunlugu", version:3, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn};
+}
+// Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
+async function exportData(){
+  const json = JSON.stringify(exportPayload(), null, 1);
+  const name = "yemek-gunlugu-" + todayStr() + ".json";
+  try{
+    if (navigator.share && navigator.canShare && typeof File === "function"){
+      const file = new File([json], name, {type:"application/json"});
+      if (navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:"Yemek Günlüğü yedeği"});
+        markBackup(); return;
+      }
+    }
+  }catch(e){
+    if (e && e.name === "AbortError") return; // kullanıcı paylaşımı iptal etti
+  }
+  const blob = new Blob([json], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "yemek-gunlugu-" + todayStr() + ".json";
+  a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  markBackup();
+}
+function markBackup(){ save(LS.backup, Date.now()); renderBackup(); }
+function hasData(){ return Object.keys(log).length > 0 || customFoods.length > 0; }
+function backupAge(){ const t = +load(LS.backup, 0); return t ? Math.floor((Date.now() - t) / 86400000) : null; }
+function renderBackup(){
+  const age = backupAge(), snooze = +load(LS.snooze, 0);
+  const due = hasData() && (age == null || age >= 7) && Date.now() > snooze;
+  $("backupBar").classList.toggle("hidden", !due);
+  $("backupMsg").textContent = age == null ? "Henüz yedek alınmadı." : `Son yedek ${age} gün önce.`;
+  $("backupInfo").textContent = age == null ? "Henüz yedek alınmadı." : (age === 0 ? "Son yedek: bugün." : `Son yedek: ${age} gün önce.`);
 }
 function importData(file){
   const r = new FileReader();
@@ -1474,6 +1511,7 @@ function importData(file){
       targets = Object.assign({kcal:0, p:0, c:0, f:0}, d.targets || {}); recent = []; wish = Array.isArray(d.wish) ? d.wish : [];
       packsOn = Array.isArray(d.packsOn) ? d.packsOn.filter(packById) : [];
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
+      save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
     }catch(e){ alert("Dosya okunamadı: geçerli bir Yemek Günlüğü yedeği değil."); }
   };
@@ -1595,6 +1633,8 @@ function init(){
   ["tKcal", "tP", "tC", "tF"].forEach((id) => $(id).addEventListener("input", renderTargetHint));
   $("tSave").addEventListener("click", saveTargets);
   $("exportBtn").addEventListener("click", exportData);
+  $("backupNow").addEventListener("click", exportData);
+  $("backupLater").addEventListener("click", () => { save(LS.snooze, Date.now() + 7 * 86400000); renderBackup(); });
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", () => { const f = $("importFile").files[0]; if (f) importData(f); $("importFile").value = ""; });
   $("wipeBtn").addEventListener("click", wipeAll);

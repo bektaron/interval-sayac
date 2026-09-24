@@ -1,5 +1,5 @@
 // Yemek Günlüğü - çevrimdışı önbellek
-const CACHE = 'yemek-v2';
+const CACHE = 'yemek-v3';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
