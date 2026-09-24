@@ -1,5 +1,5 @@
 // Yemek Günlüğü - çevrimdışı önbellek
-const CACHE = 'yemek-v1';
+const CACHE = 'yemek-v2';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
@@ -21,6 +21,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // dış servisler (Open Food Facts, Anthropic, CDN) önbelleğe alınmaz; doğrudan ağa gider
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   // HTML/gezinme: önce ağ (güncel kalsın), çevrimdışıysa önbellek
   if (e.request.mode === 'navigate' || e.request.destination === 'document') {
     e.respondWith(
@@ -36,8 +38,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((cached) =>
       cached || fetch(e.request).then((resp) => {
-        const copy = resp.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        if (resp.ok) { const copy = resp.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return resp;
       })
     )

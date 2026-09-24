@@ -117,6 +117,17 @@
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
   @keyframes spin{to{transform:rotate(360deg)}}
   .conf{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin-left:6px}
+  /* barkod tarayıcı */
+  #scanner{position:fixed;inset:0;background:#000;z-index:60;display:flex;flex-direction:column;gap:8px;
+           padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 12px)}
+  .scan-top{display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:17px}
+  .scan-top .x{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:6px 12px;min-height:38px}
+  .scan-view{position:relative;flex:1 1 auto;min-height:0;background:#111;border-radius:14px;overflow:hidden}
+  .scan-view video{width:100%;height:100%;object-fit:cover;display:block}
+  .scan-frame{position:absolute;left:10%;right:10%;top:36%;bottom:36%;border:2px solid var(--accent);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
+  .scan-status{color:#cbd5e1;font-size:13px;min-height:18px;text-align:center}
+  .scan-bottom .row{flex-wrap:nowrap}
+  .scan-bottom input{flex:1 1 auto;min-width:0;width:auto}
   .calc b{font-size:18px}
   details summary{cursor:pointer;color:var(--muted);font-weight:600;padding:8px 0;list-style:none}
   details summary::before{content:"▸ ";}
@@ -200,6 +211,11 @@
       <input type="search" id="q" placeholder="Yiyecek ara… (yumurta, pilav, elma)" autocomplete="off" autocorrect="off" autocapitalize="off">
       <div id="results" class="results"></div>
       <div id="recentBox" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="scanBtn">📷 Barkod tara</button>
+        <button class="ghost" id="packsBtn">🌍 Mutfak paketleri</button>
+      </div>
+      <div id="scanBox" class="selbox hidden"></div>
 
       <div id="selBox" class="selbox hidden">
         <div class="selname"><b id="selName"></b><span class="muted" id="selPer100"></span></div>
@@ -301,6 +317,12 @@
       <div class="hint">Değerler 100 g başınadır. Temel gıdalar (yumurta, süt ürünleri, tahıl, yağ, kuruyemiş, meyve-sebze) standart besin tablosu ortalamalarıdır; karma Türk yemekleri (çorba, kebap, zeytinyağlı, börek, tatlı) tarife göre değişen yaklaşık değerlerdir (±%20). Etiket veya kendi tarifin farklıysa ✎ ile düzenle; düzenlemeler bu cihazda saklanır.</div>
     </div>
 
+    <div class="card" id="packCard">
+      <h2>Mutfak paketleri</h2>
+      <div id="packList"></div>
+      <div class="hint">Gittiğin ülkenin mutfağını seç; yemekleri arama listesine eklenir ve cihazda kalır (bir kez indirilir, sonra çevrimdışı çalışır). İstediğinde kaldırabilirsin; günlükteki kayıtlar etkilenmez. Değerler 100 g başına yaklaşık restoran porsiyonu tarifleridir.</div>
+    </div>
+
     <div class="card hidden" id="wishCard">
       <h2>Araştırılacaklar <span class="muted" id="wishCount"></span></h2>
       <div id="wishList"></div>
@@ -361,6 +383,17 @@
       <div class="hint">Veriler yalnızca bu cihazda (tarayıcı depolamasında) tutulur. Yedek almak için dışa aktar.</div>
     </div>
   </section>
+</div>
+
+<div id="scanner" class="hidden">
+  <div class="scan-top"><b>Barkod tara</b><button class="x" id="scanClose">✕ Kapat</button></div>
+  <div class="scan-view"><video id="scanVideo" playsinline muted autoplay></video><div class="scan-frame"></div></div>
+  <div class="scan-status" id="scanStatus"></div>
+  <div class="scan-bottom">
+    <div class="row"><input type="text" id="scanCode" inputmode="numeric" autocomplete="off" placeholder="Barkod numarası (elle)"><button class="primary" id="scanLookup">Ara</button></div>
+    <button class="block" id="scanPhotoBtn">📸 Fotoğraf çek / seç</button>
+    <input type="file" id="scanPhoto" accept="image/*" capture="environment" class="hidden">
+  </div>
 </div>
 
 <script>
@@ -679,7 +712,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -691,6 +724,57 @@ let targets = Object.assign({kcal:0, p:0, c:0, f:0}, load(LS.targets, {}));
 let recent = load(LS.recent, []);           // son eklenen yiyecek id'leri
 let ai = Object.assign({key:"", web:true}, load(LS.ai, {}));   // Claude araştırma ayarları (anahtar yalnızca bu cihazda)
 let wish = load(LS.wish, []);               // araştırılacak yemek adları
+let packsOn = load(LS.packs, []);           // etkin mutfak paketleri
+let packData = load(LS.packData, {});       // indirilen paket içerikleri {id:{v, items}}
+
+/* ------------------------------------------------------------------ */
+/* Mutfak paketleri — ayrı dosyalarda, seçilince indirilir ve kalır    */
+/* ------------------------------------------------------------------ */
+const PACKS = [
+  {id:"si", name:"Slovenya", flag:"🇸🇮", v:1, desc:"Ljubljana ve Slovenya: jota, štruklji, kranjska klobasa, potica, kremšnita…"},
+  {id:"eu", name:"Avrupa restoran klasikleri", flag:"🇪🇺", v:1, desc:"Steak, makarnalar, pizza, salatalar, tatlılar, kahveler, soslar"},
+  {id:"it", name:"İtalya", flag:"🇮🇹", v:1, desc:"Focaccia, ossobuco, cacio e pepe, mozzarella, cannoli…"},
+  {id:"fr", name:"Fransa", flag:"🇫🇷", v:1, desc:"Quiche, bœuf bourguignon, peynirler, crème brûlée, macaron…"},
+  {id:"de", name:"Almanya & Avusturya", flag:"🇩🇪", v:1, desc:"Schnitzel, Bratwurst, Brezel, Spätzle, Sachertorte, Weißbier…"},
+  {id:"es", name:"İspanya", flag:"🇪🇸", v:1, desc:"Paella, tortilla, tapas, jamón, churros, sangria…"},
+  {id:"gr", name:"Yunanistan", flag:"🇬🇷", v:1, desc:"Moussaka, souvlaki, gyros, tzatziki, feta, loukoumades…"},
+  {id:"ba", name:"Balkanlar", flag:"🇭🇷", v:1, desc:"Hırvatistan, Bosna, Sırbistan: ćevapi, peka, ajvar, kajmak, krempita…"},
+  {id:"ce", name:"Orta Avrupa", flag:"🇨🇿", v:1, desc:"Çekya, Macaristan, Polonya: svíčková, gulyás, lángos, pierogi, trdelník…"},
+];
+function packById(id){ return PACKS.find((p) => p.id === id); }
+async function fetchPack(p){
+  const r = await fetch(`packs/${p.id}.json?v=${p.v}`);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const d = await r.json();
+  if (!d || !Array.isArray(d.items)) throw new Error("bozuk paket");
+  packData[p.id] = {v:p.v, items:d.items}; save(LS.packData, packData);
+}
+async function enablePack(id){
+  const p = packById(id); if (!p) return;
+  if (!packData[id] || packData[id].v !== p.v){
+    try{ await fetchPack(p); }catch(e){ alert("Paket indirilemedi (internet gerekli): " + e.message); return; }
+  }
+  if (!packsOn.includes(id)) packsOn.push(id);
+  save(LS.packs, packsOn);
+  renderPacks(); renderFoods(); renderRecent();
+}
+function disablePack(id){
+  packsOn = packsOn.filter((x) => x !== id); save(LS.packs, packsOn);
+  renderPacks(); renderFoods(); renderRecent();
+}
+async function refreshPacks(){ // eksik ya da eski sürüm paketleri arka planda tazele
+  for (const id of packsOn){
+    const p = packById(id);
+    if (p && (!packData[id] || packData[id].v !== p.v)){ try{ await fetchPack(p); renderPacks(); renderFoods(); }catch(e){} }
+  }
+}
+function renderPacks(){
+  $("packList").innerHTML = PACKS.map((p) => {
+    const on = packsOn.includes(p.id), n = packData[p.id] ? packData[p.id].items.length : 0;
+    return `<div class="food" data-pack="${p.id}"><div class="en"><b>${p.flag} ${esc(p.name)}${n ? ` <span class="muted">(${n} yemek)</span>` : ""}</b><span class="muted">${esc(p.desc)}</span></div>
+      <div class="acts"><button class="${on ? "primary" : ""}" data-pack="${p.id}" data-on="${on ? 1 : 0}">${on ? "Ekli ✓" : "Ekle"}</button></div></div>`;
+  }).join("");
+}
 
 /* ------------------------------------------------------------------ */
 /* Yardımcılar                                                         */
@@ -700,8 +784,9 @@ const fmt1 = (n) => (Math.round((n || 0) * 10) / 10).toLocaleString("tr-TR", {ma
 const pct = (n) => "%" + fmt0(n);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-const TRMAP = {"ı":"i","İ":"i","ş":"s","Ş":"s","ğ":"g","Ğ":"g","ü":"u","Ü":"u","ö":"o","Ö":"o","ç":"c","Ç":"c"};
-function norm(s){ return String(s || "").replace(/[ıİşŞğĞüÜöÖçÇ]/g, (ch) => TRMAP[ch]).toLowerCase(); }
+// Aksan/ayırıcı duyarsız arama: Türkçe (ş, ğ, ı…) ve Avrupa dilleri (š, č, ž, ć, đ, é, ø, ł, ß…)
+const CHMAP = {"ı":"i","İ":"i","ø":"o","Ø":"o","ł":"l","Ł":"l","đ":"d","Đ":"d","ß":"ss","æ":"ae","Æ":"ae","œ":"oe","Œ":"oe"};
+function norm(s){ return String(s || "").replace(/[ıİøØłŁđĐßæÆœŒ]/g, (ch) => CHMAP[ch]).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 
 function ymd(d){ return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function todayStr(){ return ymd(new Date()); }
@@ -721,7 +806,22 @@ function allFoods(){
     const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", builtin:true};
     base.push(overrides[a[0]] ? Object.assign(f, overrides[a[0]]) : f);
   }
+  for (const id of packsOn){
+    const p = packById(id), d = packData[id];
+    if (!p || !d) continue;
+    for (const a of d.items){
+      if (hidden.includes(a[0])) continue;
+      const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", builtin:true, pack:p.id};
+      base.push(overrides[a[0]] ? Object.assign(f, overrides[a[0]]) : f);
+    }
+  }
   return base.concat(customFoods.map((f) => Object.assign({pl:"", pg:0, cat:"diger"}, f, {builtin:false})));
+}
+function foodTag(f){
+  if (!f.builtin) return `<span class="tag">${f.src === "ai" ? "AI" : f.src === "off" ? "barkod" : "özel"}</span>`;
+  let t = f.pack && packById(f.pack) ? `<span class="tag">${packById(f.pack).flag}</span>` : "";
+  if (overrides[f.id]) t += '<span class="tag">düzenlendi</span>';
+  return t;
 }
 function foodById(id){ return allFoods().find((f) => f.id === id); }
 function searchFoods(q){
@@ -889,8 +989,8 @@ function renderResults(){
   if (!q.trim()){ $("results").innerHTML = ""; return; }
   const list = searchFoods(q).slice(0, 12);
   let h = list.map((f) =>
-    `<div class="res" data-id="${f.id}"><span>${esc(f.name)}${f.builtin ? "" : `<span class="tag">${f.src === "ai" ? "AI" : "özel"}</span>`}</span><span class="muted">${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} · K ${fmt1(f.c)} · Y ${fmt1(f.f)}</span></div>`).join("");
-  if (!list.length) h += `<div class="res"><span class="muted">Listede yok.</span></div>`;
+    `<div class="res" data-id="${f.id}"><span>${esc(f.name)}${foodTag(f)}</span><span class="muted">${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} · K ${fmt1(f.c)} · Y ${fmt1(f.f)}</span></div>`).join("");
+  if (!list.length) h += `<div class="res"><span class="muted">Listede yok. Yurt dışındaysan 🌍 mutfak paketi ekle; paketli ürünse 📷 barkod tara.</span></div>`;
   if (q.trim().length >= 3){
     h += `<div class="res ai" data-ask="${esc(q.trim())}"><span>🔎 Claude'a sor: “${esc(q.trim())}”</span><span class="muted">${ai.key ? "tarife göre hesapla" : "API anahtarı gerekli"}</span></div>`;
     if (!ai.key) h += `<div class="res" data-wish="${esc(q.trim())}"><span>📝 Araştırılacaklar listesine ekle</span><span class="muted">${wish.includes(q.trim()) ? "listede" : ""}</span></div>`;
@@ -916,7 +1016,9 @@ Yanıtın YALNIZCA aşağıdaki JSON nesnesi olsun; öncesinde veya sonrasında 
 async function claudeRequest(name){
   const url = "https://api.anthropic.com/v1/messages";
   const headers = {"content-type":"application/json", "x-api-key":ai.key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"};
-  const body = {model:AI_MODEL, max_tokens:4000, system:AI_SYSTEM, output_config:{effort:"medium"}, messages:[{role:"user", content:`Yemek / gıda: "${name}"`}]};
+  const ctxPacks = packsOn.map(packById).filter(Boolean).map((p) => p.name);
+  const userMsg = `Yemek / gıda: "${name}"` + (ctxPacks.length ? `\nBağlam: kullanıcı şu mutfakların olduğu yerlerde (seyahatte/restoranda) yemek yiyor: ${ctxPacks.join(", ")}. Yemek adı bu ülkelerin dilinde olabilir; yerel restoran tarifini esas al.` : "");
+  const body = {model:AI_MODEL, max_tokens:4000, system:AI_SYSTEM, output_config:{effort:"medium"}, messages:[{role:"user", content:userMsg}]};
   if (ai.web) body.tools = [{type:"web_search_20260209", name:"web_search", max_uses:3}];
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 120000);
   try{
@@ -987,6 +1089,145 @@ async function askClaude(name){
       <div class="hint">Anahtar hatalıysa Geçmiş sekmesinden düzelt. İnternet yoksa “Araştırılacaklar” listesine ekleyip sonra sorabilirsin.</div>`;
   }
 }
+/* ------------------------------------------------------------------ */
+/* Barkod: kamera (BarcodeDetector / ZXing), fotoğraf, elle numara;    */
+/* ürün verisi Open Food Facts'ten                                     */
+/* ------------------------------------------------------------------ */
+const SCAN_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
+let scanStream = null, scanRAF = null, scanDet = null, zxReader = null, scanBusy = false, scanPending = null, pendingBarcode = null;
+function openScanner(){
+  $("scanner").classList.remove("hidden");
+  $("scanStatus").textContent = "Kamera açılıyor…"; $("scanCode").value = "";
+  startCamera();
+}
+async function startCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $("scanStatus").textContent = "Bu tarayıcıda kamera erişimi yok. Fotoğraf çek veya numarayı elle yaz."; return;
+  }
+  try{
+    const v = $("scanVideo");
+    if ("BarcodeDetector" in window){
+      scanDet = new BarcodeDetector({formats:SCAN_FORMATS});
+      scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false});
+      v.srcObject = scanStream; await v.play();
+      $("scanStatus").textContent = "Barkodu çerçeveye getir.";
+      const tick = async () => {
+        if (!scanStream) return;
+        if (!scanBusy && v.readyState >= 2){
+          scanBusy = true;
+          try{ const codes = await scanDet.detect(v); if (codes.length){ onScanned(codes[0].rawValue); return; } }catch(e){}
+          scanBusy = false;
+        }
+        scanRAF = requestAnimationFrame(tick);
+      };
+      scanRAF = requestAnimationFrame(tick);
+    } else {
+      $("scanStatus").textContent = "Tarayıcı kütüphanesi yükleniyor…";
+      await loadZXing();
+      zxReader = new ZXing.BrowserMultiFormatReader();
+      $("scanStatus").textContent = "Barkodu çerçeveye getir.";
+      const cb = (result) => { if (result) onScanned(result.getText()); };
+      try{ await zxReader.decodeFromConstraints({video:{facingMode:{ideal:"environment"}}}, v, cb); }
+      catch(e){ await zxReader.decodeFromVideoDevice(undefined, v, cb); }
+    }
+  }catch(e){
+    $("scanStatus").textContent = "Kamera açılamadı (" + (e.message || e.name) + "). Fotoğraf çek veya numarayı elle yaz.";
+  }
+}
+function stopCamera(){
+  if (scanRAF) cancelAnimationFrame(scanRAF);
+  scanRAF = null; scanBusy = false;
+  if (scanStream){ scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+  if (zxReader){ try{ zxReader.reset(); }catch(e){} zxReader = null; }
+  const v = $("scanVideo"); try{ v.pause(); v.srcObject = null; }catch(e){}
+}
+function closeScanner(){ stopCamera(); $("scanner").classList.add("hidden"); }
+function loadZXing(){
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+    sc.onload = res; sc.onerror = () => rej(new Error("tarayıcı kütüphanesi yüklenemedi (internet gerekli)"));
+    document.head.appendChild(sc);
+  });
+}
+async function scanPhotoFile(file){
+  $("scanStatus").textContent = "Fotoğraf okunuyor…";
+  try{
+    if ("BarcodeDetector" in window){
+      const det = scanDet || new BarcodeDetector({formats:SCAN_FORMATS});
+      const bmp = await createImageBitmap(file);
+      const codes = await det.detect(bmp);
+      if (codes.length) return onScanned(codes[0].rawValue);
+    } else {
+      await loadZXing();
+      const url = URL.createObjectURL(file);
+      try{ const r = await new ZXing.BrowserMultiFormatReader().decodeFromImageUrl(url); if (r) return onScanned(r.getText()); }
+      catch(e){}
+      finally{ URL.revokeObjectURL(url); }
+    }
+    $("scanStatus").textContent = "Fotoğrafta barkod bulunamadı. Daha yakından ve net çek ya da numarayı elle yaz.";
+  }catch(e){ $("scanStatus").textContent = "Fotoğraf okunamadı: " + (e.message || e.name); }
+}
+function onScanned(code){
+  code = String(code || "").replace(/\D/g, "");
+  if (!code) return;
+  try{ if (navigator.vibrate) navigator.vibrate(60); }catch(e){}
+  closeScanner();
+  lookupBarcode(code);
+}
+async function lookupBarcode(code){
+  code = String(code || "").replace(/\D/g, "");
+  if (!code) return;
+  const local = customFoods.find((f) => f.barcode === code);
+  if (local){ $("scanBox").classList.add("hidden"); selectFood(foodById(local.id)); return; }
+  $("selBox").classList.add("hidden"); sel = null; $("aiBox").classList.add("hidden");
+  $("scanBox").classList.remove("hidden");
+  $("scanBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Barkod ${esc(code)} aranıyor…</b><span class="muted">Open Food Facts veri tabanı</span></div>`;
+  try{
+    const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 20000);
+    let r, d;
+    try{
+      r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=code,product_name,product_name_tr,product_name_en,brands,quantity,serving_size,serving_quantity,nutriments`, {signal:ctrl.signal});
+      d = await r.json().catch(() => ({}));
+    } finally { clearTimeout(timer); }
+    if (r.status === 404 || !d || d.status === 0 || !d.product) throw new Error("bulunamadı");
+    const f = offToFood(d.product, code);
+    scanPending = f;
+    $("scanBox").innerHTML = `<div class="selname"><b>${esc(f.name)}<span class="tag">barkod</span></b>
+        <span class="muted">${f.brand ? esc(f.brand) + " · " : ""}100 g: ${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} g · K ${fmt1(f.c)} g · Y ${fmt1(f.f)} g${f.pg ? ` · ${esc(f.pl)} ≈ ${fmt0(f.pg)} g` : ""}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="scanAccept">Listeye kaydet ve seç</button><button class="ghost" id="scanCancel">Vazgeç</button></div>
+      <div class="hint">Kaynak: Open Food Facts (topluluk verisi; etiketle karşılaştır). Kaydedince barkod listede kalır, bir daha aranmaz.</div>`;
+  }catch(e){
+    const msg = e.name === "AbortError" ? "zaman aşımı" : (e.message === "bulunamadı" ? "bu barkod veri tabanında yok" : "bağlantı hatası");
+    pendingBarcode = code;
+    $("scanBox").innerHTML = `<div class="selname"><b>Ürün bulunamadı</b><span class="muted">Barkod ${esc(code)}: ${esc(msg)}.</span></div>
+      <div class="row" style="margin-top:8px"><button id="scanAgain">Tekrar tara</button><button class="ghost" id="scanManual">Etiketten elle gir</button><button class="ghost" id="scanCancel">Kapat</button></div>
+      <div class="hint">Elle girişte ürün adını ve etiket değerlerini yaz; "Yiyecek listesine de kaydet" işaretlersen barkod da kaydedilir, bir daha taratınca doğrudan gelir.</div>`;
+  }
+}
+function offToFood(pr0, code){
+  const n = pr0.nutriments || {};
+  const num = (v) => (v == null || v === "" || isNaN(+v)) ? null : Math.max(0, +v);
+  const pr = num(n.proteins_100g) || 0, c = num(n.carbohydrates_100g) || 0, f = num(n.fat_100g) || 0;
+  let kcal = num(n["energy-kcal_100g"]);
+  if (kcal == null){ const kj = num(n["energy-kj_100g"]) != null ? num(n["energy-kj_100g"]) : num(n["energy_100g"]); if (kj != null) kcal = kj / 4.184; }
+  if (kcal == null) kcal = macroKcal(pr, c, f);
+  if (!(kcal > 0 || pr > 0 || c > 0 || f > 0)) throw new Error("bulunamadı");
+  const name = String(pr0.product_name_tr || pr0.product_name || pr0.product_name_en || ("Ürün " + code)).trim().slice(0, 80);
+  const pg = num(pr0.serving_quantity) || 0;
+  return {id:"c_" + uid(), name, brand:String(pr0.brands || "").slice(0, 60), kcal, p:pr, c, f, cat:"diger", u:{},
+          pl:pg ? "1 porsiyon" + (pr0.serving_size ? " (" + String(pr0.serving_size).slice(0, 20) + ")" : "") : "", pg,
+          src:"off", barcode:code, note:"Open Food Facts" + (pr0.quantity ? " · " + String(pr0.quantity).slice(0, 30) : "")};
+}
+function acceptScan(){
+  if (!scanPending) return;
+  const f = scanPending; scanPending = null;
+  customFoods.push(f); save(LS.foods, customFoods);
+  $("scanBox").classList.add("hidden");
+  selectFood(foodById(f.id));
+}
+
 function acceptAi(){
   if (!aiPending) return;
   const f = aiPending; aiPending = null;
@@ -1026,7 +1267,8 @@ function selectFood(f){
   sel = f;
   $("aiBox").classList.add("hidden");
   $("selBox").classList.remove("hidden");
-  $("selName").innerHTML = esc(f.name) + (f.src === "ai" ? '<span class="tag">AI</span>' : "");
+  $("selName").innerHTML = esc(f.name) + foodTag(f);
+  $("scanBox").classList.add("hidden");
   $("selPer100").textContent = `100 g: ${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} g · K ${fmt1(f.c)} g · Y ${fmt1(f.f)} g`;
   selUnits = unitList(f);
   $("selUnit").innerHTML = selUnits.map((u, i) => `<option value="${i}">${esc(u.label)}${u.key === "g" ? "" : ` (${fmt0(u.g)} g)`}</option>`).join("");
@@ -1090,12 +1332,13 @@ function addManual(){
   const meal = $("mMeal").value;
   if ($("mSave").checked){
     if (!ref){ alert("Listeye kaydetmek için miktar (g) gerekli."); return; }
-    customFoods.push({id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, pl:"1 porsiyon", pg:g, cat:"diger"});
-    save(LS.foods, customFoods);
+    const cf = {id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, pl:"1 porsiyon", pg:g, cat:"diger"};
+    if (pendingBarcode){ cf.barcode = pendingBarcode; cf.src = "off"; cf.note = "Etiketten elle girildi"; }
+    customFoods.push(cf); save(LS.foods, customFoods);
   }
   addEntry(curDate, {id:uid(), fid:null, name, g, kcal, p, c, f, meal, ref});
   ["mName", "mG", "mKcal", "mP", "mC", "mF"].forEach((id) => $(id).value = "");
-  $("mSave").checked = false;
+  $("mSave").checked = false; pendingBarcode = null; $("scanBox").classList.add("hidden");
   renderDay();
 }
 
@@ -1108,7 +1351,7 @@ function renderFoods(){
   $("foodCount").textContent = "(" + list.length + ")";
   $("foodList").innerHTML = list.map((f) =>
     `<div class="food" data-id="${f.id}">
-      <div class="en"><b>${esc(f.name)}${f.builtin ? (overrides[f.id] ? '<span class="tag">düzenlendi</span>' : "") : `<span class="tag">${f.src === "ai" ? "AI" : "özel"}</span>`}</b>
+      <div class="en"><b>${esc(f.name)}${foodTag(f)}</b>
         <span class="muted">${fmt0(f.kcal)} kcal · P ${fmt1(f.p)} · K ${fmt1(f.c)} · Y ${fmt1(f.f)}${f.pg ? ` · ${esc(f.pl)} ≈ ${fmt0(f.pg)} g` : ""}</span></div>
       <div class="acts"><button data-act="use" title="Günlüğe ekle">＋</button><button data-act="fedit" title="Düzenle">✎</button></div>
     </div>`).join("") || `<div class="hint">Sonuç yok.</div>`;
@@ -1125,7 +1368,9 @@ function openFoodForm(f){
   const u = f && f.u ? f.u : {};
   for (const [k] of UNITS) $("fU_" + k).value = u[k] || "";
   fillUnitPlaceholders();
-  $("fNote").textContent = f && f.src === "ai" ? `Claude tarafından hesaplandı${f.conf ? " (güven: " + f.conf + ")" : ""}. ${f.note || ""} ${f.source ? "Kaynak: " + f.source : ""}` : "";
+  $("fNote").textContent = f && f.src === "ai" ? `Claude tarafından hesaplandı${f.conf ? " (güven: " + f.conf + ")" : ""}. ${f.note || ""} ${f.source ? "Kaynak: " + f.source : ""}`
+    : f && f.src === "off" ? `Barkod ${f.barcode || ""}${f.brand ? " · " + f.brand : ""} · ${f.note || "Open Food Facts"}`
+    : f && f.pack && packById(f.pack) ? `Mutfak paketi: ${packById(f.pack).flag} ${packById(f.pack).name}` : "";
   $("fDel").classList.toggle("hidden", !f);
   $("fReset").classList.toggle("hidden", !(f && f.builtin && overrides[f.id]));
   $("foodForm").classList.remove("hidden");
@@ -1210,7 +1455,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportData(){
-  const data = {app:"yemek-gunlugu", version:2, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish};
+  const data = {app:"yemek-gunlugu", version:3, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn};
   const blob = new Blob([JSON.stringify(data, null, 1)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "yemek-gunlugu-" + todayStr() + ".json";
@@ -1227,8 +1472,9 @@ function importData(file){
       log = d.log || {}; customFoods = Array.isArray(d.customFoods) ? d.customFoods : [];
       overrides = d.overrides || {}; hidden = Array.isArray(d.hidden) ? d.hidden : [];
       targets = Object.assign({kcal:0, p:0, c:0, f:0}, d.targets || {}); recent = []; wish = Array.isArray(d.wish) ? d.wish : [];
-      save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish);
-      renderAll(); alert("İçe aktarıldı.");
+      packsOn = Array.isArray(d.packsOn) ? d.packsOn.filter(packById) : [];
+      save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
+      renderAll(); refreshPacks(); alert("İçe aktarıldı.");
     }catch(e){ alert("Dosya okunamadı: geçerli bir Yemek Günlüğü yedeği değil."); }
   };
   r.readAsText(file);
@@ -1237,7 +1483,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true};
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {};
   renderAll();
 }
 
@@ -1251,7 +1497,7 @@ function showTab(t){
   if (t === "gecmis"){ renderHistory(); renderTargets(); }
   window.scrollTo(0, 0);
 }
-function renderAll(){ renderDay(); renderRecent(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); }
+function renderAll(){ renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); }
 
 function init(){
   for (const id of ["selMeal", "mMeal"]) $(id).innerHTML = MEALS.map((m) => `<option>${m}</option>`).join("");
@@ -1317,6 +1563,26 @@ function init(){
   });
   $("wishClear").addEventListener("click", () => { if (confirm("Araştırılacaklar listesi temizlensin mi?")){ wish = []; save(LS.wish, wish); renderWish(); } });
   $("aiKeySave").addEventListener("click", saveAiSettings);
+
+  // mutfak paketleri
+  $("packList").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-pack]"); if (!b) return; if (b.dataset.on === "1") disablePack(b.dataset.pack); else { b.textContent = "İndiriliyor…"; enablePack(b.dataset.pack); } });
+  $("packsBtn").addEventListener("click", () => { showTab("yiyecek"); $("packCard").scrollIntoView({behavior:"smooth", block:"start"}); });
+
+  // barkod
+  $("scanBtn").addEventListener("click", openScanner);
+  $("scanClose").addEventListener("click", closeScanner);
+  $("scanLookup").addEventListener("click", () => onScanned($("scanCode").value));
+  $("scanCode").addEventListener("keydown", (ev) => { if (ev.key === "Enter") onScanned($("scanCode").value); });
+  $("scanPhotoBtn").addEventListener("click", () => $("scanPhoto").click());
+  $("scanPhoto").addEventListener("change", () => { const f = $("scanPhoto").files[0]; if (f) scanPhotoFile(f); $("scanPhoto").value = ""; });
+  $("scanBox").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.id === "scanAccept") acceptScan();
+    else if (b.id === "scanCancel"){ $("scanBox").classList.add("hidden"); scanPending = null; pendingBarcode = null; }
+    else if (b.id === "scanAgain"){ $("scanBox").classList.add("hidden"); openScanner(); }
+    else if (b.id === "scanManual"){ $("scanBox").classList.add("hidden"); const det = $("tab-gunluk").querySelector("details"); det.open = true; $("mSave").checked = true; $("mName").focus(); $("mName").scrollIntoView({behavior:"smooth", block:"center"}); }
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && scanStream) closeScanner(); });
   $("foodList").addEventListener("click", (ev) => {
     const btn = ev.target.closest("button[data-act]"); if (!btn) return;
     const f = foodById(btn.closest("[data-id]").dataset.id); if (!f) return;
@@ -1334,6 +1600,7 @@ function init(){
   $("wipeBtn").addEventListener("click", wipeAll);
 
   renderAll();
+  refreshPacks();
 }
 init();
 
