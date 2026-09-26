@@ -218,6 +218,10 @@
         <div><span class="gcap">Yenen ağırlık</span><span class="gnum"><span id="sumG">0</span><small>g</small></span></div>
       </div>
       <div id="targetBox"></div>
+      <div id="energyBox" class="hidden">
+        <div class="hint" id="dayEnergy" style="margin:0 0 8px"></div>
+        <div class="row" style="margin-bottom:10px"><label class="lbl" style="margin:0;flex:1 1 auto">Bugün attığım adım (isteğe bağlı)</label><input type="number" id="daySteps" min="0" step="100" inputmode="numeric" placeholder="ör. 6000" style="width:120px;flex:0 0 auto"></div>
+      </div>
       <table class="mtab">
         <thead><tr><th>Makro</th><th>Gram</th><th>kcal</th><th>Enerji %</th><th>Ağırlık %</th></tr></thead>
         <tbody id="mtabBody"></tbody>
@@ -400,8 +404,9 @@
       <div class="tw"><table class="htab"><thead><tr><th>Gün</th><th>Çağrı</th><th>Giriş</th><th>Çıkış</th><th>$</th></tr></thead><tbody id="costByDay"></tbody></table></div>
     </div>
     <div class="card">
-      <h2>Ayrıntı <span class="muted" id="costDetailCount"></span></h2>
-      <div id="costList"></div>
+      <h2>Son işlem</h2>
+      <div id="costLast"></div>
+      <details style="margin-top:6px"><summary>Önceki çağrılar <span class="muted" id="costDetailCount"></span></summary><div id="costPrev"></div></details>
       <div class="row" style="margin-top:8px"><button class="ghost danger" id="costClear">Kayıtları temizle</button></div>
       <div class="hint">Her satır bir mantıksal çağrıdır; web aramasında API ara verip devam ettiyse birden çok HTTP isteği tek satırda toplanır.</div>
     </div>
@@ -415,6 +420,30 @@
         <tbody id="histBody"></tbody>
       </table>
       <div class="hint">Satıra dokununca o güne gider. E%: enerjinin protein / karbonhidrat / yağ payı.</div>
+    </div>
+
+    <div class="card">
+      <h2>Profil ve enerji bütçesi</h2>
+      <div class="grid4">
+        <div><label class="lbl">Boy (cm)</label><input type="number" id="pH" min="100" max="250" inputmode="numeric" placeholder="180"></div>
+        <div><label class="lbl">Kilo (kg)</label><input type="number" id="pW" min="30" max="300" step="0.1" inputmode="decimal" placeholder="80"></div>
+        <div><label class="lbl">Yaş</label><input type="number" id="pA" min="10" max="100" inputmode="numeric" placeholder="45"></div>
+        <div><label class="lbl">Cinsiyet</label><select id="pS"><option value="m">Erkek</option><option value="f">Kadın</option></select></div>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <div><label class="lbl">Günlük hareket (yürüyüş hariç)</label><select id="pAct"><option value="1.2">Masa başı (×1,2)</option><option value="1.375">Hafif hareketli (×1,375)</option><option value="1.55">Orta (×1,55)</option></select></div>
+        <div><label class="lbl">Yürüyüş temposu</label><select id="pPace"><option value="4">Yavaş (4 km/sa)</option><option value="5">Normal (5 km/sa)</option><option value="6">Tempolu (6 km/sa)</option></select></div>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <div><label class="lbl">Günlük açık (kcal; kilo vermek için)</label><input type="number" id="pDef" min="0" max="1500" step="50" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div class="hint" id="pInfo"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="pSave">Kaydet</button>
+        <button class="ghost" id="pToTarget">Bütçeyi hedef kcal yap</button>
+        <span class="muted" id="pMsg" style="font-size:13px"></span>
+      </div>
+      <div class="hint">Bazal: Mifflin-St Jeor (bireyde ±%10). Bütçe = bazal × hareket − açık; "Hedef kcal" boşsa bütçe doğrudan kullanılır. Adım eşdeğeri <b>net</b> yürüme enerjisiyle (dinlenmenin üstüne, 0,45–0,55 kcal/kg/km) hesaplanır; adım uzunluğu ≈ boy × 0,414; sonuçlar yüzlüğe yuvarlanır. Günde 2.500 adım masa başı katsayısının içinde sayılır, fazlası bütçeye eklenir. Pusula niyetine, muhasebe değil.</div>
     </div>
 
     <div class="card">
@@ -785,7 +814,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -918,6 +947,44 @@ function syncFromStorage(){
   targets = Object.assign({kcal:0, p:0, c:0, f:0}, load(LS.targets, {})); recent = load(LS.recent, []);
   wish = load(LS.wish, []); packsOn = load(LS.packs, []); packData = load(LS.packData, {});
   ai = Object.assign({key:"", web:true}, load(LS.ai, {}));
+  profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
+  stepsLog = load(LS.steps, {});
+}
+/* ------------------------------------------------------------------ */
+/* Profil, enerji bütçesi ve adım eşdeğeri                             */
+/* ------------------------------------------------------------------ */
+let profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
+let stepsLog = load(LS.steps, {});   // {"YYYY-MM-DD": atılan adım}
+const BASE_STEPS = 2500;            // masa başı katsayısının zaten içerdiği günlük yürüme
+function profileOk(){ return profile.h > 0 && profile.w > 0; }
+// Bazal metabolizma: Mifflin-St Jeor
+function bmr(){
+  if (!(profile.h > 0 && profile.w > 0 && profile.age > 0)) return 0;
+  return 10 * profile.w + 6.25 * profile.h - 5 * profile.age + (profile.sex === "f" ? -161 : 5);
+}
+function budget(){ const b = bmr(); return b ? Math.max(0, Math.round(b * (+profile.act || 1.2) - (+profile.deficit || 0))) : 0; }
+// Yürüme: net enerji (dinlenmenin üstüne) 0,45 / 0,5 / 0,55 kcal/kg/km (4 / 5 / 6 km/sa); adım uzunluğu ≈ boy × 0,414
+function stepConv(){
+  if (!profileOk()) return null;
+  const speed = +profile.pace || 5;
+  const stride = profile.h * 0.414 / 100, stepsPerKm = 1000 / stride;
+  const kcalPerKm = ({4:0.45, 5:0.5, 6:0.55}[speed] || 0.5) * profile.w;
+  return {speed, stepsPerKm, kcalPerKm, kcalPerStep:kcalPerKm / stepsPerKm};
+}
+function fmtMin(min){ min = Math.round(min); return min >= 60 ? `${Math.floor(min / 60)} sa ${min % 60} dk` : `${min} dk`; }
+function stepsText(kcal, full){
+  const c = stepConv(); if (!c || !(kcal > 0)) return "";
+  const steps = Math.max(100, Math.round(kcal / c.kcalPerStep / 100) * 100), km = kcal / c.kcalPerKm;
+  return full ? `≈ ${fmt0(steps)} adım · ${fmt1(km)} km · ${fmtMin(km / c.speed * 60)}` : `≈ ${fmt0(steps)} adım`;
+}
+function dayBudget(){ return targets.kcal > 0 ? targets.kcal : budget(); }
+// Günün enerji durumu: bütçe + yürüyüş katkısı − alınan → fazla (adım karşılığıyla) ya da kredi
+function dayEnergy(intake, date){
+  const b = dayBudget(); if (!b) return null;
+  const c = stepConv(), walked = +(stepsLog[date] || 0);
+  const extra = c && walked > BASE_STEPS ? (walked - BASE_STEPS) * c.kcalPerStep : 0;
+  const surplus = intake - (b + extra);
+  return {budget:b, walked, extra, surplus, text: surplus > 0 ? `+${fmt0(surplus)} kcal fazla` + (c ? ` · ${stepsText(surplus, true)}` : "") : `${fmt0(-surplus)} kcal kredi`};
 }
 function entries(date){ return log[date] || []; }
 function addEntry(date, e){ syncFromStorage(); (log[date] = log[date] || []).push(e); save(LS.log, log); }
@@ -981,6 +1048,12 @@ function renderSummary(list){
           <div class="tbar"><div style="width:${ratio}%;background:${left >= 0 ? "var(--ok)" : "var(--warn)"}"></div></div></div>`;
   }
   $("targetBox").innerHTML = th;
+  const de = dayEnergy(s.kcal, curDate);
+  $("energyBox").classList.toggle("hidden", !de);
+  if (de){
+    $("dayEnergy").innerHTML = `Bütçe ${fmt0(de.budget)} kcal${de.walked ? ` + yürüyüş ${fmt0(de.walked)} adım (+${fmt0(de.extra)} kcal)` : ""} → <b>${esc(de.text)}</b>`;
+    if (document.activeElement !== $("daySteps")) $("daySteps").value = stepsLog[curDate] || "";
+  }
 
   $("mtabBody").innerHTML = MAC.map(([k, name, cv, kc]) => {
     const tgt = targets[k] > 0 ? `<small>/ ${pct(targets[k])}</small>` : "";
@@ -1207,12 +1280,14 @@ function renderCost(){
   const used = [...new Set(byModel.map((a) => a.k.split(" · ")[0]))];
   $("costPriceNote").textContent = (used.length ? "Birim fiyat ($/1M token, giriş/çıkış): " + used.map((m) => `${m} ${priceFor(m).p[0]}/${priceFor(m).p[1]}`).join(" · ") + ". " : "")
     + (unknown.length ? `Fiyatı bilinmeyen model (${unknown.join(", ")}) Opus 5 fiyatıyla hesaplandı.` : "");
-  $("costByDay").innerHTML = costAgg(rows, (r) => ymd(new Date(r.t))).sort((a, b) => b.k.localeCompare(a.k)).slice(0, 31).map((a) =>
+  $("costByDay").innerHTML = costAgg(rows, (r) => ymd(new Date(r.t))).sort((a, b) => b.k.localeCompare(a.k)).slice(0, 14).map((a) =>
     `<tr><td class="l">${shortDate(a.k)}</td>${cell(a)}<td>${fmtUsd(a.c)}</td></tr>`).join("") || `<tr><td class="l muted" colspan="5">–</td></tr>`;
-  const det = rows.slice(-100).reverse();
-  $("costDetailCount").textContent = det.length ? `(son ${det.length})` : "";
-  $("costList").innerHTML = det.map((r) => `<div class="crow"><div class="en"><b>${esc(KIND_LABEL[r.k] || r.k)}${r.err ? ` <span class="err">· ${esc(r.err)}</span>` : ""}</b><span class="muted">${new Date(r.t).toLocaleString("tr-TR", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})} · ${esc(r.m)} · ${esc(r.e)} · ${(r.ms / 1000).toFixed(1).replace(".", ",")} sn${r.n > 1 ? ` · ${r.n} istek` : ""}</span></div><div class="ev"><b>${fmtUsd(r.c)}</b><br><span class="muted">${fmt0(r.i)} → ${fmt0(r.o)}${r.s ? ` · ${r.s} arama` : ""}${r.cr ? ` · ${fmt0(r.cr)} önb.` : ""}</span></div></div>`).join("")
-    || `<div class="hint" style="margin:0">Henüz çağrı yok. "Claude'a sor" veya tabak fotoğrafı kullandığında burada görünür.</div>`;
+  const det = rows.slice(-31).reverse();
+  const rowHtml = (r) => `<div class="crow"><div class="en"><b>${esc(KIND_LABEL[r.k] || r.k)}${r.err ? ` <span class="err">· ${esc(r.err)}</span>` : ""}</b><span class="muted">${new Date(r.t).toLocaleString("tr-TR", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})} · ${esc(r.m)} · ${esc(r.e)} · ${(r.ms / 1000).toFixed(1).replace(".", ",")} sn${r.n > 1 ? ` · ${r.n} istek` : ""}</span></div><div class="ev"><b>${fmtUsd(r.c)}</b><br><span class="muted">${fmt0(r.i)} → ${fmt0(r.o)}${r.s ? ` · ${r.s} arama` : ""}${r.cr ? ` · ${fmt0(r.cr)} önb.` : ""}</span></div></div>`;
+  $("costLast").innerHTML = det.length ? rowHtml(det[0]) : `<div class="hint" style="margin:0">Henüz çağrı yok. "Claude'a sor" veya tabak fotoğrafı kullandığında burada görünür.</div>`;
+  const prev = det.slice(1);
+  $("costDetailCount").textContent = prev.length ? `(son ${prev.length})` : "(yok)";
+  $("costPrev").innerHTML = prev.map(rowHtml).join("");
 }
 function parseAiJson(text){
   const last = text.lastIndexOf("}");
@@ -1548,7 +1623,8 @@ function renderPhotoResult(){
   $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak">
     <div class="row between" style="margin:10px 0 6px"><b>Bileşenler${photo.conf ? `<span class="conf">güven: ${esc(photo.conf)}</span>` : ""}</b><span class="muted" style="font-size:12px">gramları düzeltebilirsin</span></div>
     ${photo.items.map((it, i) => `<div class="itemrow" data-i="${i}"><div class="en"><b>${esc(it.name)}</b><span class="mini" id="pi-${i}"></span></div><input type="number" min="0" step="1" inputmode="decimal" data-i="${i}" value="${Math.round(it.g)}"></div>`).join("")}
-    <div class="ptot"><b id="photoTot"></b><span class="mini" id="photoTotM"></span></div>
+    <div class="ptot"><b id="photoTot"></b><span class="mini" id="photoTotM" style="text-align:right"></span></div>
+    <div class="hint hidden" id="photoDay" style="margin:6px 0 0"></div>
     ${photo.notes ? `<div class="hint">Not: ${esc(photo.notes)}</div>` : ""}
     <div class="grid2" style="margin-top:10px"><div><label class="lbl">Öğün</label><select id="photoMeal">${MEALS.map((m) => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select></div></div>
     <div class="row" style="margin-top:10px"><button class="primary" id="photoAdd">Günlüğe ekle (${photo.items.length} bileşen)</button><button class="ghost" id="photoCancel">Vazgeç</button></div>
@@ -1556,10 +1632,12 @@ function renderPhotoResult(){
   renderPhotoTotals();
 }
 function renderPhotoTotals(){
-  photo.items.forEach((it, i) => { const k = it.g / 100; const el = $("pi-" + i); if (el) el.innerHTML = `${fmt0(it.kcal * k)} kcal · ${macroLine({p:it.p * k, c:it.c * k, f:it.f * k})}`; });
-  const s = photoTotals(), m = macroStats(s);
+  photo.items.forEach((it, i) => { const k = it.g / 100, kc = it.kcal * k, st = stepsText(kc); const el = $("pi-" + i); if (el) el.innerHTML = `${fmt0(kc)} kcal · ${macroLine({p:it.p * k, c:it.c * k, f:it.f * k})}${st ? ` · <b>${st}</b>` : ""}`; });
+  const s = photoTotals(), m = macroStats(s), st = stepsText(s.kcal, true);
   $("photoTot").textContent = `${fmt0(s.kcal)} kcal · ${fmt0(s.g)} g`;
-  $("photoTotM").innerHTML = `${macroLine(s)} · E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}`;
+  $("photoTotM").innerHTML = `${macroLine(s)} · E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}${st ? `<br>${st}` : ""}`;
+  const de = dayEnergy(sumEntries(entries(curDate)).kcal + s.kcal, curDate), dl = $("photoDay");
+  if (dl){ dl.classList.toggle("hidden", !de); if (de) dl.innerHTML = `Bu tabakla gün: ${fmt0(sumEntries(entries(curDate)).kcal + s.kcal)} / ${fmt0(de.budget)} kcal → <b>${esc(de.text)}</b>`; }
 }
 function photoAddAll(){
   if (!photo || !photo.items) return;
@@ -1644,7 +1722,9 @@ function renderCalc(){
   if (!sel) return;
   const u = selUnitObj(), g = selGrams(), k = g / 100, q = +$("selQ").value || 0;
   $("selGrams").textContent = "≈ " + fmt0(g) + " g";
-  $("selCalc").innerHTML = `<b>${fmt0(sel.kcal * k)} kcal</b> &nbsp; <span class="mini" style="font-size:13px">${macroLine({p:sel.p * k, c:sel.c * k, f:sel.f * k})}</span>`;
+  const kc = sel.kcal * k, st = stepsText(kc), de = dayEnergy(sumEntries(entries(curDate)).kcal + kc, curDate);
+  $("selCalc").innerHTML = `<b>${fmt0(kc)} kcal</b> &nbsp; <span class="mini" style="font-size:13px">${macroLine({p:sel.p * k, c:sel.c * k, f:sel.f * k})}</span>${st ? ` &nbsp; <span class="mini" style="font-size:13px">${st}</span>` : ""}`
+    + (de ? `<div class="hint" style="margin:4px 0 0">Bununla gün: ${fmt0(sumEntries(entries(curDate)).kcal + kc)} / ${fmt0(de.budget)} kcal → ${esc(de.text)}</div>` : "");
   $("qtyChips").querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", Math.abs(+p.dataset.q - q) < 0.001));
   $("selUnitHint").textContent = u && u.key !== "g" && u.key !== "own"
     ? `1 ${u.label} ≈ ${fmt0(u.g)} g kabul edildi ("${CATS[sel.cat] || CATS.diger}" için yaklaşık). Farklıysa Yiyecekler sekmesinden ✎ ile düzelt.` : "";
@@ -1782,6 +1862,31 @@ function renderHistory(){
   }
   $("histBody").innerHTML = rows;
 }
+function renderProfile(){
+  $("pH").value = profile.h || ""; $("pW").value = profile.w || ""; $("pA").value = profile.age || ""; $("pS").value = profile.sex || "m";
+  $("pAct").value = String(profile.act || 1.2); $("pPace").value = String(profile.pace || 5); $("pDef").value = profile.deficit || "";
+  renderProfileInfo();
+}
+function readProfileForm(){
+  return {h:+$("pH").value || 0, w:+$("pW").value || 0, age:+$("pA").value || 0, sex:$("pS").value === "f" ? "f" : "m", act:+$("pAct").value || 1.2, pace:+$("pPace").value || 5, deficit:Math.max(0, +$("pDef").value || 0)};
+}
+function renderProfileInfo(){
+  const saved = profile; profile = readProfileForm();
+  const b = bmr(), bud = budget(), c = stepConv();
+  let t = "";
+  if (!profileOk()) t = "Boy ve kilo girince adım eşdeğerleri görünür; yaş da girersen bütçe hesaplanır.";
+  else {
+    if (b) t += `Bazal ≈ ${fmt0(b)} kcal/gün · bütçe ≈ ${fmt0(bud)} kcal/gün. `;
+    if (c) t += `1 km ≈ ${fmt0(c.stepsPerKm)} adım · 100 kcal ${stepsText(100, true)}.`;
+  }
+  $("pInfo").textContent = t;
+  profile = saved;
+}
+function saveProfile(){
+  profile = readProfileForm(); save(LS.profile, profile);
+  $("pMsg").textContent = "Kaydedildi."; setTimeout(() => $("pMsg").textContent = "", 2000);
+  renderProfileInfo(); renderDay();
+}
 function renderTargets(){
   $("tKcal").value = targets.kcal || ""; $("tP").value = targets.p || ""; $("tC").value = targets.c || ""; $("tF").value = targets.f || "";
   renderTargetHint();
@@ -1806,7 +1911,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportPayload(){
-  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, [])};
+  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog};
 }
 // Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
 async function exportData(){
@@ -1852,6 +1957,8 @@ function importData(file){
       targets = Object.assign({kcal:0, p:0, c:0, f:0}, d.targets || {}); recent = []; wish = Array.isArray(d.wish) ? d.wish : [];
       packsOn = Array.isArray(d.packsOn) ? d.packsOn.filter(packById) : [];
       if (Array.isArray(d.usage)) save(LS.usage, d.usage);
+      profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, d.profile || {}); save(LS.profile, profile);
+      stepsLog = d.stepsLog && typeof d.stepsLog === "object" ? d.stepsLog : {}; save(LS.steps, stepsLog);
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
       save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
@@ -1863,7 +1970,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {};
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {};
   renderAll();
 }
 
@@ -1875,7 +1982,7 @@ function showTab(t){
   ["gunluk", "yiyecek", "gecmis", "maliyet"].forEach((x) => $("tab-" + x).classList.toggle("hidden", x !== t));
   if (t === "maliyet") renderCost();
   if (t === "yiyecek"){ renderFoods(); renderWish(); }
-  if (t === "gecmis"){ renderHistory(); renderTargets(); }
+  if (t === "gecmis"){ renderHistory(); renderTargets(); renderProfile(); }
   window.scrollTo(0, 0);
 }
 function renderAll(){ renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); renderPhotoBtn(); }
@@ -2007,6 +2114,16 @@ function init(){
   $("histBody").addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-date]"); if (tr){ showTab("gunluk"); setDate(tr.dataset.date); } });
   ["tKcal", "tP", "tC", "tF"].forEach((id) => $(id).addEventListener("input", renderTargetHint));
   $("costPeriod").addEventListener("change", renderCost);
+  ["pH", "pW", "pA", "pDef"].forEach((id) => $(id).addEventListener("input", renderProfileInfo));
+  ["pS", "pAct", "pPace"].forEach((id) => $(id).addEventListener("change", renderProfileInfo));
+  $("pSave").addEventListener("click", saveProfile);
+  $("pToTarget").addEventListener("click", () => {
+    profile = readProfileForm(); save(LS.profile, profile);
+    const bud = budget(); if (!bud){ alert("Bütçe için boy, kilo ve yaş gerekli."); return; }
+    syncFromStorage(); targets.kcal = bud; save(LS.targets, targets); renderTargets(); renderProfileInfo(); renderDay();
+    $("pMsg").textContent = `Hedef kcal = ${fmt0(bud)}`; setTimeout(() => $("pMsg").textContent = "", 2500);
+  });
+  $("daySteps").addEventListener("input", () => { stepsLog = load(LS.steps, {}); const v = Math.max(0, +$("daySteps").value || 0); if (v) stepsLog[curDate] = v; else delete stepsLog[curDate]; save(LS.steps, stepsLog); renderSummary(entries(curDate)); });
   $("fxRate").value = +load(LS.fx, 0) || "";
   $("fxRate").addEventListener("input", () => { save(LS.fx, +$("fxRate").value || 0); renderCost(); });
   $("costClear").addEventListener("click", () => { if (confirm("Maliyet kayıtları silinsin mi? (Anthropic faturası etkilenmez)")){ save(LS.usage, []); renderCost(); } });
