@@ -74,6 +74,8 @@
   .datebar input[type=date]{flex:1 1 auto;min-width:0;text-align:center;font-weight:700}
   .datebar button{flex:0 0 auto;padding:10px 12px}
   .datelbl{text-align:center;font-size:13px;color:var(--muted);margin:-6px 0 12px}
+  .card.backup{padding:10px 14px;border-color:#7c5a12;background:#1f1a0f}
+  .card.backup .muted{font-size:13px}
 
   /* özet */
   .geninfo{display:flex;gap:10px;margin-bottom:10px}
@@ -126,6 +128,16 @@
   .scan-view video{width:100%;height:100%;object-fit:cover;display:block}
   .scan-frame{position:absolute;left:10%;right:10%;top:36%;bottom:36%;border:2px solid var(--accent);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
   .scan-status{color:#cbd5e1;font-size:13px;min-height:18px;text-align:center}
+  .thumb{width:100%;max-height:240px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+  .qblock{margin-top:12px}
+  .qtext{font-weight:700;margin-bottom:6px;font-size:14px}
+  .pill .qh{font-size:11px;color:var(--muted);margin-left:4px}
+  .pill.on .qh{color:inherit;opacity:.8}
+  .itemrow{display:grid;grid-template-columns:1fr 84px;gap:8px;align-items:center;margin-bottom:6px}
+  .itemrow .en{min-width:0;display:flex;flex-direction:column}
+  .itemrow .en b{overflow-wrap:anywhere}
+  .itemrow input{padding:8px 10px;min-height:40px;text-align:right}
+  .ptot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
   .scan-bottom .row{flex-wrap:nowrap}
   .scan-bottom input{flex:1 1 auto;min-width:0;width:auto}
   .calc b{font-size:18px}
@@ -182,6 +194,12 @@
       <button id="todayBtn" class="ghost">Bugün</button>
     </div>
     <div class="datelbl" id="dateLbl"></div>
+    <div class="card backup hidden" id="backupBar">
+      <div class="row between">
+        <div><b>💾 Yedek</b> <span class="muted" id="backupMsg"></span></div>
+        <div class="row tight"><button class="primary sm" id="backupNow">iCloud'a yedekle</button><button class="ghost sm" id="backupLater">Sonra</button></div>
+      </div>
+    </div>
 
     <div class="card">
       <h2>Özet</h2>
@@ -216,6 +234,11 @@
         <button class="ghost" id="packsBtn">🌍 Mutfak paketleri</button>
       </div>
       <div id="scanBox" class="selbox hidden"></div>
+      <div class="row hidden" style="margin-top:8px" id="photoRow">
+        <button id="photoBtn">📸 Tabak fotoğrafından tahmin</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" class="hidden">
+      <div id="photoBox" class="selbox hidden"></div>
 
       <div id="selBox" class="selbox hidden">
         <div class="selname"><b id="selName"></b><span class="muted" id="selPer100"></span></div>
@@ -375,12 +398,13 @@
     <div class="card">
       <h2>Veri</h2>
       <div class="row">
-        <button id="exportBtn">Dışa aktar (JSON)</button>
-        <button id="importBtn">İçe aktar</button>
+        <button class="primary" id="exportBtn">💾 Yedekle (iCloud / Dosyalar)</button>
+        <button id="importBtn">Yedekten geri yükle</button>
         <input type="file" id="importFile" accept="application/json,.json" class="hidden">
         <button class="ghost danger" id="wipeBtn" style="margin-left:auto">Tüm veriyi sil</button>
       </div>
-      <div class="hint">Veriler yalnızca bu cihazda (tarayıcı depolamasında) tutulur. Yedek almak için dışa aktar.</div>
+      <div class="hint" id="backupInfo"></div>
+      <div class="hint">Veriler yalnızca bu cihazda tutulur; iOS arka planda otomatik yedek almaya izin vermez. "Yedekle" iPhone'da paylaşım menüsünü açar: <b>Dosyalara Kaydet → iCloud Drive</b> seçersen yedek iCloud'a gider. Telefon değişince aynı dosyayı "Yedekten geri yükle" ile alırsın. Yedek 7 günden eskiyse Günlük ekranında hatırlatma çıkar.</div>
     </div>
   </section>
 </div>
@@ -712,7 +736,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -877,6 +901,7 @@ function renderDay(){
   $("dateLbl").textContent = fmtDate(curDate) + (curDate === todayStr() ? " · bugün" : "");
   renderSummary(list);
   renderLog(list);
+  renderBackup();
 }
 
 function bar(pc){
@@ -936,7 +961,7 @@ function renderLog(list){
     for (const e of items){
       if (e.id === editId){ h += editForm(e); continue; }
       h += `<div class="ent" data-id="${e.id}">
-        <div class="en"><b>${esc(e.name)}</b><span class="muted">${e.ul ? fmtQ(e.q) + " " + esc(e.ul) + " · " : ""}${e.g > 0 ? fmt0(e.g) + " g" : "miktar girilmedi"}</span></div>
+        <div class="en"><b>${esc(e.name)}${e.tag === "foto" ? '<span class="tag">foto</span>' : ""}</b><span class="muted">${e.ul ? fmtQ(e.q) + " " + esc(e.ul) + " · " : ""}${e.g > 0 ? fmt0(e.g) + " g" : "miktar girilmedi"}</span></div>
         <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span></div>
         <div class="acts"><button data-act="edit" title="Düzenle">✎</button><button data-act="del" class="danger" title="Sil">✕</button></div>
       </div>`;
@@ -1013,13 +1038,19 @@ Yöntem:
 Yanıtın YALNIZCA aşağıdaki JSON nesnesi olsun; öncesinde veya sonrasında başka metin yazma:
 {"name":"yemeğin düzgün Türkçe adı","kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"category":"yemek","portion_label":"1 porsiyon","portion_g":0,"units":{"yemek_kasigi_g":0,"kase_g":0,"yemek_tabagi_g":0},"recipe_note":"esas alınan tarif/varsayımlar, 1-2 cümle","source":"kaynak adı veya URL","confidence":"yüksek|orta|düşük"}`;
 
+function packContext(){
+  const ctxPacks = packsOn.map(packById).filter(Boolean).map((p) => p.name);
+  return ctxPacks.length ? `\nBağlam: kullanıcı şu mutfakların olduğu yerlerde (seyahatte/restoranda) yemek yiyor: ${ctxPacks.join(", ")}. Yemek adı bu ülkelerin dilinde olabilir; yerel restoran tarifini esas al.` : "";
+}
 async function claudeRequest(name){
+  return claudeCall(AI_SYSTEM, [{role:"user", content:`Yemek / gıda: "${name}"` + packContext()}], ai.web);
+}
+// Ortak istek: system + messages → yanıttaki JSON. useWeb: web araması aracı eklenir.
+async function claudeCall(system, messages, useWeb){
   const url = "https://api.anthropic.com/v1/messages";
   const headers = {"content-type":"application/json", "x-api-key":ai.key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"};
-  const ctxPacks = packsOn.map(packById).filter(Boolean).map((p) => p.name);
-  const userMsg = `Yemek / gıda: "${name}"` + (ctxPacks.length ? `\nBağlam: kullanıcı şu mutfakların olduğu yerlerde (seyahatte/restoranda) yemek yiyor: ${ctxPacks.join(", ")}. Yemek adı bu ülkelerin dilinde olabilir; yerel restoran tarifini esas al.` : "");
-  const body = {model:AI_MODEL, max_tokens:4000, system:AI_SYSTEM, output_config:{effort:"medium"}, messages:[{role:"user", content:userMsg}]};
-  if (ai.web) body.tools = [{type:"web_search_20260209", name:"web_search", max_uses:3}];
+  const body = {model:AI_MODEL, max_tokens:4000, system, output_config:{effort:"medium"}, messages};
+  if (useWeb) body.tools = [{type:"web_search_20260209", name:"web_search", max_uses:3}];
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 120000);
   try{
     // Önce güvenlik reddi durumunda otomatik yedek modele geçen istek; kabul edilmezse sade istek
@@ -1228,6 +1259,156 @@ function acceptScan(){
   selectFood(foodById(f.id));
 }
 
+/* ------------------------------------------------------------------ */
+/* Tabak fotoğrafı: fotoğraf + tabağa özel kısa anket → bileşen tahmini */
+/* ------------------------------------------------------------------ */
+function unitTableText(){
+  return Object.entries(UNIT_DEF).map(([k, u]) => `${k}: yemek kaşığı ${u.yk} g, kase ${u.kase} g, yemek tabağı ${u.tabak} g, porsiyon ${u.porsiyon} g`).join("\n");
+}
+const PHOTO_SYSTEM1 = `Sen Türk ve Avrupa mutfağını iyi bilen bir beslenme uzmanısın. Kullanıcı yediği tabağın fotoğrafını ve belki kısa bir not gönderir.
+AŞAMA 1 (bu istek):
+1. Tabaktaki yiyecekleri ayrı bileşenler olarak tanı (ör. pirinç pilavı, tavuk şiş, çoban salata, ekmek). Her bileşen için tüketildiği hâliyle 100 g başına kcal, protein, karbonhidrat, yağ; kategori; ve görünüşe göre ilk gram tahmini ver. Ölçek referansı: standart yemek tabağı 27 cm, çatal ≈ 19 cm.
+2. Belirsizliği en çok azaltacak EN FAZLA 4 soru üret. Konular: miktar (mutfak ölçüsüyle: kaşık, yarım tabak, tam tabak, tepeleme…), pişirme/yağ (ızgara yağsız, az yağ, bol yağ, kızartma), tabak boyutu, fotoğrafta görünmeyenler (ekmek, içecek, sos, tereyağı). Sorular bu tabağa özel olsun; her sorunun 3-5 kısa seçeneği ve mümkünse "≈ gram" ipucu olsun. Görünüşte kesin olan şeyi sorma; sadece cevabı tahmini gerçekten değiştirecek soruları sor.
+Ev ölçüleri gram tablosu (kategori: ölçü):
+${unitTableText()}
+Kategori değerleri: corba, yemek, tahil, hamur, et, baklagil, sebze, meyve, sut, peynir, meze, yag, kuruyemis, tatli, icecek, diger.
+YALNIZCA şu JSON nesnesini döndür, başka metin yazma:
+{"items":[{"name":"Pirinç pilavı","grams":150,"kcal_100g":165,"protein_100g":3,"carb_100g":27,"fat_100g":5,"category":"tahil"}],"questions":[{"id":"q1","text":"Pilav ne kadar?","options":[{"label":"3 yemek kaşığı","hint":"≈60 g"},{"label":"Yarım tabak","hint":"≈125 g"},{"label":"Tam tabak","hint":"≈250 g"}]}],"notes":"kısa gözlem","confidence":"yüksek|orta|düşük"}`;
+const PHOTO_SYSTEM2 = `Sen Türk ve Avrupa mutfağını iyi bilen bir beslenme uzmanısın. AŞAMA 2: Bir tabak fotoğrafından çıkarılan ilk bileşen tahmini ve kullanıcının anket cevapları verildi. Cevaplara göre gramları ve gerekiyorsa 100 g değerlerini (ör. bol yağ → yağ artar) güncelle; fotoğrafta görünmeyen ama cevaplarda belirtilenleri (ekmek, içecek, sos) yeni bileşen olarak ekle; "yok" denenleri çıkar. Cevaplanmamış soru için ilk tahmini koru.
+Ev ölçüleri gram tablosu (kategori: ölçü):
+${unitTableText()}
+YALNIZCA şu JSON nesnesini döndür, başka metin yazma:
+{"items":[{"name":"...","grams":0,"kcal_100g":0,"protein_100g":0,"carb_100g":0,"fat_100g":0,"category":"yemek"}],"notes":"varsayımlar, 1-2 cümle","confidence":"yüksek|orta|düşük"}`;
+
+let photo = null; // {data, preview, note, items, questions, answers, notes, conf}
+async function fileToJpeg(file, max = 1024){
+  let bmp = null;
+  if (typeof createImageBitmap === "function"){
+    try{ bmp = await createImageBitmap(file, {imageOrientation:"from-image"}); }
+    catch(e){ try{ bmp = await createImageBitmap(file); }catch(e2){ bmp = null; } }
+  }
+  if (!bmp){
+    bmp = await new Promise((res, rej) => { const im = new Image(); const u = URL.createObjectURL(file); im.onload = () => { URL.revokeObjectURL(u); res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error("görsel okunamadı")); }; im.src = u; });
+  }
+  const W = bmp.width || bmp.naturalWidth, H = bmp.height || bmp.naturalHeight;
+  const sc = Math.min(1, max / Math.max(W, H));
+  const w = Math.max(1, Math.round(W * sc)), h = Math.max(1, Math.round(H * sc));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  cv.getContext("2d").drawImage(bmp, 0, 0, w, h);
+  const url = cv.toDataURL("image/jpeg", 0.82);
+  return {data:url.split(",")[1], preview:url};
+}
+function photoItemsFrom(j){
+  const num = (v) => Math.max(0, +v || 0);
+  const items = (Array.isArray(j.items) ? j.items : []).map((it) => ({
+    name:String(it.name || "Bileşen").slice(0, 60), g:num(it.grams),
+    kcal:num(it.kcal_100g), p:num(it.protein_100g), c:num(it.carb_100g), f:num(it.fat_100g),
+    cat:CATS[it.category] ? it.category : "diger"
+  })).filter((it) => it.g > 0 && (it.kcal > 0 || it.p > 0 || it.c > 0 || it.f > 0));
+  for (const it of items) if (!it.kcal) it.kcal = macroKcal(it.p, it.c, it.f);
+  if (!items.length) throw new Error("Tabakta tanınabilir bileşen bulunamadı.");
+  return items;
+}
+async function photoPick(file){
+  if (!ai.key){ askClaude(""); return; }
+  $("selBox").classList.add("hidden"); sel = null; $("aiBox").classList.add("hidden"); $("scanBox").classList.add("hidden");
+  $("photoBox").classList.remove("hidden");
+  $("photoBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Fotoğraf hazırlanıyor…</b></div>`;
+  try{
+    const img = await fileToJpeg(file);
+    photo = {data:img.data, preview:img.preview, note:"", items:null, questions:[], answers:{}, notes:"", conf:""};
+    $("photoBox").innerHTML = `<img class="thumb" src="${img.preview}" alt="tabak">
+      <label class="lbl" style="margin-top:8px">Not (isteğe bağlı, tahmini çok iyileştirir)</label>
+      <input type="text" id="photoNote" placeholder="ör. pilav yarım tabak, tavuk 2 şiş, salata yağsız, 1 dilim ekmek">
+      <div class="row" style="margin-top:10px"><button class="primary" id="photoAnalyze">Analiz et</button><button class="ghost" id="photoCancel">Vazgeç</button></div>
+      <div class="hint">Fotoğraf küçültülüp doğrudan Claude'a gönderilir, uygulama saklamaz. Sonra tabağa özel 2-4 kısa soru gelir; cevaplar tahmini yere bastırır.</div>`;
+    $("photoNote").focus();
+  }catch(e){
+    $("photoBox").innerHTML = `<div class="selname"><b>Fotoğraf okunamadı</b><span class="muted">${esc(e.message || e.name)}</span></div><div class="row" style="margin-top:8px"><button class="ghost" id="photoCancel">Kapat</button></div>`;
+  }
+}
+async function photoAnalyze(){
+  if (!photo) return;
+  photo.note = ($("photoNote") ? $("photoNote").value : "").trim();
+  $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak"><div class="selname" style="margin-top:8px"><b><span class="spin"></span>Claude tabağı inceliyor…</b><span class="muted">15-40 sn sürebilir.</span></div>`;
+  try{
+    const text = "Bu tabağı analiz et." + (photo.note ? `\nKullanıcı notu: ${photo.note}` : "") + packContext();
+    const j = await claudeCall(PHOTO_SYSTEM1, [{role:"user", content:[{type:"image", source:{type:"base64", media_type:"image/jpeg", data:photo.data}}, {type:"text", text}]}], false);
+    photo.items = photoItemsFrom(j);
+    photo.questions = (Array.isArray(j.questions) ? j.questions : []).slice(0, 4).map((q, i) => ({
+      id:String(q.id || ("q" + (i + 1))), text:String(q.text || "").slice(0, 120),
+      options:(Array.isArray(q.options) ? q.options : []).slice(0, 6).map((o) => ({label:String((o && o.label) || o || "").slice(0, 40), hint:String((o && o.hint) || "").slice(0, 20)})).filter((o) => o.label)
+    })).filter((q) => q.text && q.options.length >= 2);
+    photo.answers = {}; photo.notes = String(j.notes || "").slice(0, 300); photo.conf = String(j.confidence || "").slice(0, 10);
+    if (photo.questions.length) renderPhotoQuestions(); else renderPhotoResult();
+  }catch(e){
+    $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak"><div class="selname" style="margin-top:8px"><b>Analiz başarısız</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="photoRetry">Tekrar dene</button><button class="ghost" id="photoCancel">Kapat</button></div>`;
+  }
+}
+function renderPhotoQuestions(){
+  const first = photo.items.map((it) => `${esc(it.name)} ~${fmt0(it.g)} g`).join(" · ");
+  $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak">
+    <div class="hint" style="margin:8px 0 0">Gördüğüm: ${first}</div>
+    ${photo.questions.map((q) => `<div class="qblock" data-q="${esc(q.id)}"><div class="qtext">${esc(q.text)}</div><div class="chips">${q.options.map((o, i) => `<div class="pill" data-q="${esc(q.id)}" data-i="${i}">${esc(o.label)}${o.hint ? `<span class="qh">${esc(o.hint)}</span>` : ""}</div>`).join("")}</div></div>`).join("")}
+    <label class="lbl" style="margin-top:12px">Eklemek istediğin (isteğe bağlı)</label>
+    <input type="text" id="photoExtra" placeholder="ör. 1 bardak ayran, sos bol">
+    <div class="row" style="margin-top:10px"><button class="primary" id="photoFinal">Devam</button><button class="ghost" id="photoSkip">Soruları atla</button><button class="ghost" id="photoCancel">Vazgeç</button></div>`;
+}
+async function photoFinal(skip){
+  if (!photo || !photo.items) return;
+  const extra = ($("photoExtra") ? $("photoExtra").value : "").trim();
+  if (skip || (!Object.keys(photo.answers).length && !extra)){ renderPhotoResult(); return; }
+  $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak"><div class="selname" style="margin-top:8px"><b><span class="spin"></span>Cevaplarla hesaplanıyor…</b><span class="muted">10-20 sn.</span></div>`;
+  try{
+    const ans = photo.questions.map((q) => { const i = photo.answers[q.id]; return `- ${q.text} → ${i != null && q.options[i] ? q.options[i].label + (q.options[i].hint ? " (" + q.options[i].hint + ")" : "") : "cevaplanmadı"}`; }).join("\n");
+    const text = `İlk bileşen tahmini (JSON):\n${JSON.stringify(photo.items.map((it) => ({name:it.name, grams:it.g, kcal_100g:it.kcal, protein_100g:it.p, carb_100g:it.c, fat_100g:it.f, category:it.cat})))}\n\nAnket cevapları:\n${ans}` + (extra ? `\nKullanıcının eklediği: ${extra}` : "") + (photo.note ? `\nİlk not: ${photo.note}` : "") + packContext();
+    const j = await claudeCall(PHOTO_SYSTEM2, [{role:"user", content:text}], false);
+    photo.items = photoItemsFrom(j);
+    if (j.notes) photo.notes = String(j.notes).slice(0, 300);
+    if (j.confidence) photo.conf = String(j.confidence).slice(0, 10);
+    renderPhotoResult();
+  }catch(e){
+    $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak"><div class="selname" style="margin-top:8px"><b>Hesaplama başarısız</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="photoFinal">Tekrar dene</button><button class="ghost" id="photoSkip">İlk tahminle devam</button><button class="ghost" id="photoCancel">Vazgeç</button></div>`;
+  }
+}
+function photoTotals(){
+  const s = {kcal:0, p:0, c:0, f:0, g:0};
+  for (const it of photo.items){ const k = it.g / 100; s.kcal += it.kcal * k; s.p += it.p * k; s.c += it.c * k; s.f += it.f * k; s.g += it.g; }
+  return s;
+}
+function renderPhotoResult(){
+  $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak">
+    <div class="row between" style="margin:10px 0 6px"><b>Bileşenler${photo.conf ? `<span class="conf">güven: ${esc(photo.conf)}</span>` : ""}</b><span class="muted" style="font-size:12px">gramları düzeltebilirsin</span></div>
+    ${photo.items.map((it, i) => `<div class="itemrow" data-i="${i}"><div class="en"><b>${esc(it.name)}</b><span class="mini" id="pi-${i}"></span></div><input type="number" min="0" step="1" inputmode="decimal" data-i="${i}" value="${Math.round(it.g)}"></div>`).join("")}
+    <div class="ptot"><b id="photoTot"></b><span class="mini" id="photoTotM"></span></div>
+    ${photo.notes ? `<div class="hint">Not: ${esc(photo.notes)}</div>` : ""}
+    <div class="grid2" style="margin-top:10px"><div><label class="lbl">Öğün</label><select id="photoMeal">${MEALS.map((m) => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select></div></div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="photoAdd">Günlüğe ekle (${photo.items.length} bileşen)</button><button class="ghost" id="photoCancel">Vazgeç</button></div>
+    <div class="hint">Fotoğraftan tahmindir: kalori ±%20-30 sapabilir, makro yüzdeleri daha güvenilirdir. Kayıtlar "foto" etiketi taşır; sonradan ✎ ile düzeltebilirsin.</div>`;
+  renderPhotoTotals();
+}
+function renderPhotoTotals(){
+  photo.items.forEach((it, i) => { const k = it.g / 100; const el = $("pi-" + i); if (el) el.innerHTML = `${fmt0(it.kcal * k)} kcal · ${macroLine({p:it.p * k, c:it.c * k, f:it.f * k})}`; });
+  const s = photoTotals(), m = macroStats(s);
+  $("photoTot").textContent = `${fmt0(s.kcal)} kcal · ${fmt0(s.g)} g`;
+  $("photoTotM").innerHTML = `${macroLine(s)} · E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}`;
+}
+function photoAddAll(){
+  if (!photo || !photo.items) return;
+  const meal = $("photoMeal").value;
+  for (const it of photo.items){
+    if (!(it.g > 0)) continue;
+    const k = it.g / 100;
+    addEntry(curDate, {id:uid(), fid:null, name:it.name, g:it.g, kcal:it.kcal * k, p:it.p * k, c:it.c * k, f:it.f * k, meal, tag:"foto", ref:{kcal:it.kcal, p:it.p, c:it.c, f:it.f}});
+  }
+  photo = null; $("photoBox").classList.add("hidden"); $("photoBox").innerHTML = "";
+  renderDay();
+}
+function closePhoto(){ photo = null; $("photoBox").classList.add("hidden"); $("photoBox").innerHTML = ""; }
+function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); }
+
 function acceptAi(){
   if (!aiPending) return;
   const f = aiPending; aiPending = null;
@@ -1260,7 +1441,7 @@ function saveAiSettings(){
   save(LS.ai, ai);
   $("aiMsg").textContent = ai.key ? "Kaydedildi." : "Anahtar silindi.";
   setTimeout(() => $("aiMsg").textContent = "", 2000);
-  renderWish();
+  renderWish(); renderPhotoBtn();
 }
 let selUnits = [];
 function selectFood(f){
@@ -1454,13 +1635,40 @@ function saveTargets(){
 }
 
 /* --- dışa/içe aktar --- */
-function exportData(){
-  const data = {app:"yemek-gunlugu", version:3, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn};
-  const blob = new Blob([JSON.stringify(data, null, 1)], {type:"application/json"});
+function exportPayload(){
+  return {app:"yemek-gunlugu", version:3, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn};
+}
+// Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
+async function exportData(){
+  const json = JSON.stringify(exportPayload(), null, 1);
+  const name = "yemek-gunlugu-" + todayStr() + ".json";
+  try{
+    if (navigator.share && navigator.canShare && typeof File === "function"){
+      const file = new File([json], name, {type:"application/json"});
+      if (navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:"Yemek Günlüğü yedeği"});
+        markBackup(); return;
+      }
+    }
+  }catch(e){
+    if (e && e.name === "AbortError") return; // kullanıcı paylaşımı iptal etti
+  }
+  const blob = new Blob([json], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "yemek-gunlugu-" + todayStr() + ".json";
+  a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  markBackup();
+}
+function markBackup(){ save(LS.backup, Date.now()); renderBackup(); }
+function hasData(){ return Object.keys(log).length > 0 || customFoods.length > 0; }
+function backupAge(){ const t = +load(LS.backup, 0); return t ? Math.floor((Date.now() - t) / 86400000) : null; }
+function renderBackup(){
+  const age = backupAge(), snooze = +load(LS.snooze, 0);
+  const due = hasData() && (age == null || age >= 7) && Date.now() > snooze;
+  $("backupBar").classList.toggle("hidden", !due);
+  $("backupMsg").textContent = age == null ? "Henüz yedek alınmadı." : `Son yedek ${age} gün önce.`;
+  $("backupInfo").textContent = age == null ? "Henüz yedek alınmadı." : (age === 0 ? "Son yedek: bugün." : `Son yedek: ${age} gün önce.`);
 }
 function importData(file){
   const r = new FileReader();
@@ -1474,6 +1682,7 @@ function importData(file){
       targets = Object.assign({kcal:0, p:0, c:0, f:0}, d.targets || {}); recent = []; wish = Array.isArray(d.wish) ? d.wish : [];
       packsOn = Array.isArray(d.packsOn) ? d.packsOn.filter(packById) : [];
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
+      save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
     }catch(e){ alert("Dosya okunamadı: geçerli bir Yemek Günlüğü yedeği değil."); }
   };
@@ -1497,7 +1706,7 @@ function showTab(t){
   if (t === "gecmis"){ renderHistory(); renderTargets(); }
   window.scrollTo(0, 0);
 }
-function renderAll(){ renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); }
+function renderAll(){ renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); renderPhotoBtn(); }
 
 function init(){
   for (const id of ["selMeal", "mMeal"]) $(id).innerHTML = MEALS.map((m) => `<option>${m}</option>`).join("");
@@ -1583,6 +1792,24 @@ function init(){
     else if (b.id === "scanManual"){ $("scanBox").classList.add("hidden"); const det = $("tab-gunluk").querySelector("details"); det.open = true; $("mSave").checked = true; $("mName").focus(); $("mName").scrollIntoView({behavior:"smooth", block:"center"}); }
   });
   document.addEventListener("visibilitychange", () => { if (document.hidden && scanStream) closeScanner(); });
+
+  // tabak fotoğrafı
+  $("photoBtn").addEventListener("click", () => $("photoInput").click());
+  $("photoInput").addEventListener("change", () => { const f = $("photoInput").files[0]; if (f) photoPick(f); $("photoInput").value = ""; });
+  $("photoBox").addEventListener("click", (ev) => {
+    const pill = ev.target.closest(".pill[data-q]");
+    if (pill && photo){ photo.answers[pill.dataset.q] = +pill.dataset.i; pill.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", p === pill)); return; }
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.id === "photoAnalyze" || b.id === "photoRetry") photoAnalyze();
+    else if (b.id === "photoFinal") photoFinal(false);
+    else if (b.id === "photoSkip") photoFinal(true);
+    else if (b.id === "photoAdd") photoAddAll();
+    else if (b.id === "photoCancel") closePhoto();
+  });
+  $("photoBox").addEventListener("input", (ev) => {
+    const inp = ev.target.closest("input[data-i]"); if (!inp || !photo || !photo.items) return;
+    photo.items[+inp.dataset.i].g = Math.max(0, +inp.value || 0); renderPhotoTotals();
+  });
   $("foodList").addEventListener("click", (ev) => {
     const btn = ev.target.closest("button[data-act]"); if (!btn) return;
     const f = foodById(btn.closest("[data-id]").dataset.id); if (!f) return;
@@ -1595,6 +1822,8 @@ function init(){
   ["tKcal", "tP", "tC", "tF"].forEach((id) => $(id).addEventListener("input", renderTargetHint));
   $("tSave").addEventListener("click", saveTargets);
   $("exportBtn").addEventListener("click", exportData);
+  $("backupNow").addEventListener("click", exportData);
+  $("backupLater").addEventListener("click", () => { save(LS.snooze, Date.now() + 7 * 86400000); renderBackup(); });
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", () => { const f = $("importFile").files[0]; if (f) importData(f); $("importFile").value = ""; });
   $("wipeBtn").addEventListener("click", wipeAll);
