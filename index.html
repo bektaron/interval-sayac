@@ -33,7 +33,7 @@
   .row.tight{gap:6px}
   label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
   input,select,button{font:inherit;color:var(--txt)}
-  input[type=text],input[type=number],select{
+  input[type=text],input[type=number],input[type=date],select{
     background:var(--panel2);border:1px solid var(--line);border-radius:10px;
     padding:10px 12px;width:100%;outline:none;
   }
@@ -46,6 +46,7 @@
     padding:10px 14px;cursor:pointer;font-weight:600;transition:.12s;
   }
   button:active{transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:not-allowed}
   button.primary{background:var(--accent);color:#04243a;border-color:var(--accent)}
   button.ghost{background:transparent}
   button.danger{color:#fda4af;border-color:#7f1d2d}
@@ -94,6 +95,13 @@
   .totals{display:flex;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:14px}
   .totals b{color:var(--txt);font-variant-numeric:tabular-nums}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  /* nabız bölgesi çipleri (ayarlar: aralık, oynatıcı: geçen süre) */
+  .zchips{display:flex;gap:5px}
+  .zc{flex:1 1 0;min-width:0;border-radius:8px;padding:4px 2px 3px;background:var(--panel2);border:1px solid var(--line);
+      border-top:4px solid var(--zc);text-align:center;font-variant-numeric:tabular-nums;line-height:1.15}
+  .zc b{display:block;font-size:11px;color:var(--muted)}
+  .zc span{display:block;font-size:12px;font-weight:800;white-space:nowrap}
   .hidden{display:none!important}
   .hint{font-size:12px;color:var(--muted);margin-top:8px}
 
@@ -116,10 +124,56 @@
   #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
   #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
   #player .pclock{font-size:min(30vw,19vh);font-weight:800;line-height:.92;font-variant-numeric:tabular-nums;text-shadow:0 6px 40px rgba(0,0,0,.4)}
-  #player .panim{font-size:min(15vw,10vh);line-height:1;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
-  #player .panim img{height:min(15vw,10vh);width:auto;vertical-align:middle}
-  #player .panim:empty{display:none}
-  #player .flip{display:inline-block;transform:scaleX(-1)}
+  /* canlı nabız (Bluetooth bandı) */
+  #player .phr{display:flex;align-items:center;gap:8px;margin-top:6px;
+               font-size:clamp(22px,7vw,44px);font-weight:800;font-variant-numeric:tabular-nums;
+               text-shadow:0 2px 14px rgba(0,0,0,.35);line-height:1}
+  #player .phr:empty{display:none}
+  #player .phr .hb{display:inline-block;color:#fecaca}
+  #player .phr.beat .hb{animation:hb .35s ease}
+  #player .phr .unit{font-size:.45em;font-weight:700;opacity:.85;align-self:flex-end;padding-bottom:.15em}
+  #player .phr.stale{opacity:.5}
+  @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
+  /* dairesel nabız göstergesi: bölge halkası, anlık nokta, ortalama oku, ortada sayılar */
+  #player .pgauge{width:min(46vw,25vh);max-width:250px;margin-top:2px}
+  #player .pgauge:empty,#player .pzones:empty{display:none}
+  #player .pgauge svg{width:100%;height:auto;display:block;overflow:visible}
+  #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.35);stroke-width:22}
+  #player .pgauge .zarc{fill:none;stroke-width:16}
+  #player .pgauge .gcur,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:100px 100px}
+  #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+  #player .pgauge .gavgmk{transition:transform .8s ease}
+  #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
+                       filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))}
+  #player .pgauge .gbpm{font-size:46px}
+  #player .pgauge .gavg{font-size:13px;font-weight:700;opacity:.9}
+  #player .pgauge .gzone{font-size:13px;font-weight:700}
+  #player .pgauge .ghint{font-size:12px;font-weight:800;fill:#fde68a}
+  #player .pgauge .zarc{transition:opacity .35s}
+  #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
+  #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur{opacity:.45}
+  #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px}
+  #player .pzones .zc{background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc)}
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px)}
+  #player .pzones .zc span{font-size:clamp(12px,3.6vw,16px)}
+  #player .pzones .zc.cur{background:rgba(255,255,255,.28);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+  /* birikimli yakıt çubuğu: sol yağ, sağ karbonhidrat (antrenman boyunca pay) */
+  #player .pfuel{width:min(94vw,420px);margin-top:6px;background:rgba(0,0,0,.22);border-radius:10px;padding:5px 9px 6px;display:flex;flex-direction:column;gap:5px}
+  #player .pfuel:empty{display:none}
+  #player .pfuel .fh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:clamp(10px,2.9vw,12px);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #player .pfuel .fh .fl{color:#fde68a;font-weight:800} #player .pfuel .fh .fr{color:#fecaca;font-weight:800}
+  #player .pfuel .fh .fm{opacity:.92;overflow:hidden;text-overflow:ellipsis}
+  #player .pfuel .fb{position:relative;height:14px;border-radius:7px;background:rgba(0,0,0,.35)}
+  #player .pfuel .ff{position:absolute;top:0;bottom:0;transition:width .6s ease}
+  #player .pfuel .ff.l{right:50%;background:linear-gradient(to left,#fcd34d,#fbbf24);border-radius:7px 0 0 7px}
+  #player .pfuel .ff.r{left:50%;background:linear-gradient(to right,#fca5a5,#f87171);border-radius:0 7px 7px 0}
+  #player .pfuel .fc{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#fff;transform:translateX(-50%)}
+  #player .pfuel .fn{position:absolute;top:-8px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #fff;transform:translateX(-50%);transition:left .6s ease}
+  /* nabız göstergesi açıkken dikey yer aç: sayaç biraz küçülür, boşluklar daralır */
+  #player.hr .pclock{font-size:min(24vw,13vh)}
+  #player.hr .pnextline{margin-top:clamp(4px,1vh,16px)}
+  #player.hr .pprofile{height:clamp(64px,10vh,160px)}
+  #player.hr .pgauge{width:min(44vw,23vh)}
   /* alt 3'lü istatistik */
   #player .binfo{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-align:center}
   #player .binfo .stat{flex:1 1 0;min-width:0}
@@ -128,15 +182,12 @@
   #player .pprofile{flex:0 0 auto;height:clamp(130px,20vh,220px);background:rgba(0,0,0,.22);border-radius:12px;padding:10px}
   #player .pchart{position:relative;width:100%;height:100%}
   #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
-  #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(20px,5vw,30px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
-  #player .pmark:empty{display:none}
-  #player .pmark img{height:1.25em;width:auto;vertical-align:middle}
   /* butonlar */
   #player .pbtns{flex:0 0 auto;display:flex;gap:10px}
   #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;padding:14px 10px;font-size:18px;border-radius:14px}
   #player .pbtns button.big{flex:2;font-size:20px}
   /* bitiş + durumlar */
-  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .panim,#player.done .pnextline{display:none}
+  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .pnextline{display:none}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
   #player.done .pclock{font-size:22vw}
@@ -323,8 +374,8 @@
 
     <label class="lbl">İlk interval</label>
     <div class="radiorow" style="margin-bottom:12px">
-      <label><input type="radio" name="first" value="yavas" checked> Yavaş ile başla</label>
-      <label><input type="radio" name="first" value="hizli"> Hızlı ile başla</label>
+      <label><input type="radio" name="first" value="yavas" checked> Gevşe ile başla</label>
+      <label><input type="radio" name="first" value="hizli"> Yüklen ile başla</label>
     </div>
 
     <label class="lbl">Ters yüz et (profili baştan sona çevirir; çaprazda azalan rolü diğer moda geçer)</label>
@@ -356,8 +407,8 @@
     </div>
     <div id="segBox" style="margin:12px 0"></div>
     <div class="row tight">
-      <button id="addSlow" class="ghost">+ Yavaş</button>
-      <button id="addFast" class="ghost">+ Hızlı</button>
+      <button id="addSlow" class="ghost">+ Gevşe</button>
+      <button id="addFast" class="ghost">+ Yüklen</button>
       <button id="clearBtn" class="ghost danger" style="margin-left:auto">Temizle</button>
     </div>
   </div>
@@ -375,26 +426,33 @@
         <div class="chips"><div class="pill on" id="soundPill">🔊 Açık</div></div>
       </div>
     </div>
-    <label class="lbl">Simgeler — kendi emoji/resmini ver (sağa bakar)</label>
-    <div class="grid2" style="margin-bottom:8px">
-      <div>
-        <div class="lbl">Yavaş</div>
-        <div class="row tight">
-          <input type="text" id="iconSlow" value="🚶‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
-          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgSlow" accept="image/*" hidden></label>
-          <button class="ghost" id="imgSlowClear" title="Resmi kaldır">✕</button>
-        </div>
-      </div>
-      <div>
-        <div class="lbl">Hızlı</div>
-        <div class="row tight">
-          <input type="text" id="iconFast" value="🏃‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
-          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgFast" accept="image/*" hidden></label>
-          <button class="ghost" id="imgFastClear" title="Resmi kaldır">✕</button>
-        </div>
-      </div>
+    <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
+    <div class="row tight" style="margin-bottom:6px">
+      <button id="hrBtn" class="ghost">💓 Bağlan</button>
+      <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
+      <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
+      <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
     </div>
-    <div class="hint" style="margin-bottom:12px">Emoji yaz ya da 📁 ile kendi resmini yükle. Resim varsa emoji yerine o kullanılır.</div>
+    <div class="hint" id="hrHint" style="margin-bottom:12px"></div>
+
+    <label class="lbl">Nabız bölgeleri ve enerji — kişisel (5 bölge, Polar düzeni)</label>
+    <div class="grid3" style="margin-bottom:8px">
+      <div><label class="lbl">Doğum tarihi</label><input type="date" id="hrBirth" min="1920-01-01" max="2020-12-31"></div>
+      <div><label class="lbl">Dinlenik nabız</label><input type="number" id="hrRest" min="30" max="120" step="1" inputmode="numeric" placeholder="ör. 60"></div>
+      <div><label class="lbl">Maks. nabız</label><input type="number" id="hrMax" min="100" max="230" step="1" inputmode="numeric" placeholder="ör. 170"></div>
+    </div>
+    <div class="grid2" style="margin-bottom:8px">
+      <div><label class="lbl">Kilo (kg) — kcal için</label><input type="number" id="hrWeight" min="30" max="250" step="0.5" inputmode="decimal" placeholder="ör. 94"></div>
+      <div><label class="lbl">Cinsiyet — kcal formülü için</label><select id="hrSex"><option value="m">Erkek</option><option value="f">Kadın</option></select></div>
+    </div>
+    <div class="zchips" id="hrZoneChips" style="margin-bottom:6px"></div>
+    <div class="hint" id="hrZoneHint" style="margin-bottom:12px"></div>
+
+    <label class="lbl">Hedef bölge (antrenmanla birlikte kaydedilir; göstergede hedef yay parlak, ortada yönlendirme)</label>
+    <div class="grid2" style="margin-bottom:12px">
+      <div><label class="lbl">Gevşe</label><select id="tgtSlow"><option value="1">Z1 Çok hafif</option><option value="2" selected>Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4">Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
+      <div><label class="lbl">Yüklen</label><select id="tgtFast"><option value="1">Z1 Çok hafif</option><option value="2">Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4" selected>Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
+    </div>
 
     <label class="lbl">Antrenman adı</label>
     <div class="row tight">
@@ -419,12 +477,15 @@
   <div class="pmid">
     <div class="pname" id="pName">—</div>
     <div class="pclock" id="pClock">0:00</div>
-    <div class="panim" id="pAnim"></div>
+    <div class="phr" id="pHR"></div>
+    <div class="pgauge" id="pGauge"></div>
+    <div class="pzones" id="pZones"></div>
+    <div class="pfuel" id="pFuel"></div>
   </div>
-  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
+  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
   <div class="binfo">
     <div class="stat"><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
-    <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg">. dakikaya ulaşmak!</div></div>
+    <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg" id="pGoalMsg"></div></div>
     <div class="stat"><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
   </div>
   <div class="pbtns">
@@ -439,17 +500,17 @@
 /* ------------------------------------------------------------------ */
 /* State                                                               */
 /* ------------------------------------------------------------------ */
-const A = 0, B = 1; // Yavaş, Hızlı
+const A = 0, B = 1; // Gevşe, Yüklen
 let state = {
   name: "",
   variations: [
-    { name: "Yavaş", color: "#059669" },
-    { name: "Hızlı", color: "#ea580c" },
+    { name: "Gevşe", color: "#059669" },
+    { name: "Yüklen", color: "#ea580c" },
   ],
   segments: [], // {v:0|1, sec:Number}
 };
 let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1, flip: false };
-let settings = { prepSec: 5, sound: true, icon: ["🚶‍♂️","🏃‍♂️"], iconImg: [null,null] };
+let settings = { prepSec: 5, sound: true, tgt: [2, 4] };   // tgt: Gevşe/Yüklen hedef bölgesi
 
 const $ = (id) => document.getElementById(id);
 
@@ -540,7 +601,7 @@ function buildSegments(pattern, L, F, cross, firstFast, step, flip){
   let S = buildPrimary(pattern, Lc, Fc);
   if (flip) S = [...S].reverse();        // ters yüz: profili baştan sona çevir
   const pivot = Lc + Fc;                  // ayna ekseni (seviye)
-  // Yavaş ana diziyi izler; Hızlı çaprazda aynayı, normalde aynısını alır.
+  // Gevşe ana diziyi izler; Yüklen çaprazda aynayı, normalde aynısını alır.
   // "İlk interval" yalnızca çiftin sırasını belirler, diziyi değiştirmez.
   const segs = [];
   for (const lv of S){
@@ -709,6 +770,7 @@ async function startPlayer(){
   P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
+  HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0}; $("pGauge").innerHTML="";
   $("player").classList.remove("hidden","done");
   $("builder").style.display="none";
   requestWake();
@@ -768,15 +830,6 @@ function updateCursor(){
   c.setAttribute("x1",xs); c.setAttribute("x2",xs);
   const clip=document.getElementById("pClipRect");
   if(clip) clip.setAttribute("width",xs);
-  const mk=$("pMark"); if(mk) mk.style.left=xs+"%";
-}
-
-// Varyasyona göre hayvan: kendi resmin varsa o, yoksa emoji (sağa bakar).
-function animalHTML(vidx){
-  const img=settings.iconImg[vidx];
-  if(img) return `<img src="${img}" alt="">`;
-  const e=settings.icon[vidx] || (vidx===1?"🏃‍♂️":"🚶‍♂️");
-  return `<span class="flip">${e}</span>`;
 }
 
 function renderPlayer(){
@@ -799,22 +852,20 @@ function renderPlayer(){
     $("pIndex").textContent="Hazırlık";
     $("pSegLen").textContent=fmt(cur.sec);
     $("pEndMin").textContent="0:00";
+    $("pGoalMsg").textContent="";
   } else {
     $("pIndex").textContent=(realIdx+1)+" / "+state.segments.length;
     $("pSegLen").textContent=fmt(cur.sec);
     let cum=0; for(let i=0;i<=realIdx;i++) cum+=state.segments[i].sec;
     $("pEndMin").textContent=fmt(cum);
+    $("pGoalMsg").textContent = cum%60===0 ? `${cum/60}. dakikaya ulaşmak!` : `${fmt(cum)}'a ulaşmak!`;
   }
   const workoutTotal = state.segments.reduce((a,s)=>a+s.sec,0);
   const rem = remainingTotal();
   $("pElapsed").textContent = fmt(workoutTotal - rem);
   $("pTotal").textContent = fmt(rem);
-  // tek sabit hayvan (sayaç altı) + konum çizgisi markeri
-  const vidx = realIdx>=0 ? state.segments[realIdx].v : -1;
-  const html = vidx<0 ? "" : animalHTML(vidx);
-  $("pAnim").innerHTML = html;
-  $("pMark").innerHTML = html;
   updateCursor();
+  renderHR();
 }
 function gotoSeg(i){
   if(i<0||i>=P.timeline.length) return;
@@ -833,6 +884,7 @@ function loop(){
   const now=performance.now();
   const dt=(now-P.last)/1000; P.last=now;
   if(!P.running) return;
+  hrAccumulate(dt);
   P.segLeft-=dt;
   const whole=Math.ceil(P.segLeft);
   if(whole!==P.lastWhole){
@@ -847,6 +899,244 @@ function loop(){
     if(P.idx+1<P.timeline.length){ P.idx++; P.segLeft=P.timeline[P.idx].sec; P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
     else finish();
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Nabız — Web Bluetooth, standart Heart Rate servisi (0x180D/0x2A37)  */
+/* Polar H10 dahil çoğu göğüs bandı bu servisi yayınlar.               */
+/* ------------------------------------------------------------------ */
+const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0 };
+const HR_STALE_MS = 5000;
+const hrSupported = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+
+function hrConnected(){ return !!(HR.dev && HR.dev.gatt && HR.dev.gatt.connected && HR.chr); }
+function hrSetStatus(txt){ const el=$("hrStatus"); if(el) el.textContent=txt; }
+
+// 0x2A37 Heart Rate Measurement: bit0=1 ise 16-bit, değilse 8-bit nabız
+function parseHR(dv){
+  if(!dv || dv.byteLength<2) return 0;
+  const flags=dv.getUint8(0);
+  return (flags & 0x01) ? dv.getUint16(1,true) : dv.getUint8(1);
+}
+function onHR(e){
+  const bpm=parseHR(e.target.value);
+  if(!(bpm>0)) return;                 // 0 = sensör temas etmiyor
+  HR.bpm=bpm; HR.at=performance.now();
+  renderHR();
+  const p=$("pHR");
+  if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
+}
+async function hrSubscribe(){
+  const server=await HR.dev.gatt.connect();
+  const svc=await server.getPrimaryService("heart_rate");
+  const chr=await svc.getCharacteristic("heart_rate_measurement");
+  await chr.startNotifications();
+  chr.addEventListener("characteristicvaluechanged", onHR);
+  HR.chr=chr;
+  hrSetStatus("Bağlı: "+(HR.dev.name||"nabız bandı"));
+  renderHR();
+}
+async function hrConnect(){
+  if(!hrSupported){ alert("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+  const gen=++HR.gen; HR.want=false;
+  try{
+    hrSetStatus("Aranıyor…");
+    const dev=await navigator.bluetooth.requestDevice({ filters:[{ services:["heart_rate"] }] });
+    if(gen!==HR.gen) return;
+    if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
+    HR.dev=dev; HR.want=true; HR.bpm=null; HR.at=0;
+    dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
+    await hrSubscribe();
+  }catch(err){
+    if(gen!==HR.gen) return;
+    HR.want=false;
+    const cancelled = err && err.name==="NotFoundError";
+    hrSetStatus(cancelled ? "Cihaz seçilmedi" : "Bağlanamadı: "+((err&&err.message)||err));
+    renderHR();
+  }
+}
+async function hrOnDisconnect(gen){
+  if(gen!==HR.gen) return;             // eski bağlantının olayı
+  HR.chr=null; renderHR();
+  if(!HR.want){ hrSetStatus("Bağlı değil"); return; }
+  for(let i=1;i<=5;i++){
+    if(gen!==HR.gen || !HR.want) return;
+    hrSetStatus(`Bağlantı koptu, yeniden deneniyor (${i}/5)…`);
+    await new Promise(r=>setTimeout(r, 1000*i));
+    if(gen!==HR.gen || !HR.want) return;
+    try{ await hrSubscribe(); return; }catch(e){}
+  }
+  if(gen!==HR.gen) return;
+  HR.want=false; hrSetStatus("Yeniden bağlanamadı. Bağlan'a tekrar bas."); renderHR();
+}
+function hrDisconnect(){
+  HR.gen++; HR.want=false;
+  try{ if(HR.dev && HR.dev.gatt.connected) HR.dev.gatt.disconnect(); }catch(e){}
+  HR.chr=null; HR.bpm=null; HR.at=0;
+  hrSetStatus("Bağlı değil"); renderHR();
+}
+/* --- Kişisel nabız bölgeleri (Polar düzeni: maks. nabzın %50-60-70-80-90-100'ü) --- */
+const HRP_KEY="intervalHRProfile";
+const ZONE_PCT=[.5,.6,.7,.8,.9,1];
+const ZONE_COLOR=["#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];
+const ZONE_NAME=["Çok hafif","Hafif","Orta","Zor","Maksimum"];
+const HRP_DEFAULT={birth:"", rest:0, max:0, weight:0, sex:"m"};
+function loadHRProf(){
+  const p={...HRP_DEFAULT};
+  try{ const st=JSON.parse(localStorage.getItem(HRP_KEY)); if(st && st.birth!==undefined) Object.assign(p, st); }catch(e){}
+  return p;
+}
+let hrProf=loadHRProf();
+function saveHRProf(){ try{ localStorage.setItem(HRP_KEY, JSON.stringify(hrProf)); }catch(e){} }
+function ageFromBirth(b){
+  if(!b) return 0;
+  const d=new Date(b+"T00:00:00"); if(isNaN(d)) return 0;
+  const n=new Date(); let a=n.getFullYear()-d.getFullYear();
+  const m=n.getMonth()-d.getMonth(); if(m<0 || (m===0 && n.getDate()<d.getDate())) a--;
+  return (a>0 && a<120) ? a : 0;
+}
+// Dinlenik nabız girildiyse Karvonen (kalp atım rezervi), yoksa maks. nabız yüzdesi.
+function hrZones(){
+  const age=ageFromBirth(hrProf.birth), rest=+hrProf.rest||0;
+  const max=+hrProf.max||(age?220-age:0);
+  if(!max || rest>=max) return null;
+  const bounds=ZONE_PCT.map(p=>Math.round(rest ? rest+p*(max-rest) : p*max));
+  return {max, rest, age, bounds, karvonen:rest>0};
+}
+function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
+function zoneChipsHTML(vals,cur,tgt){
+  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i+1?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i+1}${tgt===i+1?" hedef":""}</b><span>${vals[i]}</span></div>`).join("");
+}
+function renderZoneSetup(){
+  const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
+  if(!z){ box.innerHTML=""; h.textContent="Doğum tarihi (ya da bilinen maks. nabız) girince bölgeler hesaplanır ve sayaç ekranında dairesel gösterge açılır."; return; }
+  box.innerHTML=zoneChipsHTML(ZONE_NAME.map((n,i)=>`${z.bounds[i]}–${z.bounds[i+1]}`), -1);
+  h.textContent=`Maks. nabız ${z.max}${hrProf.max?" (girilen)":` (220 − ${z.age} yaş)`} · `+
+    (z.karvonen ? `Karvonen: dinlenik ${z.rest} üstü rezervin yüzdesi` : "maks. nabız yüzdesi")+
+    " · Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir."+
+    (+hrProf.weight>0 ? " Kilo girildi: kcal (Keytel, ±%20-30) ve yağ/KH payı (nüfus ortalaması eğrisi) sayaç ekranında birikimli gösterilir." : " Kilo girersen kcal ve yağ/KH çubuğu açılır.");
+}
+
+/* --- Oturum istatistiği: zaman ağırlıklı ortalama + bölgede geçen süre (hazırlık hariç) --- */
+let HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0};
+/* Enerji: Keytel 2005 (cinsiyet, yaş, kilo, nabız) → kcal/dk; yağ payı maks. nabız yüzdesine göre parçalı doğrusal eğri.
+   Kaba tahminlerdir: kcal ±%20-30, yağ payı ±20 puan; 90 bpm altında formül geçersizdir (taban 1 kcal/dk). */
+function kcalPerMin(hr){
+  const w=+hrProf.weight||0; if(!w) return 0;
+  const age=ageFromBirth(hrProf.birth)||40;
+  const k = hrProf.sex==="f" ? (-20.4022 + 0.4472*hr - 0.1263*w + 0.074*age) : (-55.0969 + 0.6309*hr + 0.1988*w + 0.2017*age);
+  return Math.max(1, k/4.184);
+}
+const FAT_CURVE=[[50,.75],[60,.65],[70,.50],[80,.30],[90,.10],[100,0]];
+function fatFrac(hr,z){
+  const p=hr/z.max*100;
+  if(p<=FAT_CURVE[0][0]) return FAT_CURVE[0][1];
+  if(p>=100) return 0;
+  for(let i=1;i<FAT_CURVE.length;i++){ const [x0,y0]=FAT_CURVE[i-1],[x1,y1]=FAT_CURVE[i]; if(p<=x1) return y0+(y1-y0)*(p-x0)/(x1-x0); }
+  return 0;
+}
+const TREND_TAU=10, TREND_BAND=3, TREND_MIN_T=10;   // sn, bpm, sn
+function hrAccumulate(dt){
+  if(!hrConnected() || HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS) return;
+  if(settings.prepSec>0 && P.idx===0) return;
+  // ortalamanın anlık eğilimi: anlık nabız ortalamanın üstündeyse ortalama yükselir, altındaysa düşer.
+  // (bpm − ort) farkı ~10 sn zaman sabitiyle yumuşatılır; ±3 bpm ölü bant "sabit" sayılır.
+  if(HRS.t>0){ const diff=HR.bpm-HRS.sum/HRS.t; HRS.trend+=(diff-HRS.trend)*Math.min(1,dt/TREND_TAU); }
+  HRS.sum+=HR.bpm*dt; HRS.t+=dt;
+  const z=hrZones();
+  if(z){
+    HRS.zone[zoneOf(HR.bpm,z)]+=dt;
+    const k=kcalPerMin(HR.bpm);
+    if(k>0){ const f=fatFrac(HR.bpm,z); HRS.kcal+=k*dt/60; HRS.fat+=k*f*dt/60/9.4; HRS.carb+=k*(1-f)*dt/60/4.1; }
+  }
+}
+// Şu anki segmentin hedef bölgesi (hazırlıkta ve bitişte yok)
+function currentTarget(){
+  if(!P || $("player").classList.contains("done")) return 0;
+  const realIdx=P.idx-(settings.prepSec>0?1:0);
+  if(realIdx<0 || realIdx>=state.segments.length) return 0;
+  return settings.tgt[state.segments[realIdx].v]||0;
+}
+const tr1=n=>n.toLocaleString("tr-TR",{maximumFractionDigits:1,minimumFractionDigits:1});
+function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
+function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND_BAND ? "↗" : HRS.trend<-TREND_BAND ? "↘" : "→"; }
+
+/* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = halka üstünde nokta, ortalama = dışta ok --- */
+const G={cx:100,cy:100,r:76,a0:-120,a1:120};
+function gPt(ang,r){ const t=ang*Math.PI/180; return [G.cx+r*Math.sin(t), G.cy-r*Math.cos(t)]; }
+function gArc(aA,aB,r){
+  const [x1,y1]=gPt(aA,r),[x2,y2]=gPt(aB,r); const lg=(aB-aA)>180?1:0;
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+function gAng(bpm,z){ const lo=z.bounds[0], hi=z.bounds[5]; const f=Math.max(0,Math.min(1,(bpm-lo)/(hi-lo))); return G.a0+(G.a1-G.a0)*f; }
+function buildGauge(){
+  const z=hrZones(), g=$("pGauge");
+  if(!z){ g.innerHTML=""; return; }
+  let arcs=`<path class="track" d="${gArc(G.a0,G.a1,G.r)}"/>`;
+  for(let i=0;i<5;i++) arcs+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gArc(gAng(z.bounds[i],z),gAng(z.bounds[i+1],z),G.r)}"/>`;
+  arcs+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
+  const top=G.cy-G.r;
+  g.innerHTML=`<svg viewBox="0 -14 200 190">${arcs}
+    <g class="gavgmk" id="gAvgMk" style="display:none">
+      <polygon points="100,${top-12} 93,${top-23} 107,${top-23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon points="100,${top+12} 93,${top+23} 107,${top+23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon id="gTrendR" style="display:none" points="93,${top-37} 108,${top-31} 93,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon id="gTrendL" style="display:none" points="107,${top-37} 92,${top-31} 107,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+    </g>
+    <g class="gcur" id="gCur" style="display:none"><circle cx="100" cy="${top}" r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
+    <text class="gbpm" x="100" y="106" id="gBpm">—</text>
+    <text class="gavg" x="100" y="128" id="gAvg"></text>
+    <text class="gzone" x="100" y="150" id="gZone"></text>
+    <text class="ghint" x="100" y="167" id="gHint"></text>
+  </svg>`;
+}
+function updateGauge(){
+  const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild) return;
+  const bpm=HR.bpm, fresh = bpm!=null && (performance.now()-HR.at)<HR_STALE_MS;
+  g.classList.toggle("stale", !fresh);
+  $("gBpm").textContent = bpm!=null ? bpm : "—";
+  const cur=$("gCur");
+  if(bpm!=null){ cur.style.display=""; cur.style.transform=`rotate(${gAng(bpm,z).toFixed(1)}deg)`; } else cur.style.display="none";
+  const zi = bpm!=null ? zoneOf(bpm,z) : -1;
+  $("gZone").textContent = zi>0 ? `Z${zi} · ${ZONE_NAME[zi-1]}` : (zi===0 ? "Bölge altı" : "");
+  const avg=hrAvg(), mk=$("gAvgMk");
+  $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
+  if(avg!=null){ mk.style.display=""; mk.style.transform=`rotate(${gAng(avg,z).toFixed(1)}deg)`; } else mk.style.display="none";
+  const tr=hrTrendArrow();                       // ortalama yükseliyor → sağa (saat yönü), düşüyor → sola
+  $("gTrendR").style.display = tr==="↗" ? "" : "none";
+  $("gTrendL").style.display = tr==="↘" ? "" : "none";
+  // hedef bölge: hedef yay parlak, diğerleri sönük, dışta beyaz parantez, ortada yönlendirme
+  const tgt=currentTarget();
+  for(let i=0;i<5;i++){ const a=$("gArc"+i); if(a) a.style.opacity = (!tgt || i+1===tgt) ? "1" : ".35"; }
+  const tp=$("gTgt");
+  if(tp){ if(tgt){ tp.style.display=""; tp.setAttribute("d", gArc(gAng(z.bounds[tgt-1],z), gAng(z.bounds[tgt],z), G.r+14)); } else tp.style.display="none"; }
+  $("gHint").textContent = (!tgt || bpm==null) ? "" : (zi===tgt ? "hedefte ✓" : (zi<tgt ? `hedef Z${tgt} · yüklen ↑` : `hedef Z${tgt} · gevşe ↓`));
+  $("pZones").innerHTML=zoneChipsHTML(HRS.zone.slice(1).map(fmt), zi, tgt);
+  // birikimli yakıt çubuğu (kilo girildiyse)
+  const pf=$("pFuel");
+  if(kcalPerMin(100)>0){
+    const fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs = (fk+ck)>0 ? fk/(fk+ck) : 0.5;
+    pf.innerHTML=`<div class="fh"><span class="fl">Yağ ${tr1(HRS.fat)} g</span><span class="fm">%${Math.round(fs*100)} yağ · ${Math.round(HRS.kcal)} kcal · %${Math.round((1-fs)*100)} KH</span><span class="fr">KH ${tr1(HRS.carb)} g</span></div>
+      <div class="fb"><div class="ff l" style="width:${(fs*50).toFixed(1)}%"></div><div class="ff r" style="width:${((1-fs)*50).toFixed(1)}%"></div><div class="fc"></div><div class="fn" style="left:${((1-fs)*100).toFixed(1)}%"></div></div>`;
+  } else pf.innerHTML="";
+}
+
+function renderHR(){
+  const on=hrConnected(), z=hrZones();
+  const stale = HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS;
+  const txt = HR.bpm!=null ? String(HR.bpm) : "—";
+  $("player").classList.toggle("hr", on && !!z);
+  const p=$("pHR");
+  if(on && !z){                              // profil yoksa yalnız sayı (+ ortalama)
+    const avg=hrAvg();
+    p.innerHTML=`<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>`+(avg!=null?`<span class="unit">ort ${avg} ${hrTrendArrow()}</span>`:"");
+    p.classList.toggle("stale", stale);
+  } else p.innerHTML="";
+  if(on && z){ if(!$("pGauge").firstChild) buildGauge(); updateGauge(); }
+  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
+  const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
+  $("hrBtn").classList.toggle("hidden", on);
+  $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
 /* Wake lock */
@@ -907,21 +1197,26 @@ $("soundPill").onclick=()=>{
 };
 $("inPrep").onchange=e=>settings.prepSec=Math.max(0,parseInt(e.target.value)||0);
 
-// simgeler (emoji + resim)
-$("iconSlow").oninput=e=>settings.icon[0]=e.target.value||"🚶‍♂️";
-$("iconFast").oninput=e=>settings.icon[1]=e.target.value||"🏃‍♂️";
-function readIcon(file,idx){ const r=new FileReader(); r.onload=()=>settings.iconImg[idx]=r.result; r.readAsDataURL(file); }
-$("imgSlow").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],0); };
-$("imgFast").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],1); };
-$("imgSlowClear").onclick=()=>{ settings.iconImg[0]=null; $("imgSlow").value=""; };
-$("imgFastClear").onclick=()=>{ settings.iconImg[1]=null; $("imgFast").value=""; };
+// nabız profili (kişiye ait; antrenman kaydından bağımsız saklanır)
+$("hrBirth").value=hrProf.birth||""; $("hrRest").value=hrProf.rest||""; $("hrMax").value=hrProf.max||"";
+$("hrWeight").value=hrProf.weight||""; $("hrSex").value=hrProf.sex==="f"?"f":"m";
+["hrBirth","hrRest","hrMax","hrWeight","hrSex"].forEach(id=>$(id).oninput=$(id).onchange=()=>{
+  hrProf={birth:$("hrBirth").value||"", rest:+$("hrRest").value||0, max:+$("hrMax").value||0, weight:+$("hrWeight").value||0, sex:$("hrSex").value==="f"?"f":"m"};
+  saveHRProf(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR();
+});
+renderZoneSetup();
+// hedef bölge (antrenmanla kaydedilir)
+function syncTgtUI(){ $("tgtSlow").value=String(settings.tgt[0]||2); $("tgtFast").value=String(settings.tgt[1]||4); }
+$("tgtSlow").onchange=()=>{ settings.tgt[0]=+$("tgtSlow").value||2; };
+$("tgtFast").onchange=()=>{ settings.tgt[1]=+$("tgtFast").value||4; };
+syncTgtUI();
 
 $("saveBtn").onclick=()=>{
   const name=($("inName").value||"").trim();
   if(!name){ alert("Bir ad gir."); return; }
   if(!state.segments.length){ alert("Boş antrenman kaydedilmez."); return; }
   const all=loadAll();
-  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, icon:[...settings.icon], iconImg:[...settings.iconImg] };
+  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt] };
   saveAll(all); state.name=name; refreshSaved();
   $("savedList").value=name; alert("Kaydedildi: "+name);
 };
@@ -930,9 +1225,8 @@ $("loadBtn").onclick=()=>{
   const all=loadAll(); const w=all[n]; if(!w) return;
   state.variations=w.variations; state.segments=w.segments;
   settings.prepSec=w.prepSec??5; settings.sound=w.sound??true; state.name=n;
-  settings.icon=w.icon||["🚶‍♂️","🏃‍♂️"]; settings.iconImg=w.iconImg||[null,null];
+  settings.tgt = Array.isArray(w.tgt)&&w.tgt.length===2 ? [+w.tgt[0]||2,+w.tgt[1]||4] : [2,4]; syncTgtUI();
   $("inName").value=n; $("inPrep").value=settings.prepSec;
-  $("iconSlow").value=settings.icon[0]; $("iconFast").value=settings.icon[1];
   $("soundPill").classList.toggle("on",settings.sound);
   $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
   renderVars(); renderSegments();
@@ -942,6 +1236,16 @@ $("delBtn").onclick=()=>{
   if(!confirm(n+" silinsin mi?")) return;
   const all=loadAll(); delete all[n]; saveAll(all); refreshSaved();
 };
+
+// nabız bandı
+$("hrBtn").onclick=hrConnect;
+$("hrOffBtn").onclick=hrDisconnect;
+if(!hrSupported){
+  $("hrBtn").disabled=true;
+  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır.";
+} else {
+  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener.";
+}
 
 $("startBtn").onclick=startPlayer;
 $("exitBtn").onclick=exitPlayer;
