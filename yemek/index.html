@@ -104,6 +104,11 @@
   .legend .lgi i{width:12px;height:12px;border-radius:4px;display:inline-block}
 
   /* arama + ekleme */
+  .searchwrap{position:relative}
+  .searchwrap input{padding-right:46px}
+  input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;display:none}
+  .qclear{position:absolute;right:6px;top:50%;transform:translateY(-50%);min-height:32px;height:32px;width:32px;padding:0;border-radius:8px;font-size:15px;line-height:1;color:var(--muted);background:var(--panel);display:flex;align-items:center;justify-content:center}
+  .qclear:active{transform:translateY(-50%) scale(.95)}
   .results{margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
   .results:empty{display:none}
   .res{display:flex;justify-content:space-between;gap:8px;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer;align-items:center}
@@ -240,7 +245,10 @@
 
     <div class="card">
       <h2>Ekle</h2>
-      <input type="search" id="q" placeholder="Yiyecek ara… (yumurta, pilav, elma)" autocomplete="off" autocorrect="off" autocapitalize="off">
+      <div class="searchwrap">
+        <input type="search" id="q" placeholder="Yiyecek ara… (yumurta, pilav, elma)" autocomplete="off" autocorrect="off" autocapitalize="off">
+        <button class="qclear hidden" id="qClear" title="Temizle" aria-label="Temizle">✕</button>
+      </div>
       <div id="results" class="results"></div>
       <div id="recentBox" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px">
@@ -307,7 +315,10 @@
         <h2 style="margin:0">Yiyecekler <span class="muted" id="foodCount"></span></h2>
         <button class="primary sm" id="newFood">+ Yeni</button>
       </div>
-      <input type="search" id="fq" placeholder="Ara…" autocomplete="off" autocorrect="off" autocapitalize="off">
+      <div class="searchwrap">
+        <input type="search" id="fq" placeholder="Ara…" autocomplete="off" autocorrect="off" autocapitalize="off">
+        <button class="qclear hidden" id="fqClear" title="Temizle" aria-label="Temizle">✕</button>
+      </div>
 
       <div id="foodForm" class="selbox hidden">
         <h2 id="fTitle">Yeni yiyecek</h2>
@@ -1706,7 +1717,7 @@ function selectFood(f){
   $("selUnit").value = idx;
   $("selQ").value = selUnits[idx].key === "g" ? 100 : 1;
   $("results").innerHTML = "";
-  $("q").value = f.name;
+  $("q").value = f.name; $("qClear").classList.remove("hidden");
   renderQtyChips();
   renderCalc();
   $("selQ").focus(); $("selQ").select();
@@ -1741,7 +1752,7 @@ function addSelected(){
   clearSelection();
   renderDay(); renderRecent();
 }
-function clearSelection(){ sel = null; $("selBox").classList.add("hidden"); $("q").value = ""; $("results").innerHTML = ""; }
+function clearSelection(){ sel = null; $("selBox").classList.add("hidden"); $("q").value = ""; $("results").innerHTML = ""; $("qClear").classList.add("hidden"); }
 function pushRecent(id){ recent = [id].concat(load(LS.recent, []).filter((x) => x !== id)).slice(0, 10); save(LS.recent, recent); }
 function renderRecent(){
   const foods = recent.map(foodById).filter(Boolean);
@@ -2007,7 +2018,11 @@ function init(){
   $("nextDay").addEventListener("click", () => setDate(shiftDay(curDate, 1)));
   $("todayBtn").addEventListener("click", () => setDate(todayStr()));
 
-  $("q").addEventListener("input", () => { if (sel && $("q").value !== sel.name){ sel = null; $("selBox").classList.add("hidden"); } renderResults(); });
+  const syncClear = () => { $("qClear").classList.toggle("hidden", !$("q").value); };
+  $("q").addEventListener("input", () => { if (sel && $("q").value !== sel.name){ sel = null; $("selBox").classList.add("hidden"); } renderResults(); syncClear(); });
+  $("qClear").addEventListener("click", () => { clearSelection(); $("aiBox").classList.add("hidden"); $("scanBox").classList.add("hidden"); syncClear(); $("q").focus(); });
+  $("fq").addEventListener("input", () => $("fqClear").classList.toggle("hidden", !$("fq").value));
+  $("fqClear").addEventListener("click", () => { $("fq").value = ""; $("fqClear").classList.add("hidden"); renderFoods(); $("fq").focus(); });
   $("q").addEventListener("keydown", (ev) => { if (ev.key === "Enter"){ const first = $("results").querySelector(".res[data-id]"); if (first) selectFood(foodById(first.dataset.id)); ev.preventDefault(); } });
   $("results").addEventListener("click", (ev) => {
     const r = ev.target.closest(".res"); if (!r) return;
