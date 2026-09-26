@@ -135,7 +135,7 @@
   #player .phr.stale{opacity:.5}
   @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
   /* dairesel nabız göstergesi: bölge halkası, anlık nokta, ortalama oku, ortada sayılar */
-  #player .pgauge{width:min(48vw,26vh);max-width:250px;margin-top:2px}
+  #player .pgauge{width:min(46vw,25vh);max-width:250px;margin-top:2px}
   #player .pgauge:empty,#player .pzones:empty{display:none}
   #player .pgauge svg{width:100%;height:auto;display:block;overflow:visible}
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.35);stroke-width:22}
@@ -743,7 +743,7 @@ async function startPlayer(){
   P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
-  HRS={sum:0,t:0,zone:[0,0,0,0,0,0]}; $("pGauge").innerHTML="";
+  HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0}; $("pGauge").innerHTML="";
   $("player").classList.remove("hidden","done");
   $("builder").style.display="none";
   requestWake();
@@ -990,14 +990,19 @@ function renderZoneSetup(){
 }
 
 /* --- Oturum istatistiği: zaman ağırlıklı ortalama + bölgede geçen süre (hazırlık hariç) --- */
-let HRS={sum:0,t:0,zone:[0,0,0,0,0,0]};
+let HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0};
+const TREND_TAU=10, TREND_BAND=3, TREND_MIN_T=10;   // sn, bpm, sn
 function hrAccumulate(dt){
   if(!hrConnected() || HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS) return;
   if(settings.prepSec>0 && P.idx===0) return;
+  // ortalamanın anlık eğilimi: anlık nabız ortalamanın üstündeyse ortalama yükselir, altındaysa düşer.
+  // (bpm − ort) farkı ~10 sn zaman sabitiyle yumuşatılır; ±3 bpm ölü bant "sabit" sayılır.
+  if(HRS.t>0){ const diff=HR.bpm-HRS.sum/HRS.t; HRS.trend+=(diff-HRS.trend)*Math.min(1,dt/TREND_TAU); }
   HRS.sum+=HR.bpm*dt; HRS.t+=dt;
   const z=hrZones(); if(z) HRS.zone[zoneOf(HR.bpm,z)]+=dt;
 }
 function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
+function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND_BAND ? "↗" : HRS.trend<-TREND_BAND ? "↘" : "→"; }
 
 /* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = halka üstünde nokta, ortalama = dışta ok --- */
 const G={cx:100,cy:100,r:76,a0:-120,a1:120};
@@ -1013,10 +1018,12 @@ function buildGauge(){
   let arcs=`<path class="track" d="${gArc(G.a0,G.a1,G.r)}"/>`;
   for(let i=0;i<5;i++) arcs+=`<path class="zarc" stroke="${ZONE_COLOR[i]}" d="${gArc(gAng(z.bounds[i],z),gAng(z.bounds[i+1],z),G.r)}"/>`;
   const top=G.cy-G.r;
-  g.innerHTML=`<svg viewBox="0 0 200 162">${arcs}
+  g.innerHTML=`<svg viewBox="0 -14 200 176">${arcs}
     <g class="gavgmk" id="gAvgMk" style="display:none">
       <polygon points="100,${top-12} 93,${top-23} 107,${top-23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
       <polygon points="100,${top+12} 93,${top+23} 107,${top+23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon id="gTrendR" style="display:none" points="93,${top-37} 108,${top-31} 93,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon id="gTrendL" style="display:none" points="107,${top-37} 92,${top-31} 107,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
     </g>
     <g class="gcur" id="gCur" style="display:none"><circle cx="100" cy="${top}" r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
     <text class="gbpm" x="100" y="106" id="gBpm">—</text>
@@ -1036,6 +1043,9 @@ function updateGauge(){
   const avg=hrAvg(), mk=$("gAvgMk");
   $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
   if(avg!=null){ mk.style.display=""; mk.style.transform=`rotate(${gAng(avg,z).toFixed(1)}deg)`; } else mk.style.display="none";
+  const tr=hrTrendArrow();                       // ortalama yükseliyor → sağa (saat yönü), düşüyor → sola
+  $("gTrendR").style.display = tr==="↗" ? "" : "none";
+  $("gTrendL").style.display = tr==="↘" ? "" : "none";
   $("pZones").innerHTML=zoneChipsHTML(HRS.zone.slice(1).map(fmt), zi);
 }
 
@@ -1047,7 +1057,7 @@ function renderHR(){
   const p=$("pHR");
   if(on && !z){                              // profil yoksa yalnız sayı (+ ortalama)
     const avg=hrAvg();
-    p.innerHTML=`<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>`+(avg!=null?`<span class="unit">ort ${avg}</span>`:"");
+    p.innerHTML=`<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>`+(avg!=null?`<span class="unit">ort ${avg} ${hrTrendArrow()}</span>`:"");
     p.classList.toggle("stale", stale);
   } else p.innerHTML="";
   if(on && z){ if(!$("pGauge").firstChild) buildGauge(); updateGauge(); }
