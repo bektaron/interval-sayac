@@ -143,6 +143,16 @@
   .itemrow .en b{overflow-wrap:anywhere}
   .itemrow input{padding:8px 10px;min-height:40px;text-align:right}
   .ptot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .rv h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 4px}
+  .rv p{margin:0 0 6px;font-size:14px;line-height:1.45}
+  .rv ul,.rv ol{margin:0;padding-left:20px;font-size:14px;line-height:1.45}
+  .rv li{margin-bottom:4px}
+  .rv .verdict{font-size:15px;font-weight:700;line-height:1.4}
+  .rv .flag{color:var(--fat)}
+  .chat{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .msg{border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:14px;line-height:1.45;white-space:pre-wrap}
+  .msg.u{background:#0e2a3d;margin-left:24px}
+  .msg.a{background:var(--panel2);margin-right:12px}
   .scan-bottom .row{flex-wrap:nowrap}
   .scan-bottom input{flex:1 1 auto;min-width:0;width:auto}
   .calc b{font-size:18px}
@@ -223,6 +233,8 @@
         <div><span class="gcap">Yenen ağırlık</span><span class="gnum"><span id="sumG">0</span><small>g</small></span></div>
       </div>
       <div id="targetBox"></div>
+      <div class="row hidden" id="reviewRow" style="margin-bottom:10px"><button class="primary" id="reviewBtn">🩺 Yorumla</button><span class="muted" id="reviewMeta" style="font-size:12px"></span></div>
+      <div id="reviewBox" class="selbox hidden"></div>
       <div id="energyBox" class="hidden">
         <div class="hint" id="dayEnergy" style="margin:0 0 8px"></div>
         <div class="row" style="margin-bottom:10px"><label class="lbl" style="margin:0;flex:1 1 auto">Bugün attığım adım (isteğe bağlı)</label><input type="number" id="daySteps" min="0" step="100" inputmode="numeric" placeholder="ör. 6000" style="width:120px;flex:0 0 auto"></div>
@@ -447,7 +459,11 @@
       </div>
       <div class="grid2" style="margin-top:8px">
         <div><label class="lbl">Günlük açık (kcal; kilo vermek için)</label><input type="number" id="pDef" min="0" max="1500" step="50" inputmode="numeric" placeholder="0"></div>
+        <div><label class="lbl">Hedef</label><select id="pGoal"><option value="koruma">Kilo koruma</option><option value="verme">Kilo verme</option><option value="kas">Kas kazanımı</option></select></div>
       </div>
+      <label class="lbl" style="margin-top:8px">Sağlık notu (isteğe bağlı; uzman yorumunda dikkate alınır)</label>
+      <input type="text" id="pNotes" placeholder="ör. tip 2 diyabet, tansiyon ilacı, laktoz hassasiyeti" maxlength="300">
+      <div class="hint" id="pWeightHist"></div>
       <div class="hint" id="pInfo"></div>
       <div class="row" style="margin-top:10px">
         <button class="primary" id="pSave">Kaydet</button>
@@ -825,7 +841,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -960,12 +976,14 @@ function syncFromStorage(){
   ai = Object.assign({key:"", web:true}, load(LS.ai, {}));
   profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
   stepsLog = load(LS.steps, {});
+  weightLog = load(LS.weights, {});
 }
 /* ------------------------------------------------------------------ */
 /* Profil, enerji bütçesi ve adım eşdeğeri                             */
 /* ------------------------------------------------------------------ */
 let profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
 let stepsLog = load(LS.steps, {});   // {"YYYY-MM-DD": atılan adım}
+let weightLog = load(LS.weights, {}); // {"YYYY-MM-DD": kg} — profil kilosu her değişimde tarihiyle saklanır
 const BASE_STEPS = 2500;            // masa başı katsayısının zaten içerdiği günlük yürüme
 function profileOk(){ return profile.h > 0 && profile.w > 0; }
 // Bazal metabolizma: Mifflin-St Jeor
@@ -1032,7 +1050,7 @@ let curDate = todayStr();
 let sel = null;      // seçili yiyecek
 let editId = null;   // düzenlenen kayıt
 
-function setDate(s){ curDate = s; $("dateInp").value = s; editId = null; renderDay(); }
+function setDate(s){ curDate = s; $("dateInp").value = s; editId = null; $("reviewBox").classList.add("hidden"); renderDay(); renderReviewMeta(); }
 function renderDay(){
   const list = entries(curDate);
   $("dateLbl").textContent = fmtDate(curDate) + (curDate === todayStr() ? " · bugün" : "");
@@ -1197,7 +1215,7 @@ const PRICES = {
   "claude-sonnet-5":[2, 10], "claude-sonnet-4-6":[3, 15], "claude-haiku-4-5":[1, 5], "claude-fable-5-1":[10, 50], "claude-fable-5":[10, 50],
 };
 const SEARCH_PRICE = 0.01;
-const KIND_LABEL = {sor:"Claude'a sor", foto1:"Foto · 1. tur", foto2:"Foto · 2. tur (anket)"};
+const KIND_LABEL = {sor:"Claude'a sor", foto1:"Foto · 1. tur", foto2:"Foto · 2. tur (anket)", yorum:"Uzman yorumu", sohbet:"Uzman sohbeti"};
 function priceFor(model){
   const m = String(model || "");
   const key = Object.keys(PRICES).sort((a, b) => b.length - a.length).find((k) => m.startsWith(k));
@@ -1221,10 +1239,11 @@ function addUsageFrom(acc, data){
   acc.n += 1;
   if (data && data.model) acc.m = data.model;
 }
-async function claudeCall(system, messages, useWeb, kind){
+async function claudeCall(system, messages, useWeb, kind, opts){
+  opts = opts || {};
   const url = "https://api.anthropic.com/v1/messages";
   const headers = {"content-type":"application/json", "x-api-key":ai.key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"};
-  const effort = "medium";
+  const effort = opts.effort || "medium";
   const body = {model:AI_MODEL, max_tokens:4000, system, output_config:{effort}, messages};
   if (useWeb) body.tools = [{type:"web_search_20260209", name:"web_search", max_uses:3}];
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 120000);
@@ -1247,7 +1266,7 @@ async function claudeCall(system, messages, useWeb, kind){
     }
     if (data.stop_reason === "refusal") throw new Error("Model bu isteği yanıtlamadı.");
     const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
-    return parseAiJson(text);
+    return opts.raw ? text : parseAiJson(text);
   }catch(e){
     acc.err = String(e && (e.name === "AbortError" ? "zaman aşımı" : e.message) || "hata").slice(0, 80);
     throw e;
@@ -1663,7 +1682,118 @@ function photoAddAll(){
   renderDay();
 }
 function closePhoto(){ photo = null; $("photoBox").classList.add("hidden"); $("photoBox").innerHTML = ""; }
-function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); }
+function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); $("reviewRow").classList.toggle("hidden", !ai.key); renderReviewMeta(); }
+
+/* ------------------------------------------------------------------ */
+/* Beslenme uzmanı yorumu: dosya + tek çağrı; takip sohbeti            */
+/* ------------------------------------------------------------------ */
+const GOAL_LABEL = {koruma:"kilo koruma", verme:"kilo verme", kas:"kas kazanımı"};
+const REVIEW_SYSTEM = `Sen deneyimli bir klinik diyetisyensin; Türk mutfağını ve gündelik yeme alışkanlıklarını iyi bilirsin. Kullanıcı, yemek günlüğü uygulamasından çıkan bir dosya gönderir: profil, enerji bütçesi, bugünün kayıtları, son 14 günün özeti, atılan adımlar, kilo geçmişi, veri kalitesi notları.
+Görevin: durumu dürüst ve doğrudan değerlendirmek. Nazik dolgu cümlesi yok; övgü gerekmiyorsa yok. Somut, ölçülebilir, yarın uygulanabilir öneriler. Türkçe yaz.
+Kurallar:
+- Yalnızca dosyadaki veriyle konuş; veri yoksa uydurma, "veri yok" de. Lif, şeker, sodyum, su, mikro besinler takip edilmiyor; bunlar hakkında ancak kayıtlı yiyeceklerden çıkarım yapabilirsin ve bunu belirt.
+- Protein ihtiyacını profilden hesapla (g/kg): koruma 1,2–1,6; kilo verme 1,6–2,0; kas kazanımı 1,6–2,2. Bugünün protein g/kg değerini ver.
+- Enerji: uygulamanın hesapladığı bütçe ve fazla/kredi değerlerini kullan, yeniden hesaplama. Bütçe Mifflin-St Jeor × hareket katsayısı − açık; bunun ±%10 belirsizliğini bil.
+- Veri kalitesi: foto tahminleri ±%20–30, kayıtsız gün "yemedi" değil "kaydetmedi" demektir; eksik kayıt şüphesi varsa söyle.
+- 7 günden az veride örüntü yorumu yapma; "erken" de.
+- Hekim değilsin: tanı koyma, ilaç yorumlama; sağlık notunda hastalık/ilaç varsa önerileri buna göre sınırla ve hekime yönlendir.
+İlk değerlendirmede YALNIZCA şu JSON'u döndür:
+{"verdict":"2 cümlelik hüküm","today":{"energy":"bütçeye göre durum, 1 cümle","macros":"makro dengesi, 1-2 cümle","protein_g_per_kg":1.1,"notes":["göze çarpan 1","göze çarpan 2"]},"pattern":["örüntü 1","örüntü 2"],"actions":["yarın için somut adım 1","adım 2","adım 3"],"questions":["sana sorum 1"],"blind_spots":["göremediğim şey"],"flags":["uyarı; yoksa boş dizi"],"confidence":"yüksek|orta|düşük"}
+Takip sorularında JSON değil, düz metinle, kısa ve net cevap ver (en fazla ~120 kelime); gerekiyorsa madde kullan.`;
+let reviews = load(LS.reviews, {}); // {date: {t, data, msgs:[{role,content}], chat:[{q,a}]}}
+function buildDossier(date){
+  const P = profile, b = bmr(), bud = dayBudget(), c = stepConv();
+  const lines = [];
+  lines.push(`TARİH: ${date}${date === todayStr() ? " (bugün, gün henüz bitmemiş olabilir)" : ""}`);
+  lines.push(`PROFİL: boy ${P.h || "?"} cm, kilo ${P.w || "?"} kg, yaş ${P.age || "?"}, ${P.sex === "f" ? "kadın" : "erkek"}, hareket ×${P.act}, yürüyüş ${P.pace} km/sa, günlük açık ${P.deficit || 0} kcal, hedef: ${GOAL_LABEL[P.goal] || "belirtilmedi"}${P.notes ? `, sağlık notu: ${P.notes}` : ""}`);
+  lines.push(`BÜTÇE: bazal ${b ? fmt0(b) : "?"} kcal, günlük bütçe ${bud ? fmt0(bud) : "?"} kcal, hedef kcal ${targets.kcal || "yok"}, hedef E% P/K/Y ${targets.p || "-"}/${targets.c || "-"}/${targets.f || "-"}`);
+  const wk = Object.keys(weightLog).sort().slice(-10);
+  lines.push(`KİLO GEÇMİŞİ: ${wk.length ? wk.map((d) => `${d} ${weightLog[d]} kg`).join(", ") : "yok"}`);
+  const list = entries(date), s = sumEntries(list), m = macroStats(s), de = dayEnergy(s.kcal, date);
+  lines.push(`BUGÜN TOPLAM: ${fmt0(s.kcal)} kcal, P ${fmt1(s.p)} g, K ${fmt1(s.c)} g, Y ${fmt1(s.f)} g, E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}, yenen ağırlık ${fmt0(s.g)} g` + (P.w ? `, protein ${(s.p / P.w).toFixed(2)} g/kg` : ""));
+  lines.push(`BUGÜN ENERJİ DURUMU: ${de ? de.text.replace(/≈.*$/, "").trim() + (de.walked ? ` (yürüyüş ${de.walked} adım, +${fmt0(de.extra)} kcal)` : "") : "bütçe yok"}`);
+  lines.push("BUGÜN KAYITLAR:");
+  if (!list.length) lines.push("- kayıt yok");
+  for (const meal of MEALS) for (const e of list.filter((x) => x.meal === meal)) lines.push(`- [${meal}] ${e.name}: ${e.g ? fmt0(e.g) + " g" : "miktar yok"}, ${fmt0(e.kcal)} kcal, P ${fmt1(e.p)} K ${fmt1(e.c)} Y ${fmt1(e.f)}${e.tag === "foto" ? " (foto tahmini)" : e.fid && String(e.fid).startsWith("c_") ? " (özel/AI/barkod)" : ""}`);
+  lines.push("SON 14 GÜN (tarih: kcal, P/K/Y g, kayıt sayısı, adım):");
+  let days = 0;
+  for (let i = 1; i <= 14; i++){
+    const d = shiftDay(date, -i), l = entries(d), t = sumEntries(l);
+    if (l.length) days++;
+    lines.push(`- ${d}: ${l.length ? `${fmt0(t.kcal)} kcal, ${fmt1(t.p)}/${fmt1(t.c)}/${fmt1(t.f)}, ${l.length} kayıt` : "kayıt yok"}${stepsLog[d] ? `, ${stepsLog[d]} adım` : ""}`);
+  }
+  lines.push(`VERİ KALİTESİ: son 14 günün ${days} gününde kayıt var; foto tahminleri ±%20-30; barkod verisi topluluk kaynaklı; kayıtsız gün = kaydedilmemiş.`);
+  return lines.join("\n");
+}
+function renderReviewMeta(){
+  const r = reviews[curDate];
+  $("reviewMeta").textContent = r ? `Son yorum: ${new Date(r.t).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}` : "";
+  $("reviewBtn").textContent = r ? "🩺 Yorumu göster" : "🩺 Yorumla";
+}
+async function runReview(force){
+  if (!ai.key){ askClaude(""); return; }
+  reviews = load(LS.reviews, {});
+  if (!force && reviews[curDate]){ renderReview(); return; }
+  if (!profileOk()){ if (!confirm("Profil (boy, kilo, yaş) girilmemiş; yorum zayıf kalır. Yine de devam edilsin mi?")) return; }
+  $("reviewBox").classList.remove("hidden");
+  $("reviewBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Beslenme uzmanı dosyanı okuyor…</b><span class="muted">20-60 sn sürebilir.</span></div>`;
+  try{
+    const dossier = buildDossier(curDate);
+    const msgs = [{role:"user", content:"DOSYA:\n" + dossier + "\n\nİlk değerlendirmeni JSON olarak ver."}];
+    const j = await claudeCall(REVIEW_SYSTEM, msgs, false, "yorum", {effort:"high"});
+    const data = {
+      verdict:String(j.verdict || "").slice(0, 600),
+      today:{energy:String((j.today && j.today.energy) || ""), macros:String((j.today && j.today.macros) || ""), ppk:+(j.today && j.today.protein_g_per_kg) || 0, notes:arr(j.today && j.today.notes)},
+      pattern:arr(j.pattern), actions:arr(j.actions).slice(0, 5), questions:arr(j.questions), blind:arr(j.blind_spots), flags:arr(j.flags), conf:String(j.confidence || "").slice(0, 10)
+    };
+    reviews = load(LS.reviews, {});
+    reviews[curDate] = {t:Date.now(), data, msgs:msgs.concat([{role:"assistant", content:JSON.stringify(j)}]), chat:[]};
+    save(LS.reviews, reviews);
+    renderReview(); renderReviewMeta();
+  }catch(e){
+    $("reviewBox").innerHTML = `<div class="selname"><b>Yorum alınamadı</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="reviewRetry">Tekrar dene</button><button class="ghost" id="reviewClose">Kapat</button></div>`;
+  }
+}
+function arr(a){ return Array.isArray(a) ? a.map((x) => String(x).slice(0, 400)).filter(Boolean) : []; }
+function renderReview(){
+  const r = reviews[curDate]; if (!r){ $("reviewBox").classList.add("hidden"); return; }
+  const d = r.data, li = (xs, cls) => xs.map((x) => `<li${cls ? ` class="${cls}"` : ""}>${esc(x)}</li>`).join("");
+  $("reviewBox").classList.remove("hidden");
+  $("reviewBox").innerHTML = `<div class="rv">
+    <div class="row between"><b>🩺 Beslenme uzmanı${d.conf ? `<span class="conf">güven: ${esc(d.conf)}</span>` : ""}</b><span class="muted" style="font-size:12px">${new Date(r.t).toLocaleString("tr-TR", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</span></div>
+    <p class="verdict" style="margin-top:8px">${esc(d.verdict)}</p>
+    ${d.flags.length ? `<h3>Uyarı</h3><ul>${li(d.flags, "flag")}</ul>` : ""}
+    <h3>Bugün</h3>
+    <p>${esc(d.today.energy)} ${esc(d.today.macros)}${d.today.ppk ? ` Protein: <b>${fmt1(d.today.ppk)} g/kg</b>.` : ""}</p>
+    ${d.today.notes.length ? `<ul>${li(d.today.notes)}</ul>` : ""}
+    ${d.pattern.length ? `<h3>Örüntü (14 gün)</h3><ul>${li(d.pattern)}</ul>` : ""}
+    ${d.actions.length ? `<h3>Yarın için</h3><ol>${li(d.actions)}</ol>` : ""}
+    ${d.questions.length ? `<h3>Sana sorularım</h3><ul>${li(d.questions)}</ul>` : ""}
+    ${d.blind.length ? `<h3>Göremediklerim</h3><ul>${li(d.blind)}</ul>` : ""}
+    <div class="hint">Hekim değildir; rahatsızlık ve ilaç konusunda doktoruna danış. Yorum yalnızca kayıtlı enerji ve makrolara dayanır.</div>
+    <div class="chat">
+      <div id="reviewChat">${(r.chat || []).map((c) => `<div class="msg u">${esc(c.q)}</div><div class="msg a">${esc(c.a)}</div>`).join("")}</div>
+      <div class="row" style="flex-wrap:nowrap"><input type="text" id="reviewQ" placeholder="Uzmana soru sor… (ör. akşam ne yesem?)" style="flex:1 1 auto;min-width:0"><button class="primary" id="reviewAsk">Sor</button></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="reviewRefresh">Yenile (yeni çağrı)</button><button class="ghost" id="reviewClose" style="margin-left:auto">Kapat</button></div>
+  </div>`;
+}
+async function askReview(){
+  const q = ($("reviewQ").value || "").trim(); if (!q) return;
+  reviews = load(LS.reviews, {}); const r = reviews[curDate]; if (!r) return;
+  $("reviewQ").value = ""; $("reviewAsk").disabled = true;
+  $("reviewChat").insertAdjacentHTML("beforeend", `<div class="msg u">${esc(q)}</div><div class="msg a" id="reviewPending"><span class="spin"></span>…</div>`);
+  try{
+    const msgs = r.msgs.concat([{role:"user", content:q}]);
+    const a = String(await claudeCall(REVIEW_SYSTEM, msgs, false, "sohbet", {effort:"medium", raw:true})).trim();
+    r.msgs = msgs.concat([{role:"assistant", content:a}]); r.chat = (r.chat || []).concat([{q, a}]);
+    reviews[curDate] = r; save(LS.reviews, reviews);
+    $("reviewPending").outerHTML = `<div class="msg a">${esc(a)}</div>`;
+  }catch(e){
+    $("reviewPending").outerHTML = `<div class="msg a flag">Cevap alınamadı: ${esc(e.message)}</div>`;
+  } finally { $("reviewAsk").disabled = false; }
+}
 
 function acceptAi(){
   if (!aiPending) return;
@@ -1877,10 +2007,16 @@ function renderHistory(){
 function renderProfile(){
   $("pH").value = profile.h || ""; $("pW").value = profile.w || ""; $("pA").value = profile.age || ""; $("pS").value = profile.sex || "m";
   $("pAct").value = String(profile.act || 1.2); $("pPace").value = String(profile.pace || 5); $("pDef").value = profile.deficit || "";
-  renderProfileInfo();
+  $("pGoal").value = profile.goal || "koruma"; $("pNotes").value = profile.notes || "";
+  renderProfileInfo(); renderWeightHist();
+}
+function renderWeightHist(){
+  const ks = Object.keys(weightLog).sort();
+  $("pWeightHist").textContent = ks.length ? "Kilo geçmişi: " + ks.slice(-8).map((d) => `${shortDate(d)} ${fmt1(weightLog[d])} kg`).join(" · ") : "";
 }
 function readProfileForm(){
-  return {h:+$("pH").value || 0, w:+$("pW").value || 0, age:+$("pA").value || 0, sex:$("pS").value === "f" ? "f" : "m", act:+$("pAct").value || 1.2, pace:+$("pPace").value || 5, deficit:Math.max(0, +$("pDef").value || 0)};
+  return {h:+$("pH").value || 0, w:+$("pW").value || 0, age:+$("pA").value || 0, sex:$("pS").value === "f" ? "f" : "m", act:+$("pAct").value || 1.2, pace:+$("pPace").value || 5, deficit:Math.max(0, +$("pDef").value || 0),
+          goal:$("pGoal").value || "koruma", notes:String($("pNotes").value || "").trim().slice(0, 300)};
 }
 function renderProfileInfo(){
   const saved = profile; profile = readProfileForm();
@@ -1896,8 +2032,9 @@ function renderProfileInfo(){
 }
 function saveProfile(){
   profile = readProfileForm(); save(LS.profile, profile);
+  if (profile.w > 0){ weightLog = load(LS.weights, {}); const d = todayStr(); if (weightLog[d] !== profile.w){ weightLog[d] = profile.w; save(LS.weights, weightLog); } }
   $("pMsg").textContent = "Kaydedildi."; setTimeout(() => $("pMsg").textContent = "", 2000);
-  renderProfileInfo(); renderDay();
+  renderProfileInfo(); renderWeightHist(); renderDay();
 }
 function renderTargets(){
   $("tKcal").value = targets.kcal || ""; $("tP").value = targets.p || ""; $("tC").value = targets.c || ""; $("tF").value = targets.f || "";
@@ -1923,7 +2060,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportPayload(){
-  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog};
+  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, reviews:load(LS.reviews, {})};
 }
 // Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
 async function exportData(){
@@ -1971,6 +2108,8 @@ function importData(file){
       if (Array.isArray(d.usage)) save(LS.usage, d.usage);
       profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, d.profile || {}); save(LS.profile, profile);
       stepsLog = d.stepsLog && typeof d.stepsLog === "object" ? d.stepsLog : {}; save(LS.steps, stepsLog);
+      weightLog = d.weightLog && typeof d.weightLog === "object" ? d.weightLog : {}; save(LS.weights, weightLog);
+      reviews = d.reviews && typeof d.reviews === "object" ? d.reviews : {}; save(LS.reviews, reviews);
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
       save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
@@ -1982,7 +2121,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {};
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {};
   renderAll();
 }
 
@@ -2139,6 +2278,15 @@ function init(){
     syncFromStorage(); targets.kcal = bud; save(LS.targets, targets); renderTargets(); renderProfileInfo(); renderDay();
     $("pMsg").textContent = `Hedef kcal = ${fmt0(bud)}`; setTimeout(() => $("pMsg").textContent = "", 2500);
   });
+  $("reviewBtn").addEventListener("click", () => runReview(false));
+  $("reviewBox").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.id === "reviewAsk") askReview();
+    else if (b.id === "reviewRefresh"){ if (confirm("Yeni bir çağrı yapılacak (ücretli). Devam?")) runReview(true); }
+    else if (b.id === "reviewRetry") runReview(true);
+    else if (b.id === "reviewClose") $("reviewBox").classList.add("hidden");
+  });
+  $("reviewBox").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.id === "reviewQ") askReview(); });
   $("daySteps").addEventListener("input", () => { stepsLog = load(LS.steps, {}); const v = Math.max(0, +$("daySteps").value || 0); if (v) stepsLog[curDate] = v; else delete stepsLog[curDate]; save(LS.steps, stepsLog); renderSummary(entries(curDate)); });
   $("fxRate").value = +load(LS.fx, 0) || "";
   $("fxRate").addEventListener("input", () => { save(LS.fx, +$("fxRate").value || 0); renderCost(); });
