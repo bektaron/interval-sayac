@@ -33,7 +33,7 @@
   .row.tight{gap:6px}
   label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
   input,select,button{font:inherit;color:var(--txt)}
-  input[type=text],input[type=number],select{
+  input[type=text],input[type=number],input[type=date],select{
     background:var(--panel2);border:1px solid var(--line);border-radius:10px;
     padding:10px 12px;width:100%;outline:none;
   }
@@ -95,6 +95,13 @@
   .totals{display:flex;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:14px}
   .totals b{color:var(--txt);font-variant-numeric:tabular-nums}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  /* nabız bölgesi çipleri (ayarlar: aralık, oynatıcı: geçen süre) */
+  .zchips{display:flex;gap:5px}
+  .zc{flex:1 1 0;min-width:0;border-radius:8px;padding:4px 2px 3px;background:var(--panel2);border:1px solid var(--line);
+      border-top:4px solid var(--zc);text-align:center;font-variant-numeric:tabular-nums;line-height:1.15}
+  .zc b{display:block;font-size:11px;color:var(--muted)}
+  .zc span{display:block;font-size:12px;font-weight:800;white-space:nowrap}
   .hidden{display:none!important}
   .hint{font-size:12px;color:var(--muted);margin-top:8px}
 
@@ -117,9 +124,6 @@
   #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
   #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
   #player .pclock{font-size:min(30vw,19vh);font-weight:800;line-height:.92;font-variant-numeric:tabular-nums;text-shadow:0 6px 40px rgba(0,0,0,.4)}
-  #player .panim{font-size:min(15vw,10vh);line-height:1;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
-  #player .panim img{height:min(15vw,10vh);width:auto;vertical-align:middle}
-  #player .panim:empty{display:none}
   /* canlı nabız (Bluetooth bandı) */
   #player .phr{display:flex;align-items:center;gap:8px;margin-top:6px;
                font-size:clamp(22px,7vw,44px);font-weight:800;font-variant-numeric:tabular-nums;
@@ -130,7 +134,30 @@
   #player .phr .unit{font-size:.45em;font-weight:700;opacity:.85;align-self:flex-end;padding-bottom:.15em}
   #player .phr.stale{opacity:.5}
   @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
-  #player .flip{display:inline-block;transform:scaleX(-1)}
+  /* dairesel nabız göstergesi: bölge halkası, anlık nokta, ortalama oku, ortada sayılar */
+  #player .pgauge{width:min(48vw,26vh);max-width:250px;margin-top:2px}
+  #player .pgauge:empty,#player .pzones:empty{display:none}
+  #player .pgauge svg{width:100%;height:auto;display:block;overflow:visible}
+  #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.35);stroke-width:22}
+  #player .pgauge .zarc{fill:none;stroke-width:16}
+  #player .pgauge .gcur,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:100px 100px}
+  #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+  #player .pgauge .gavgmk{transition:transform .8s ease}
+  #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
+                       filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))}
+  #player .pgauge .gbpm{font-size:46px}
+  #player .pgauge .gavg{font-size:13px;font-weight:700;opacity:.9}
+  #player .pgauge .gzone{font-size:13px;font-weight:700}
+  #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur{opacity:.45}
+  #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px}
+  #player .pzones .zc{background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc)}
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px)}
+  #player .pzones .zc span{font-size:clamp(12px,3.6vw,16px)}
+  #player .pzones .zc.cur{background:rgba(255,255,255,.28);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+  /* nabız göstergesi açıkken dikey yer aç: sayaç biraz küçülür, boşluklar daralır */
+  #player.hr .pclock{font-size:min(26vw,15vh)}
+  #player.hr .pnextline{margin-top:clamp(6px,1.5vh,20px)}
+  #player.hr .pprofile{height:clamp(90px,14vh,180px)}
   /* alt 3'lü istatistik */
   #player .binfo{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-align:center}
   #player .binfo .stat{flex:1 1 0;min-width:0}
@@ -139,15 +166,12 @@
   #player .pprofile{flex:0 0 auto;height:clamp(130px,20vh,220px);background:rgba(0,0,0,.22);border-radius:12px;padding:10px}
   #player .pchart{position:relative;width:100%;height:100%}
   #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
-  #player .pmark{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);font-size:clamp(20px,5vw,30px);line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
-  #player .pmark:empty{display:none}
-  #player .pmark img{height:1.25em;width:auto;vertical-align:middle}
   /* butonlar */
   #player .pbtns{flex:0 0 auto;display:flex;gap:10px}
   #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;padding:14px 10px;font-size:18px;border-radius:14px}
   #player .pbtns button.big{flex:2;font-size:20px}
   /* bitiş + durumlar */
-  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .panim,#player.done .pnextline{display:none}
+  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .pnextline{display:none}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
   #player.done .pclock{font-size:22vw}
@@ -386,27 +410,6 @@
         <div class="chips"><div class="pill on" id="soundPill">🔊 Açık</div></div>
       </div>
     </div>
-    <label class="lbl">Simgeler — kendi emoji/resmini ver (sağa bakar)</label>
-    <div class="grid2" style="margin-bottom:8px">
-      <div>
-        <div class="lbl">Gevşe</div>
-        <div class="row tight">
-          <input type="text" id="iconSlow" value="🚶‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
-          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgSlow" accept="image/*" hidden></label>
-          <button class="ghost" id="imgSlowClear" title="Resmi kaldır">✕</button>
-        </div>
-      </div>
-      <div>
-        <div class="lbl">Yüklen</div>
-        <div class="row tight">
-          <input type="text" id="iconFast" value="🏃‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
-          <label class="pill" style="cursor:pointer">📁<input type="file" id="imgFast" accept="image/*" hidden></label>
-          <button class="ghost" id="imgFastClear" title="Resmi kaldır">✕</button>
-        </div>
-      </div>
-    </div>
-    <div class="hint" style="margin-bottom:12px">Emoji yaz ya da 📁 ile kendi resmini yükle. Resim varsa emoji yerine o kullanılır.</div>
-
     <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
     <div class="row tight" style="margin-bottom:6px">
       <button id="hrBtn" class="ghost">💓 Bağlan</button>
@@ -415,6 +418,15 @@
       <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
     </div>
     <div class="hint" id="hrHint" style="margin-bottom:12px"></div>
+
+    <label class="lbl">Nabız bölgeleri — kişisel (5 bölge, Polar düzeni)</label>
+    <div class="grid3" style="margin-bottom:8px">
+      <div><label class="lbl">Doğum tarihi</label><input type="date" id="hrBirth" min="1920-01-01" max="2020-12-31"></div>
+      <div><label class="lbl">Dinlenik nabız</label><input type="number" id="hrRest" min="30" max="120" step="1" inputmode="numeric" placeholder="ör. 60"></div>
+      <div><label class="lbl">Maks. nabız</label><input type="number" id="hrMax" min="100" max="230" step="1" inputmode="numeric" placeholder="ör. 170"></div>
+    </div>
+    <div class="zchips" id="hrZoneChips" style="margin-bottom:6px"></div>
+    <div class="hint" id="hrZoneHint" style="margin-bottom:12px"></div>
 
     <label class="lbl">Antrenman adı</label>
     <div class="row tight">
@@ -439,13 +451,14 @@
   <div class="pmid">
     <div class="pname" id="pName">—</div>
     <div class="pclock" id="pClock">0:00</div>
-    <div class="panim" id="pAnim"></div>
     <div class="phr" id="pHR"></div>
+    <div class="pgauge" id="pGauge"></div>
+    <div class="pzones" id="pZones"></div>
   </div>
-  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
+  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
   <div class="binfo">
     <div class="stat"><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
-    <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg">. dakikaya ulaşmak!</div></div>
+    <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg" id="pGoalMsg"></div></div>
     <div class="stat"><div class="cap">Kalan</div><div class="val" id="pTotal">0:00</div></div>
   </div>
   <div class="pbtns">
@@ -470,7 +483,7 @@ let state = {
   segments: [], // {v:0|1, sec:Number}
 };
 let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1, flip: false };
-let settings = { prepSec: 5, sound: true, icon: ["🚶‍♂️","🏃‍♂️"], iconImg: [null,null] };
+let settings = { prepSec: 5, sound: true };
 
 const $ = (id) => document.getElementById(id);
 
@@ -730,6 +743,7 @@ async function startPlayer(){
   P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
+  HRS={sum:0,t:0,zone:[0,0,0,0,0,0]}; $("pGauge").innerHTML="";
   $("player").classList.remove("hidden","done");
   $("builder").style.display="none";
   requestWake();
@@ -789,15 +803,6 @@ function updateCursor(){
   c.setAttribute("x1",xs); c.setAttribute("x2",xs);
   const clip=document.getElementById("pClipRect");
   if(clip) clip.setAttribute("width",xs);
-  const mk=$("pMark"); if(mk) mk.style.left=xs+"%";
-}
-
-// Varyasyona göre hayvan: kendi resmin varsa o, yoksa emoji (sağa bakar).
-function animalHTML(vidx){
-  const img=settings.iconImg[vidx];
-  if(img) return `<img src="${img}" alt="">`;
-  const e=settings.icon[vidx] || (vidx===1?"🏃‍♂️":"🚶‍♂️");
-  return `<span class="flip">${e}</span>`;
 }
 
 function renderPlayer(){
@@ -820,21 +825,18 @@ function renderPlayer(){
     $("pIndex").textContent="Hazırlık";
     $("pSegLen").textContent=fmt(cur.sec);
     $("pEndMin").textContent="0:00";
+    $("pGoalMsg").textContent="";
   } else {
     $("pIndex").textContent=(realIdx+1)+" / "+state.segments.length;
     $("pSegLen").textContent=fmt(cur.sec);
     let cum=0; for(let i=0;i<=realIdx;i++) cum+=state.segments[i].sec;
     $("pEndMin").textContent=fmt(cum);
+    $("pGoalMsg").textContent = cum%60===0 ? `${cum/60}. dakikaya ulaşmak!` : `${fmt(cum)}'a ulaşmak!`;
   }
   const workoutTotal = state.segments.reduce((a,s)=>a+s.sec,0);
   const rem = remainingTotal();
   $("pElapsed").textContent = fmt(workoutTotal - rem);
   $("pTotal").textContent = fmt(rem);
-  // tek sabit hayvan (sayaç altı) + konum çizgisi markeri
-  const vidx = realIdx>=0 ? state.segments[realIdx].v : -1;
-  const html = vidx<0 ? "" : animalHTML(vidx);
-  $("pAnim").innerHTML = html;
-  $("pMark").innerHTML = html;
   updateCursor();
   renderHR();
 }
@@ -855,6 +857,7 @@ function loop(){
   const now=performance.now();
   const dt=(now-P.last)/1000; P.last=now;
   if(!P.running) return;
+  hrAccumulate(dt);
   P.segLeft-=dt;
   const whole=Math.ceil(P.segLeft);
   if(whole!==P.lastWhole){
@@ -945,15 +948,110 @@ function hrDisconnect(){
   HR.chr=null; HR.bpm=null; HR.at=0;
   hrSetStatus("Bağlı değil"); renderHR();
 }
+/* --- Kişisel nabız bölgeleri (Polar düzeni: maks. nabzın %50-60-70-80-90-100'ü) --- */
+const HRP_KEY="intervalHRProfile";
+const ZONE_PCT=[.5,.6,.7,.8,.9,1];
+const ZONE_COLOR=["#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];
+const ZONE_NAME=["Çok hafif","Hafif","Orta","Zor","Maksimum"];
+const HRP_DEFAULT={birth:"", rest:0, max:0};
+function loadHRProf(){
+  const p={...HRP_DEFAULT};
+  try{ const st=JSON.parse(localStorage.getItem(HRP_KEY)); if(st && st.birth!==undefined) Object.assign(p, st); }catch(e){}
+  return p;
+}
+let hrProf=loadHRProf();
+function saveHRProf(){ try{ localStorage.setItem(HRP_KEY, JSON.stringify(hrProf)); }catch(e){} }
+function ageFromBirth(b){
+  if(!b) return 0;
+  const d=new Date(b+"T00:00:00"); if(isNaN(d)) return 0;
+  const n=new Date(); let a=n.getFullYear()-d.getFullYear();
+  const m=n.getMonth()-d.getMonth(); if(m<0 || (m===0 && n.getDate()<d.getDate())) a--;
+  return (a>0 && a<120) ? a : 0;
+}
+// Dinlenik nabız girildiyse Karvonen (kalp atım rezervi), yoksa maks. nabız yüzdesi.
+function hrZones(){
+  const age=ageFromBirth(hrProf.birth), rest=+hrProf.rest||0;
+  const max=+hrProf.max||(age?220-age:0);
+  if(!max || rest>=max) return null;
+  const bounds=ZONE_PCT.map(p=>Math.round(rest ? rest+p*(max-rest) : p*max));
+  return {max, rest, age, bounds, karvonen:rest>0};
+}
+function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
+function zoneChipsHTML(vals,cur){
+  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i+1?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i+1}</b><span>${vals[i]}</span></div>`).join("");
+}
+function renderZoneSetup(){
+  const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
+  if(!z){ box.innerHTML=""; h.textContent="Doğum tarihi (ya da bilinen maks. nabız) girince bölgeler hesaplanır ve sayaç ekranında dairesel gösterge açılır."; return; }
+  box.innerHTML=zoneChipsHTML(ZONE_NAME.map((n,i)=>`${z.bounds[i]}–${z.bounds[i+1]}`), -1);
+  h.textContent=`Maks. nabız ${z.max}${hrProf.max?" (girilen)":` (220 − ${z.age} yaş)`} · `+
+    (z.karvonen ? `Karvonen: dinlenik ${z.rest} üstü rezervin yüzdesi` : "maks. nabız yüzdesi")+
+    " · Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir.";
+}
+
+/* --- Oturum istatistiği: zaman ağırlıklı ortalama + bölgede geçen süre (hazırlık hariç) --- */
+let HRS={sum:0,t:0,zone:[0,0,0,0,0,0]};
+function hrAccumulate(dt){
+  if(!hrConnected() || HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS) return;
+  if(settings.prepSec>0 && P.idx===0) return;
+  HRS.sum+=HR.bpm*dt; HRS.t+=dt;
+  const z=hrZones(); if(z) HRS.zone[zoneOf(HR.bpm,z)]+=dt;
+}
+function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
+
+/* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = halka üstünde nokta, ortalama = dışta ok --- */
+const G={cx:100,cy:100,r:76,a0:-120,a1:120};
+function gPt(ang,r){ const t=ang*Math.PI/180; return [G.cx+r*Math.sin(t), G.cy-r*Math.cos(t)]; }
+function gArc(aA,aB,r){
+  const [x1,y1]=gPt(aA,r),[x2,y2]=gPt(aB,r); const lg=(aB-aA)>180?1:0;
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+function gAng(bpm,z){ const lo=z.bounds[0], hi=z.bounds[5]; const f=Math.max(0,Math.min(1,(bpm-lo)/(hi-lo))); return G.a0+(G.a1-G.a0)*f; }
+function buildGauge(){
+  const z=hrZones(), g=$("pGauge");
+  if(!z){ g.innerHTML=""; return; }
+  let arcs=`<path class="track" d="${gArc(G.a0,G.a1,G.r)}"/>`;
+  for(let i=0;i<5;i++) arcs+=`<path class="zarc" stroke="${ZONE_COLOR[i]}" d="${gArc(gAng(z.bounds[i],z),gAng(z.bounds[i+1],z),G.r)}"/>`;
+  const top=G.cy-G.r;
+  g.innerHTML=`<svg viewBox="0 0 200 162">${arcs}
+    <g class="gavgmk" id="gAvgMk" style="display:none">
+      <polygon points="100,${top-12} 93,${top-23} 107,${top-23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon points="100,${top+12} 93,${top+23} 107,${top+23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+    </g>
+    <g class="gcur" id="gCur" style="display:none"><circle cx="100" cy="${top}" r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
+    <text class="gbpm" x="100" y="106" id="gBpm">—</text>
+    <text class="gavg" x="100" y="128" id="gAvg"></text>
+    <text class="gzone" x="100" y="150" id="gZone"></text>
+  </svg>`;
+}
+function updateGauge(){
+  const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild) return;
+  const bpm=HR.bpm, fresh = bpm!=null && (performance.now()-HR.at)<HR_STALE_MS;
+  g.classList.toggle("stale", !fresh);
+  $("gBpm").textContent = bpm!=null ? bpm : "—";
+  const cur=$("gCur");
+  if(bpm!=null){ cur.style.display=""; cur.style.transform=`rotate(${gAng(bpm,z).toFixed(1)}deg)`; } else cur.style.display="none";
+  const zi = bpm!=null ? zoneOf(bpm,z) : -1;
+  $("gZone").textContent = zi>0 ? `Z${zi} · ${ZONE_NAME[zi-1]}` : (zi===0 ? "Bölge altı" : "");
+  const avg=hrAvg(), mk=$("gAvgMk");
+  $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
+  if(avg!=null){ mk.style.display=""; mk.style.transform=`rotate(${gAng(avg,z).toFixed(1)}deg)`; } else mk.style.display="none";
+  $("pZones").innerHTML=zoneChipsHTML(HRS.zone.slice(1).map(fmt), zi);
+}
+
 function renderHR(){
-  const on=hrConnected();
+  const on=hrConnected(), z=hrZones();
   const stale = HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS;
   const txt = HR.bpm!=null ? String(HR.bpm) : "—";
+  $("player").classList.toggle("hr", on && !!z);
   const p=$("pHR");
-  if(p){
-    p.innerHTML = on ? `<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>` : "";
-    p.classList.toggle("stale", on && stale);
-  }
+  if(on && !z){                              // profil yoksa yalnız sayı (+ ortalama)
+    const avg=hrAvg();
+    p.innerHTML=`<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>`+(avg!=null?`<span class="unit">ort ${avg}</span>`:"");
+    p.classList.toggle("stale", stale);
+  } else p.innerHTML="";
+  if(on && z){ if(!$("pGauge").firstChild) buildGauge(); updateGauge(); }
+  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrOffBtn").classList.toggle("hidden", !on);
@@ -1017,21 +1115,20 @@ $("soundPill").onclick=()=>{
 };
 $("inPrep").onchange=e=>settings.prepSec=Math.max(0,parseInt(e.target.value)||0);
 
-// simgeler (emoji + resim)
-$("iconSlow").oninput=e=>settings.icon[0]=e.target.value||"🚶‍♂️";
-$("iconFast").oninput=e=>settings.icon[1]=e.target.value||"🏃‍♂️";
-function readIcon(file,idx){ const r=new FileReader(); r.onload=()=>settings.iconImg[idx]=r.result; r.readAsDataURL(file); }
-$("imgSlow").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],0); };
-$("imgFast").onchange=e=>{ if(e.target.files[0]) readIcon(e.target.files[0],1); };
-$("imgSlowClear").onclick=()=>{ settings.iconImg[0]=null; $("imgSlow").value=""; };
-$("imgFastClear").onclick=()=>{ settings.iconImg[1]=null; $("imgFast").value=""; };
+// nabız profili (kişiye ait; antrenman kaydından bağımsız saklanır)
+$("hrBirth").value=hrProf.birth||""; $("hrRest").value=hrProf.rest||""; $("hrMax").value=hrProf.max||"";
+["hrBirth","hrRest","hrMax"].forEach(id=>$(id).oninput=$(id).onchange=()=>{
+  hrProf={birth:$("hrBirth").value||"", rest:+$("hrRest").value||0, max:+$("hrMax").value||0};
+  saveHRProf(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR();
+});
+renderZoneSetup();
 
 $("saveBtn").onclick=()=>{
   const name=($("inName").value||"").trim();
   if(!name){ alert("Bir ad gir."); return; }
   if(!state.segments.length){ alert("Boş antrenman kaydedilmez."); return; }
   const all=loadAll();
-  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, icon:[...settings.icon], iconImg:[...settings.iconImg] };
+  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound };
   saveAll(all); state.name=name; refreshSaved();
   $("savedList").value=name; alert("Kaydedildi: "+name);
 };
@@ -1040,9 +1137,7 @@ $("loadBtn").onclick=()=>{
   const all=loadAll(); const w=all[n]; if(!w) return;
   state.variations=w.variations; state.segments=w.segments;
   settings.prepSec=w.prepSec??5; settings.sound=w.sound??true; state.name=n;
-  settings.icon=w.icon||["🚶‍♂️","🏃‍♂️"]; settings.iconImg=w.iconImg||[null,null];
   $("inName").value=n; $("inPrep").value=settings.prepSec;
-  $("iconSlow").value=settings.icon[0]; $("iconFast").value=settings.icon[1];
   $("soundPill").classList.toggle("on",settings.sound);
   $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
   renderVars(); renderSegments();
