@@ -736,7 +736,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -862,9 +862,18 @@ function searchFoods(q){
 /* Kayıtlar ve hesaplar                                                */
 /* ------------------------------------------------------------------ */
 // kayıt: {id, fid, name, g, kcal, p, c, f, meal, ref:{kcal,p,c,f} | null}  (kcal/p/c/f = yenen porsiyonun toplamı; ref = 100 g başına)
+// Uygulamanın iki kopyası (Safari sekmesi + ana ekran, iki sekme) aynı anda açıksa eski bellek kopyası
+// depoyu ezmesin: her değişiklikten önce ve ekrana her dönüşte depodan yeniden oku.
+function syncFromStorage(){
+  log = load(LS.log, {}); customFoods = load(LS.foods, []); overrides = load(LS.over, {}); hidden = load(LS.hidden, []);
+  targets = Object.assign({kcal:0, p:0, c:0, f:0}, load(LS.targets, {})); recent = load(LS.recent, []);
+  wish = load(LS.wish, []); packsOn = load(LS.packs, []); packData = load(LS.packData, {});
+  ai = Object.assign({key:"", web:true}, load(LS.ai, {}));
+}
 function entries(date){ return log[date] || []; }
-function addEntry(date, e){ (log[date] = log[date] || []).push(e); save(LS.log, log); }
+function addEntry(date, e){ syncFromStorage(); (log[date] = log[date] || []).push(e); save(LS.log, log); }
 function removeEntry(date, id){
+  syncFromStorage();
   const list = entries(date); const i = list.findIndex((x) => x.id === id);
   if (i >= 0) list.splice(i, 1);
   if (!list.length) delete log[date];
@@ -988,8 +997,9 @@ function editForm(e){
   </div>`;
 }
 function saveEdit(id){
+  syncFromStorage();
   const e = entries(curDate).find((x) => x.id === id);
-  if (!e) return;
+  if (!e){ editId = null; renderDay(); return; }
   e.name = $("eName").value.trim() || e.name;
   e.meal = $("eMeal").value;
   const g = Math.max(0, +$("eG").value || 0);
@@ -1254,6 +1264,7 @@ function offToFood(pr0, code){
 function acceptScan(){
   if (!scanPending) return;
   const f = scanPending; scanPending = null;
+  syncFromStorage();
   customFoods.push(f); save(LS.foods, customFoods);
   $("scanBox").classList.add("hidden");
   selectFood(foodById(f.id));
@@ -1267,7 +1278,8 @@ function unitTableText(){
 }
 const PHOTO_SYSTEM1 = `Sen Türk ve Avrupa mutfağını iyi bilen bir beslenme uzmanısın. Kullanıcı yediği tabağın fotoğrafını ve belki kısa bir not gönderir.
 AŞAMA 1 (bu istek):
-1. Tabaktaki yiyecekleri ayrı bileşenler olarak tanı (ör. pirinç pilavı, tavuk şiş, çoban salata, ekmek). Her bileşen için tüketildiği hâliyle 100 g başına kcal, protein, karbonhidrat, yağ; kategori; ve görünüşe göre ilk gram tahmini ver. Ölçek referansı: standart yemek tabağı 27 cm, çatal ≈ 19 cm.
+1. Tabaktaki yiyecekleri ayrı bileşenler olarak tanı (ör. pirinç pilavı, tavuk şiş, çoban salata, ekmek). Her bileşen için tüketildiği hâliyle 100 g başına kcal, protein, karbonhidrat, yağ; kategori; ve ilk gram tahmini ver.
+ÖLÇEK: Kullanıcı fotoğrafa koyduğu referans nesneyi ve boyutlarını bildirir. Önce bu nesneden piksel/cm oranını çıkar, tabağın çapını hesapla, sonra her bileşenin tabakta kapladığı alanı ve yığın yüksekliğini bu ölçekle grama çevir. Referans yoksa tabak boyutunu soru olarak sor ve 27 cm varsay.
 2. Belirsizliği en çok azaltacak EN FAZLA 4 soru üret. Konular: miktar (mutfak ölçüsüyle: kaşık, yarım tabak, tam tabak, tepeleme…), pişirme/yağ (ızgara yağsız, az yağ, bol yağ, kızartma), tabak boyutu, fotoğrafta görünmeyenler (ekmek, içecek, sos, tereyağı). Sorular bu tabağa özel olsun; her sorunun 3-5 kısa seçeneği ve mümkünse "≈ gram" ipucu olsun. Görünüşte kesin olan şeyi sorma; sadece cevabı tahmini gerçekten değiştirecek soruları sor.
 Ev ölçüleri gram tablosu (kategori: ölçü):
 ${unitTableText()}
@@ -1280,7 +1292,21 @@ ${unitTableText()}
 YALNIZCA şu JSON nesnesini döndür, başka metin yazma:
 {"items":[{"name":"...","grams":0,"kcal_100g":0,"protein_100g":0,"carb_100g":0,"fat_100g":0,"category":"yemek"}],"notes":"varsayımlar, 1-2 cümle","confidence":"yüksek|orta|düşük"}`;
 
-let photo = null; // {data, preview, note, items, questions, answers, notes, conf}
+// Ölçek referansları: kullanıcı fotoğrafa koyar, boyutları modele verilir
+const PHOTO_REFS = {
+  catal:{label:"Çatal", dims:"standart yemek çatalı, toplam uzunluk ≈ 19–20 cm, dişli baş genişliği ≈ 2,5 cm"},
+  yk:{label:"Yemek kaşığı", dims:"toplam uzunluk ≈ 19–20 cm, kaşık başı ≈ 7 × 4,5 cm"},
+  ck:{label:"Çay kaşığı", dims:"toplam uzunluk ≈ 13–14 cm, kaşık başı ≈ 4,5 × 3 cm"},
+  kart:{label:"Kredi kartı", dims:"8,56 × 5,40 cm"},
+  yok:{label:"Yok", dims:""},
+};
+function renderRefHint(){
+  const el = $("refHint"); if (!el || !photo) return;
+  el.textContent = !photo.ref ? "Referans seç. Boyut tahmini için çatal ya da kaşığı tabağın yanına koyup çekmek şart; yoksa sonuç güvenilmez."
+    : photo.ref === "yok" ? "Referans yok: tabak boyutu sorulacak, kalori hatası büyür."
+    : `${PHOTO_REFS[photo.ref].label}: ${PHOTO_REFS[photo.ref].dims}.`;
+}
+let photo = null; // {data, preview, note, ref, items, questions, answers, notes, conf}
 async function fileToJpeg(file, max = 1024){
   let bmp = null;
   if (typeof createImageBitmap === "function"){
@@ -1316,23 +1342,29 @@ async function photoPick(file){
   $("photoBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Fotoğraf hazırlanıyor…</b></div>`;
   try{
     const img = await fileToJpeg(file);
-    photo = {data:img.data, preview:img.preview, note:"", items:null, questions:[], answers:{}, notes:"", conf:""};
+    photo = {data:img.data, preview:img.preview, note:"", ref:load(LS.photoRef, ""), items:null, questions:[], answers:{}, notes:"", conf:""};
     $("photoBox").innerHTML = `<img class="thumb" src="${img.preview}" alt="tabak">
+      <label class="lbl" style="margin-top:8px">Fotoğraftaki ölçek referansı (tabağın yanında olmalı)</label>
+      <div class="chips" id="refChips">${Object.entries(PHOTO_REFS).map(([k, r]) => `<div class="pill ${photo.ref === k ? "on" : ""}" data-ref="${k}">${esc(r.label)}</div>`).join("")}</div>
+      <div class="hint" id="refHint" style="margin-top:6px"></div>
       <label class="lbl" style="margin-top:8px">Not (isteğe bağlı, tahmini çok iyileştirir)</label>
       <input type="text" id="photoNote" placeholder="ör. pilav yarım tabak, tavuk 2 şiş, salata yağsız, 1 dilim ekmek">
       <div class="row" style="margin-top:10px"><button class="primary" id="photoAnalyze">Analiz et</button><button class="ghost" id="photoCancel">Vazgeç</button></div>
       <div class="hint">Fotoğraf küçültülüp doğrudan Claude'a gönderilir, uygulama saklamaz. Sonra tabağa özel 2-4 kısa soru gelir; cevaplar tahmini yere bastırır.</div>`;
-    $("photoNote").focus();
+    renderRefHint();
   }catch(e){
     $("photoBox").innerHTML = `<div class="selname"><b>Fotoğraf okunamadı</b><span class="muted">${esc(e.message || e.name)}</span></div><div class="row" style="margin-top:8px"><button class="ghost" id="photoCancel">Kapat</button></div>`;
   }
 }
 async function photoAnalyze(){
   if (!photo) return;
+  if (!photo.ref){ renderRefHint(); $("refHint").style.color = "var(--fat)"; $("refChips").scrollIntoView({behavior:"smooth", block:"center"}); return; }
   photo.note = ($("photoNote") ? $("photoNote").value : "").trim();
   $("photoBox").innerHTML = `<img class="thumb" src="${photo.preview}" alt="tabak"><div class="selname" style="margin-top:8px"><b><span class="spin"></span>Claude tabağı inceliyor…</b><span class="muted">15-40 sn sürebilir.</span></div>`;
   try{
-    const text = "Bu tabağı analiz et." + (photo.note ? `\nKullanıcı notu: ${photo.note}` : "") + packContext();
+    const r = PHOTO_REFS[photo.ref];
+    const refText = r && photo.ref !== "yok" ? `\nÖlçek referansı (fotoğrafta tabağın yanında): ${r.label} — ${r.dims}. Boyut tahminini bu nesneye göre ölçekle.` : "\nÖlçek referansı yok; tabak boyutunu sor.";
+    const text = "Bu tabağı analiz et." + refText + (photo.note ? `\nKullanıcı notu: ${photo.note}` : "") + packContext();
     const j = await claudeCall(PHOTO_SYSTEM1, [{role:"user", content:[{type:"image", source:{type:"base64", media_type:"image/jpeg", data:photo.data}}, {type:"text", text}]}], false);
     photo.items = photoItemsFrom(j);
     photo.questions = (Array.isArray(j.questions) ? j.questions : []).slice(0, 4).map((q, i) => ({
@@ -1413,6 +1445,7 @@ function acceptAi(){
   if (!aiPending) return;
   const f = aiPending; aiPending = null;
   const asked = f._asked || ""; delete f._asked;
+  syncFromStorage();
   customFoods.push(f); save(LS.foods, customFoods);
   wish = wish.filter((w) => norm(w) !== norm(f.name) && norm(w) !== norm(asked)); save(LS.wish, wish);
   $("aiBox").classList.add("hidden");
@@ -1495,7 +1528,7 @@ function addSelected(){
   renderDay(); renderRecent();
 }
 function clearSelection(){ sel = null; $("selBox").classList.add("hidden"); $("q").value = ""; $("results").innerHTML = ""; }
-function pushRecent(id){ recent = [id].concat(recent.filter((x) => x !== id)).slice(0, 10); save(LS.recent, recent); }
+function pushRecent(id){ recent = [id].concat(load(LS.recent, []).filter((x) => x !== id)).slice(0, 10); save(LS.recent, recent); }
 function renderRecent(){
   const foods = recent.map(foodById).filter(Boolean);
   $("recentBox").innerHTML = foods.length
@@ -1513,6 +1546,7 @@ function addManual(){
   const meal = $("mMeal").value;
   if ($("mSave").checked){
     if (!ref){ alert("Listeye kaydetmek için miktar (g) gerekli."); return; }
+    syncFromStorage();
     const cf = {id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, pl:"1 porsiyon", pg:g, cat:"diger"};
     if (pendingBarcode){ cf.barcode = pendingBarcode; cf.src = "off"; cf.note = "Etiketten elle girildi"; }
     customFoods.push(cf); save(LS.foods, customFoods);
@@ -1575,6 +1609,7 @@ function saveFood(){
   const p = +$("fP").value || 0, c = +$("fC").value || 0, f = +$("fF").value || 0;
   const o = {name, kcal:+$("fKcal").value || macroKcal(p, c, f), p, c, f, pl:$("fPl").value.trim(), pg:Math.max(0, +$("fPg").value || 0), cat:$("fCat").value || "diger", u:{}};
   for (const [k] of UNITS){ const v = +$("fU_" + k).value; if (v > 0) o.u[k] = v; }
+  syncFromStorage();
   if (fEdit === "new"){ customFoods.push(Object.assign({id:"c_" + uid()}, o)); save(LS.foods, customFoods); }
   else {
     const cf = customFoods.find((x) => x.id === fEdit);
@@ -1585,6 +1620,7 @@ function saveFood(){
 }
 function deleteFood(){
   if (!confirm("Bu yiyecek listeden silinsin mi? Günlükteki eski kayıtlar etkilenmez.")) return;
+  syncFromStorage();
   const i = customFoods.findIndex((x) => x.id === fEdit);
   if (i >= 0){ customFoods.splice(i, 1); save(LS.foods, customFoods); }
   else { if (!hidden.includes(fEdit)) hidden.push(fEdit); save(LS.hidden, hidden); delete overrides[fEdit]; save(LS.over, overrides); }
@@ -1707,6 +1743,15 @@ function showTab(t){
   window.scrollTo(0, 0);
 }
 function renderAll(){ renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderTargets(); renderAiSettings(); renderPhotoBtn(); }
+let lastSync = 0;
+function resync(){
+  const snap = localStorage.getItem(LS.log) + "|" + localStorage.getItem(LS.foods) + "|" + localStorage.getItem(LS.packs);
+  if (snap === lastSync) return;
+  lastSync = snap;
+  syncFromStorage();
+  editId = null;
+  renderDay(); renderRecent(); renderPacks(); renderFoods(); renderWish(); renderHistory(); renderPhotoBtn(); renderBackup();
+}
 
 function init(){
   for (const id of ["selMeal", "mMeal"]) $(id).innerHTML = MEALS.map((m) => `<option>${m}</option>`).join("");
@@ -1743,7 +1788,7 @@ function init(){
   $("mAddBtn").addEventListener("click", addManual);
 
   $("logBody").addEventListener("click", (ev) => {
-    if (ev.target.id === "clearDay"){ if (confirm("Bu günün tüm kayıtları silinsin mi?")){ delete log[curDate]; save(LS.log, log); editId = null; renderDay(); } return; }
+    if (ev.target.id === "clearDay"){ if (confirm("Bu günün tüm kayıtları silinsin mi?")){ syncFromStorage(); delete log[curDate]; save(LS.log, log); editId = null; renderDay(); } return; }
     const btn = ev.target.closest("button[data-act]"); if (!btn) return;
     const row = btn.closest("[data-id]"); const id = row && row.dataset.id;
     if (btn.dataset.act === "del"){ removeEntry(curDate, id); renderDay(); }
@@ -1791,12 +1836,17 @@ function init(){
     else if (b.id === "scanAgain"){ $("scanBox").classList.add("hidden"); openScanner(); }
     else if (b.id === "scanManual"){ $("scanBox").classList.add("hidden"); const det = $("tab-gunluk").querySelector("details"); det.open = true; $("mSave").checked = true; $("mName").focus(); $("mName").scrollIntoView({behavior:"smooth", block:"center"}); }
   });
-  document.addEventListener("visibilitychange", () => { if (document.hidden && scanStream) closeScanner(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && scanStream) closeScanner(); else if (!document.hidden) resync(); });
+  window.addEventListener("pageshow", resync);
+  window.addEventListener("focus", resync);
+  window.addEventListener("storage", (ev) => { if (!ev.key || String(ev.key).startsWith("yemek")) resync(); });
 
   // tabak fotoğrafı
   $("photoBtn").addEventListener("click", () => $("photoInput").click());
   $("photoInput").addEventListener("change", () => { const f = $("photoInput").files[0]; if (f) photoPick(f); $("photoInput").value = ""; });
   $("photoBox").addEventListener("click", (ev) => {
+    const rp = ev.target.closest(".pill[data-ref]");
+    if (rp && photo){ photo.ref = rp.dataset.ref; save(LS.photoRef, photo.ref); rp.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", p === rp)); renderRefHint(); return; }
     const pill = ev.target.closest(".pill[data-q]");
     if (pill && photo){ photo.answers[pill.dataset.q] = +pill.dataset.i; pill.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", p === pill)); return; }
     const b = ev.target.closest("button"); if (!b) return;
