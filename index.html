@@ -46,6 +46,7 @@
     padding:10px 14px;cursor:pointer;font-weight:600;transition:.12s;
   }
   button:active{transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:not-allowed}
   button.primary{background:var(--accent);color:#04243a;border-color:var(--accent)}
   button.ghost{background:transparent}
   button.danger{color:#fda4af;border-color:#7f1d2d}
@@ -119,6 +120,16 @@
   #player .panim{font-size:min(15vw,10vh);line-height:1;min-height:1px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.3))}
   #player .panim img{height:min(15vw,10vh);width:auto;vertical-align:middle}
   #player .panim:empty{display:none}
+  /* canlı nabız (Bluetooth bandı) */
+  #player .phr{display:flex;align-items:center;gap:8px;margin-top:6px;
+               font-size:clamp(22px,7vw,44px);font-weight:800;font-variant-numeric:tabular-nums;
+               text-shadow:0 2px 14px rgba(0,0,0,.35);line-height:1}
+  #player .phr:empty{display:none}
+  #player .phr .hb{display:inline-block;color:#fecaca}
+  #player .phr.beat .hb{animation:hb .35s ease}
+  #player .phr .unit{font-size:.45em;font-weight:700;opacity:.85;align-self:flex-end;padding-bottom:.15em}
+  #player .phr.stale{opacity:.5}
+  @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
   #player .flip{display:inline-block;transform:scaleX(-1)}
   /* alt 3'lü istatistik */
   #player .binfo{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-align:center}
@@ -323,8 +334,8 @@
 
     <label class="lbl">İlk interval</label>
     <div class="radiorow" style="margin-bottom:12px">
-      <label><input type="radio" name="first" value="yavas" checked> Yavaş ile başla</label>
-      <label><input type="radio" name="first" value="hizli"> Hızlı ile başla</label>
+      <label><input type="radio" name="first" value="yavas" checked> Gevşe ile başla</label>
+      <label><input type="radio" name="first" value="hizli"> Yüklen ile başla</label>
     </div>
 
     <label class="lbl">Ters yüz et (profili baştan sona çevirir; çaprazda azalan rolü diğer moda geçer)</label>
@@ -356,8 +367,8 @@
     </div>
     <div id="segBox" style="margin:12px 0"></div>
     <div class="row tight">
-      <button id="addSlow" class="ghost">+ Yavaş</button>
-      <button id="addFast" class="ghost">+ Hızlı</button>
+      <button id="addSlow" class="ghost">+ Gevşe</button>
+      <button id="addFast" class="ghost">+ Yüklen</button>
       <button id="clearBtn" class="ghost danger" style="margin-left:auto">Temizle</button>
     </div>
   </div>
@@ -378,7 +389,7 @@
     <label class="lbl">Simgeler — kendi emoji/resmini ver (sağa bakar)</label>
     <div class="grid2" style="margin-bottom:8px">
       <div>
-        <div class="lbl">Yavaş</div>
+        <div class="lbl">Gevşe</div>
         <div class="row tight">
           <input type="text" id="iconSlow" value="🚶‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
           <label class="pill" style="cursor:pointer">📁<input type="file" id="imgSlow" accept="image/*" hidden></label>
@@ -386,7 +397,7 @@
         </div>
       </div>
       <div>
-        <div class="lbl">Hızlı</div>
+        <div class="lbl">Yüklen</div>
         <div class="row tight">
           <input type="text" id="iconFast" value="🏃‍♂️" maxlength="10" style="width:62px;text-align:center;font-size:24px">
           <label class="pill" style="cursor:pointer">📁<input type="file" id="imgFast" accept="image/*" hidden></label>
@@ -395,6 +406,15 @@
       </div>
     </div>
     <div class="hint" style="margin-bottom:12px">Emoji yaz ya da 📁 ile kendi resmini yükle. Resim varsa emoji yerine o kullanılır.</div>
+
+    <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
+    <div class="row tight" style="margin-bottom:6px">
+      <button id="hrBtn" class="ghost">💓 Bağlan</button>
+      <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
+      <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
+      <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
+    </div>
+    <div class="hint" id="hrHint" style="margin-bottom:12px"></div>
 
     <label class="lbl">Antrenman adı</label>
     <div class="row tight">
@@ -420,6 +440,7 @@
     <div class="pname" id="pName">—</div>
     <div class="pclock" id="pClock">0:00</div>
     <div class="panim" id="pAnim"></div>
+    <div class="phr" id="pHR"></div>
   </div>
   <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg><span class="pmark" id="pMark"></span></div></div>
   <div class="binfo">
@@ -439,12 +460,12 @@
 /* ------------------------------------------------------------------ */
 /* State                                                               */
 /* ------------------------------------------------------------------ */
-const A = 0, B = 1; // Yavaş, Hızlı
+const A = 0, B = 1; // Gevşe, Yüklen
 let state = {
   name: "",
   variations: [
-    { name: "Yavaş", color: "#059669" },
-    { name: "Hızlı", color: "#ea580c" },
+    { name: "Gevşe", color: "#059669" },
+    { name: "Yüklen", color: "#ea580c" },
   ],
   segments: [], // {v:0|1, sec:Number}
 };
@@ -540,7 +561,7 @@ function buildSegments(pattern, L, F, cross, firstFast, step, flip){
   let S = buildPrimary(pattern, Lc, Fc);
   if (flip) S = [...S].reverse();        // ters yüz: profili baştan sona çevir
   const pivot = Lc + Fc;                  // ayna ekseni (seviye)
-  // Yavaş ana diziyi izler; Hızlı çaprazda aynayı, normalde aynısını alır.
+  // Gevşe ana diziyi izler; Yüklen çaprazda aynayı, normalde aynısını alır.
   // "İlk interval" yalnızca çiftin sırasını belirler, diziyi değiştirmez.
   const segs = [];
   for (const lv of S){
@@ -815,6 +836,7 @@ function renderPlayer(){
   $("pAnim").innerHTML = html;
   $("pMark").innerHTML = html;
   updateCursor();
+  renderHR();
 }
 function gotoSeg(i){
   if(i<0||i>=P.timeline.length) return;
@@ -847,6 +869,94 @@ function loop(){
     if(P.idx+1<P.timeline.length){ P.idx++; P.segLeft=P.timeline[P.idx].sec; P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
     else finish();
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Nabız — Web Bluetooth, standart Heart Rate servisi (0x180D/0x2A37)  */
+/* Polar H10 dahil çoğu göğüs bandı bu servisi yayınlar.               */
+/* ------------------------------------------------------------------ */
+const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0 };
+const HR_STALE_MS = 5000;
+const hrSupported = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+
+function hrConnected(){ return !!(HR.dev && HR.dev.gatt && HR.dev.gatt.connected && HR.chr); }
+function hrSetStatus(txt){ const el=$("hrStatus"); if(el) el.textContent=txt; }
+
+// 0x2A37 Heart Rate Measurement: bit0=1 ise 16-bit, değilse 8-bit nabız
+function parseHR(dv){
+  if(!dv || dv.byteLength<2) return 0;
+  const flags=dv.getUint8(0);
+  return (flags & 0x01) ? dv.getUint16(1,true) : dv.getUint8(1);
+}
+function onHR(e){
+  const bpm=parseHR(e.target.value);
+  if(!(bpm>0)) return;                 // 0 = sensör temas etmiyor
+  HR.bpm=bpm; HR.at=performance.now();
+  renderHR();
+  const p=$("pHR");
+  if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
+}
+async function hrSubscribe(){
+  const server=await HR.dev.gatt.connect();
+  const svc=await server.getPrimaryService("heart_rate");
+  const chr=await svc.getCharacteristic("heart_rate_measurement");
+  await chr.startNotifications();
+  chr.addEventListener("characteristicvaluechanged", onHR);
+  HR.chr=chr;
+  hrSetStatus("Bağlı: "+(HR.dev.name||"nabız bandı"));
+  renderHR();
+}
+async function hrConnect(){
+  if(!hrSupported){ alert("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+  const gen=++HR.gen; HR.want=false;
+  try{
+    hrSetStatus("Aranıyor…");
+    const dev=await navigator.bluetooth.requestDevice({ filters:[{ services:["heart_rate"] }] });
+    if(gen!==HR.gen) return;
+    if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
+    HR.dev=dev; HR.want=true; HR.bpm=null; HR.at=0;
+    dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
+    await hrSubscribe();
+  }catch(err){
+    if(gen!==HR.gen) return;
+    HR.want=false;
+    const cancelled = err && err.name==="NotFoundError";
+    hrSetStatus(cancelled ? "Cihaz seçilmedi" : "Bağlanamadı: "+((err&&err.message)||err));
+    renderHR();
+  }
+}
+async function hrOnDisconnect(gen){
+  if(gen!==HR.gen) return;             // eski bağlantının olayı
+  HR.chr=null; renderHR();
+  if(!HR.want){ hrSetStatus("Bağlı değil"); return; }
+  for(let i=1;i<=5;i++){
+    if(gen!==HR.gen || !HR.want) return;
+    hrSetStatus(`Bağlantı koptu, yeniden deneniyor (${i}/5)…`);
+    await new Promise(r=>setTimeout(r, 1000*i));
+    if(gen!==HR.gen || !HR.want) return;
+    try{ await hrSubscribe(); return; }catch(e){}
+  }
+  if(gen!==HR.gen) return;
+  HR.want=false; hrSetStatus("Yeniden bağlanamadı. Bağlan'a tekrar bas."); renderHR();
+}
+function hrDisconnect(){
+  HR.gen++; HR.want=false;
+  try{ if(HR.dev && HR.dev.gatt.connected) HR.dev.gatt.disconnect(); }catch(e){}
+  HR.chr=null; HR.bpm=null; HR.at=0;
+  hrSetStatus("Bağlı değil"); renderHR();
+}
+function renderHR(){
+  const on=hrConnected();
+  const stale = HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS;
+  const txt = HR.bpm!=null ? String(HR.bpm) : "—";
+  const p=$("pHR");
+  if(p){
+    p.innerHTML = on ? `<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>` : "";
+    p.classList.toggle("stale", on && stale);
+  }
+  const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
+  $("hrBtn").classList.toggle("hidden", on);
+  $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
 /* Wake lock */
@@ -942,6 +1052,16 @@ $("delBtn").onclick=()=>{
   if(!confirm(n+" silinsin mi?")) return;
   const all=loadAll(); delete all[n]; saveAll(all); refreshSaved();
 };
+
+// nabız bandı
+$("hrBtn").onclick=hrConnect;
+$("hrOffBtn").onclick=hrDisconnect;
+if(!hrSupported){
+  $("hrBtn").disabled=true;
+  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır.";
+} else {
+  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener.";
+}
 
 $("startBtn").onclick=startPlayer;
 $("exitBtn").onclick=exitPlayer;
