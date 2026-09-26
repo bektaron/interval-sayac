@@ -983,9 +983,10 @@ function stepConv(){
   return {speed, stepsPerKm, kcalPerKm, kcalPerStep:kcalPerKm / stepsPerKm};
 }
 function fmtMin(min){ min = Math.round(min); return min >= 60 ? `${Math.floor(min / 60)} sa ${min % 60} dk` : `${min} dk`; }
+function stepsFor(kcal){ const c = stepConv(); if (!c || !(kcal > 0)) return null; return Math.max(100, Math.round(kcal / c.kcalPerStep / 100) * 100); }
 function stepsText(kcal, full){
   const c = stepConv(); if (!c || !(kcal > 0)) return "";
-  const steps = Math.max(100, Math.round(kcal / c.kcalPerStep / 100) * 100), km = kcal / c.kcalPerKm;
+  const steps = stepsFor(kcal), km = kcal / c.kcalPerKm;
   return full ? `≈ ${fmt0(steps)} adım · ${fmt1(km)} km · ${fmtMin(km / c.speed * 60)}` : `≈ ${fmt0(steps)} adım`;
 }
 function dayBudget(){ return targets.kcal > 0 ? targets.kcal : budget(); }
@@ -1104,7 +1105,7 @@ function renderLog(list){
       if (e.id === editId){ h += editForm(e); continue; }
       h += `<div class="ent" data-id="${e.id}">
         <div class="en"><b>${esc(e.name)}${e.tag === "foto" ? '<span class="tag">foto</span>' : ""}</b><span class="muted">${e.ul ? fmtQ(e.q) + " " + esc(e.ul) + " · " : ""}${e.g > 0 ? fmt0(e.g) + " g" : "miktar girilmedi"}</span></div>
-        <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span></div>
+        <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span>${stepsFor(e.kcal) ? `<span class="mini"><i style="color:var(--ok)">A ${fmt0(stepsFor(e.kcal))}</i> <span class="muted">adım</span></span>` : ""}</div>
         <div class="acts"><button data-act="edit" title="Düzenle">✎</button><button data-act="del" class="danger" title="Sil">✕</button></div>
       </div>`;
     }
