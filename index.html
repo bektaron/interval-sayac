@@ -645,6 +645,79 @@ function buildSegments(pattern, L, F, cross, firstFast, step, flip){
 }
 
 function segsTotalMin(segs){ return segs.reduce((a,x)=>a+x.sec,0)/60; }
+// "Toplam süre" modu: hedef T'ye en yakın toplamı veren en uzun interval L'yi arar (adım kadar artarak)
+function bestForTotal(pattern, T, F, cross, firstFast, step, flip){
+  let best=null;
+  for (let L=F; L<=120+1e-9; L+=step){
+    const s = buildSegments(pattern, L, F, cross, firstFast, step, flip);
+    const diff = Math.abs(segsTotalMin(s) - T);
+    if (!best || diff < best.diff) best = {L, s, diff, tot:segsTotalMin(s)};
+  }
+  return best;
+}
+
+/* Üretici ayarları antrenmanla birlikte saklanır; yüklenince arayüze geri yazılır (yeniden üretmeden). */
+const PATTERNS=[...document.querySelectorAll("[data-pat]")].map(p=>p.dataset.pat);
+function readGen(){
+  return { ...gen, longest:parseInt($("inLongest").value)||5, total:parseInt($("inTotal").value)||40, floor:parseInt($("inFloor").value)||1 };
+}
+function cleanGen(g){
+  if(!g || typeof g!=="object") return null;
+  const n=(v,lo,hi,d)=>{ v=+v; return v>=lo && v<=hi ? v : d; };
+  return { src: g.src==="total" ? "total" : "longest", pattern: PATTERNS.includes(g.pattern) ? g.pattern : "azalan",
+           cross: g.cross===true, firstFast: g.firstFast===true, flip: g.flip===true, step: +g.step===0.5 ? 0.5 : 1,
+           longest:n(g.longest,1,60,5), total:n(g.total,2,180,40), floor:n(g.floor,1,30,1) };
+}
+function applyGen(g){
+  Object.assign(gen, { src:g.src, pattern:g.pattern, cross:g.cross, firstFast:g.firstFast, flip:g.flip, step:g.step });
+  $("inLongest").value=g.longest; $("inTotal").value=g.total; $("inFloor").value=g.floor;
+  document.querySelectorAll("[data-src]").forEach(x=>x.classList.toggle("on", x.dataset.src===gen.src));
+  $("srcLongest").classList.toggle("hidden", gen.src!=="longest");
+  $("srcTotal").classList.toggle("hidden", gen.src!=="total");
+  document.querySelectorAll("[data-pat]").forEach(x=>x.classList.toggle("on", x.dataset.pat===gen.pattern));
+  const radio=(name,val)=>{ const r=document.querySelector(`input[name="${name}"][value="${val}"]`); if(r) r.checked=true; };
+  radio("step", String(gen.step)); radio("cross", gen.cross?"on":"off");
+  radio("first", gen.firstFast?"hizli":"yavas"); radio("flip", gen.flip?"on":"off");
+  $("patGrid").classList.toggle("cross", gen.cross); $("patGrid").classList.toggle("flip", gen.flip);
+}
+// Ayarı saklanmamış (eski) kayıtlar için: aynı segmentleri birebir üreten ayarı arar; bulamazsa null
+// (elle düzenlenmiş liste). Birden çok ayar aynı sonucu veriyorsa varsayılana en yakını seçilir.
+function inferGen(segs){
+  if(!segs.length || segs.length%2) return null;
+  const firstFast = segs[0].v===B, key=JSON.stringify(segs.map(x=>[x.v,x.sec]));
+  const aSecs=segs.filter(x=>x.v===A).map(x=>x.sec);
+  if(aSecs.length*2!==segs.length) return null;
+  const range=(a,b)=>{ const r=[]; for(let i=a;i<=b;i++) r.push(i); return r; };
+  let fallback=null;
+  for(const step of [1,0.5]){
+    const unit=step*60; if(aSecs.some(x=>x%unit)) continue;
+    const mx=Math.max(...aSecs)/unit, mn=Math.min(...aSecs)/unit;
+    if(mx*step>120) continue;                             // üretici en fazla 120 dk'lık interval üretir
+    for(const pattern of PATTERNS) for(const cross of [false,true]) for(const flip of [false,true]){
+      // "Hızlanan" (fib) dışında en uzun/en kısa seviye doğrudan dizinin uçlarıdır; fib'de
+      // uçlar bir sonraki/önceki Fibonacci sayısına kadar kayabilir (oran < 2).
+      const Ls = pattern==="fib" ? range(mx, Math.min(2*mx, 120/step)) : [mx];
+      const Fs = pattern==="fib" ? range(Math.max(1,Math.floor(mn/2)), Math.min(mn, 30/step)) : [mn];
+      for(const Lc of Ls) for(const Fc of Fs){
+        const L=Lc*step, F=Fc*step;
+        if(F%1 || F>30) continue;                          // en kısa interval girişi tam dakika
+        if(JSON.stringify(buildSegments(pattern,L,F,cross,firstFast,step,flip).map(x=>[x.v,x.sec]))!==key) continue;
+        const g={ src:"longest", pattern, cross, firstFast, flip, step, longest:Math.min(60,Math.round(L)), total:40, floor:F };
+        if(L%1===0 && L<=60) return g;                     // en uzun interval girişiyle birebir
+        // buçuklu/uzun L yalnızca "Toplam süre" modundan gelebilir: aynı L'yi seçtiren hedefi ara
+        if(!fallback){
+          const t0=Math.round(segsTotalMin(segs));
+          for(const T of [t0,t0-1,t0+1]){
+            if(T<2 || T>180) continue;
+            const bt=bestForTotal(pattern,T,F,cross,firstFast,step,flip);
+            if(JSON.stringify(bt.s.map(x=>[x.v,x.sec]))===key){ fallback={ ...g, src:"total", total:T }; break; }
+          }
+        }
+      }
+    }
+  }
+  return fallback;
+}
 
 function generate(){
   const F = parseInt($("inFloor").value)||1;
@@ -657,14 +730,8 @@ function generate(){
     segs = buildSegments(gen.pattern, L, F, cross, firstFast, step, flip);
     note = "";
   } else {
-    // Toplam hedefe en yakın L'yi ara (adım kadar artarak)
     const T = parseInt($("inTotal").value)||10;
-    let best=null;
-    for (let L=F; L<=120+1e-9; L+=step){
-      const s = buildSegments(gen.pattern, L, F, cross, firstFast, step, flip);
-      const diff = Math.abs(segsTotalMin(s) - T);
-      if (!best || diff < best.diff) best = {L, s, diff, tot:segsTotalMin(s)};
-    }
+    const best = bestForTotal(gen.pattern, T, F, cross, firstFast, step, flip);
     segs = best.s;
     const sign = best.tot>=T ? "+" : "−";
     note = `Hedef ${T} dk → en uzun interval ${fmt(best.L*60)} seçildi (hedeften fark ${sign}${Math.abs(best.tot-T).toFixed(1)} dk).`;
@@ -781,7 +848,9 @@ function cleanWorkout(w){
   const z=(n,d)=>{ n=Math.round(+n); return n>=1 && n<=5 ? n : d; };
   const tgt=Array.isArray(w.tgt) && w.tgt.length===2 ? [z(w.tgt[0],2), z(w.tgt[1],4)] : [2,4];
   const prep=Math.round(+w.prepSec);
-  return { variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt };
+  const out={ variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt };
+  const g=cleanGen(w.gen); if(g) out.gen=g;
+  return out;
 }
 function refreshSaved(){
   const all=loadAll(); const sel=$("savedList"); sel.innerHTML="";
@@ -1286,7 +1355,7 @@ $("saveBtn").onclick=()=>{
   if(!name){ toast("Kaydetmek için bir ad gir."); $("inName").focus(); return; }
   if(!state.segments.length){ toast("Boş antrenman kaydedilmez."); return; }
   const all=loadAll();
-  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt] };
+  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt], gen:readGen() };
   if(!saveAll(all)) return;
   state.name=name; refreshSaved();
   $("savedList").value=name; toast("Kaydedildi: "+name);
@@ -1306,7 +1375,13 @@ $("loadBtn").onclick=()=>{
   $("soundPill").classList.toggle("on",settings.sound);
   $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
   renderVars(); renderSegments();
-  $("genHint").textContent=`"${n}" yüklendi. Üretici ayarlarından birini değiştirirsen liste yeniden üretilir (yüklenen kayıt silinmez).`;
+  const g = w.gen || inferGen(w.segments);
+  if(g) applyGen(g);
+  $("genHint").textContent = `"${n}" yüklendi` + (
+    w.gen ? " (üretici ayarlarıyla birlikte)."
+    : g ? ". Bu eski kayıtta üretici ayarı saklı değildi; aynı segmentleri veren ayarlar geri çıkarıldı. Kaydet'e basarsan ayarlar da saklanır."
+    : ". Bu kayıtta üretici ayarı saklı değil ve segmentlerden çıkarılamadı (elle düzenlenmiş olabilir); üstteki üretici ayarları bu antrenmana ait değil.") +
+    " Üretici ayarlarından birini değiştirirsen liste yeniden üretilir (kayıt silinmez).";
   toast(`Yüklendi: ${n} · ${state.segments.length} segment · ${fmt(totalSec())}`);
 };
 $("delBtn").onclick=()=>{
