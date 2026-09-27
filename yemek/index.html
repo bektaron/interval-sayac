@@ -207,6 +207,10 @@
   .pm .row input{min-width:0}
   .pm textarea{margin-top:6px;background:var(--panel)}
   .pm ul{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+  .fb{font-size:11px;padding:2px 6px;border-radius:6px;margin-left:6px;font-weight:700;vertical-align:middle;white-space:nowrap}
+  .fb.uygun{background:#0f2f1e;color:var(--ok)} .fb.kismen{background:#3b2a12;color:var(--carb)} .fb.degil{background:#3b1220;color:var(--fat)}
+  .thumbs{display:flex;gap:6px} .thumbs img{flex:1 1 0;min-width:0;max-height:160px}
+  .pm .food{background:var(--panel);margin-top:6px;margin-bottom:0}
   .pgsum details{margin-top:6px}
   .pgsum ul{margin:0;padding-left:18px;font-size:13px}
   @media (max-width:420px){ .grid4{grid-template-columns:1fr 1fr} }
@@ -249,6 +253,8 @@
       <div id="targetBox"></div>
       <div class="row hidden" id="reviewRow" style="margin-bottom:10px"><button class="primary" id="reviewBtn">🩺 Yorumla</button><span class="muted" id="reviewMeta" style="font-size:12px"></span></div>
       <div id="reviewBox" class="selbox hidden"></div>
+      <div class="row hidden" id="planRow" style="margin-bottom:10px"><button id="planBtn">🗓️ Günün kalanını planla</button><span class="muted" id="planMeta" style="font-size:12px"></span></div>
+      <div id="planBox" class="selbox hidden"></div>
       <div class="hydro">
         <div class="row between">
           <span>💧 Su <b id="waterVal">0 L</b> <span class="muted">/ <span id="waterGoal"></span></span></span>
@@ -317,9 +323,12 @@
       <div id="scanBox" class="selbox hidden"></div>
       <div class="row hidden" style="margin-top:8px" id="photoRow">
         <button id="photoBtn">📸 Tabak fotoğrafından tahmin</button>
+        <button id="menuBtn" title="Restoran menüsünün fotoğrafından programa ve bütçeye en uygun seçenekler">🧾 Menüden seç</button>
       </div>
       <input type="file" id="photoInput" accept="image/*" class="hidden">
+      <input type="file" id="menuInput" accept="image/*" multiple class="hidden">
       <div id="photoBox" class="selbox hidden"></div>
+      <div id="menuBox" class="selbox hidden"></div>
 
       <div id="selBox" class="selbox hidden">
         <div class="selname"><b id="selName"></b><span class="muted" id="selPer100"></span></div>
@@ -924,7 +933,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews", water:"yemekWater", waterAdds:"yemekWaterAdds", program:"yemekProgram" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews", water:"yemekWater", waterAdds:"yemekWaterAdds", program:"yemekProgram", plans:"yemekPlans", menuMode:"yemekMenuMode" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -1199,7 +1208,7 @@ let curDate = todayStr();
 let sel = null;      // seçili yiyecek
 let editId = null;   // düzenlenen kayıt
 
-function setDate(s){ curDate = s; $("dateInp").value = s; editId = null; $("reviewBox").classList.add("hidden"); renderDay(); renderReviewMeta(); }
+function setDate(s){ curDate = s; $("dateInp").value = s; editId = null; $("reviewBox").classList.add("hidden"); $("planBox").classList.add("hidden"); renderDay(); renderReviewMeta(); renderPlanBtn(); }
 function renderDay(){
   const list = entries(curDate);
   $("dateLbl").textContent = fmtDate(curDate) + (curDate === todayStr() ? " · bugün" : "");
@@ -1378,7 +1387,7 @@ const PRICES = {
   "claude-sonnet-5":[2, 10], "claude-sonnet-4-6":[3, 15], "claude-haiku-4-5":[1, 5], "claude-fable-5-1":[10, 50], "claude-fable-5":[10, 50],
 };
 const SEARCH_PRICE = 0.01;
-const KIND_LABEL = {sor:"Claude'a sor", foto1:"Foto · 1. tur", foto2:"Foto · 2. tur (anket)", yorum:"Uzman yorumu", sohbet:"Uzman sohbeti", program:"Program okuma", uyum:"Program uyumu"};
+const KIND_LABEL = {sor:"Claude'a sor", foto1:"Foto · 1. tur", foto2:"Foto · 2. tur (anket)", yorum:"Uzman yorumu", sohbet:"Uzman sohbeti", program:"Program okuma", uyum:"Program uyumu", menu:"Menü okuma", plan:"Gün planı"};
 function priceFor(model){
   const m = String(model || "");
   const key = Object.keys(PRICES).sort((a, b) => b.length - a.length).find((k) => m.startsWith(k));
@@ -1847,7 +1856,7 @@ function photoAddAll(){
   renderDay();
 }
 function closePhoto(){ photo = null; $("photoBox").classList.add("hidden"); $("photoBox").innerHTML = ""; }
-function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); $("reviewRow").classList.toggle("hidden", !ai.key); renderReviewMeta(); renderFitBtn(); }
+function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); $("reviewRow").classList.toggle("hidden", !ai.key); renderReviewMeta(); renderFitBtn(); renderPlanBtn(); }
 function renderFitBtn(){ $("fitBtn").classList.toggle("hidden", !ai.key); $("fitBtn").textContent = program ? "📋 Programa uygun mu?" : "📋 Uygun mu?"; }
 
 /* ------------------------------------------------------------------ */
@@ -2142,10 +2151,43 @@ Kısa, dürüst, yumuşatmasız; Türkçe. Değer uydurma.
 YALNIZCA şu JSON'u döndür, başka metin yazma:
 {"verdict":"uygun|kismen|degil","score":0,"reason":"1-2 cümle","program_slot":"programda bu öğün için yazılan, kısa","portion_advice":"miktar düzeltmesi; gerekmiyorsa boş","lactose":"laktoz notu; gerekmiyorsa boş","alternatives":[{"name":"...","portion":"1 kase","grams":200,"kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"why":"1 cümle"}],"tips":["kısa ipucu"]}`;
 let fitLast = null; // {items, meal, data, host, ctx}
-function fitSystem(){
+// Profil + program: uyum, menü ve plan çağrılarında ortak, önbelleğe alınan system bloğu
+function progBlock(){
   const P = profile;
   const prof = `PROFİL: ${P.w ? `kilo ${P.w} kg, ` : ""}hedef ${GOAL_LABEL[P.goal] || "belirtilmedi"}${P.notes ? `, sağlık notu: ${P.notes}` : ""}.${intolText() ? ` İNTOLERANS: ${intolText()}` : ""}`;
-  return [{type:"text", text:FIT_SYSTEM}, {type:"text", text:prof + "\n\n" + (program ? "PROGRAM:\n" + programText() : "PROGRAM: yüklenmemiş."), cache_control:{type:"ephemeral"}}];
+  return {type:"text", text:prof + "\n\n" + (program ? "PROGRAM:\n" + programText() : "PROGRAM: yüklenmemiş."), cache_control:{type:"ephemeral"}};
+}
+function fitSystem(){ return [{type:"text", text:FIT_SYSTEM}, progBlock()]; }
+// Kalan bütçe: kcal (bütçe + yürüyüş − yenen) ve hedef yüzdesi varsa kalan makro gramları
+function remaining(date){
+  const s = sumEntries(entries(date)), de = dayEnergy(s.kcal, date);
+  if (!de) return null;
+  const r = {kcal:de.budget + de.extra - s.kcal, eaten:s, budget:de.budget + de.extra};
+  if (targets.kcal > 0 && targets.p + targets.c + targets.f > 0){ r.p = targets.kcal * targets.p / 100 / 4 - s.p; r.c = targets.kcal * targets.c / 100 / 4 - s.c; r.f = targets.kcal * targets.f / 100 / 9 - s.f; }
+  return r;
+}
+function remainingText(date){
+  const r = remaining(date); if (!r) return "bütçe yok (profil veya hedef kcal girilmemiş)";
+  return `bütçe ${fmt0(r.budget)} kcal, yenen ${fmt0(r.eaten.kcal)} → kalan ${fmt0(r.kcal)} kcal` + (r.p != null ? `; kalan makro: P ${fmt0(r.p)} g, K ${fmt0(r.c)} g, Y ${fmt0(r.f)} g` : "");
+}
+function todayLines(date){
+  const list = entries(date), L = [];
+  for (const m of MEALS){ const it = list.filter((e) => e.meal === m); if (it.length) L.push(`- ${m}: ${it.map((e) => `${e.name} ${fmt0(e.g)} g (${fmt0(e.kcal)} kcal${e.ts ? ", " + new Date(e.ts).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"}) : ""})`).join("; ")}`); }
+  return L.length ? L : ["- henüz kayıt yok"];
+}
+// Önerilen maddenin gösterilecek değerleri: listedeki adla eşleşiyorsa listenin 100 g değerleri (eklenen kayıtla aynı), yoksa Claude'un tahmini
+function sugVals(it){
+  const f = foodByName(it.name);
+  if (f && it.g > 0){ const k = it.g / 100; return {kcal:f.kcal * k, p:f.p * k, c:f.c * k, f:f.f * k, listed:true}; }
+  return {kcal:it.kcal, p:it.p, c:it.c, f:it.f, listed:false};
+}
+function foodByName(name){ const n = norm(name).trim(); if (!n) return null; return allFoods().find((f) => norm(f.name).trim() === n) || null; }
+// Claude'un önerdiği maddeyi kayda çevir: ad listedekiyle aynıysa listenin 100 g değerleri (daha güvenilir), değilse Claude'un değerleri
+function entryFromSuggestion(it, meal, tag){
+  const f = foodByName(it.name), g = it.g > 0 ? it.g : 0, k = g / 100;
+  if (f && g > 0) return {id:uid(), fid:f.id, name:f.name, g, kcal:f.kcal * k, p:f.p * k, c:f.c * k, f:f.f * k, caf:(f.caf || 0) * k, meal, tag, ref:{kcal:f.kcal, p:f.p, c:f.c, f:f.f, caf:f.caf || 0}};
+  const ref = g > 0 ? {kcal:it.kcal / g * 100, p:it.p / g * 100, c:it.c / g * 100, f:it.f / g * 100, caf:0} : null;
+  return {id:uid(), fid:null, name:it.name, g, kcal:it.kcal, p:it.p, c:it.c, f:it.f, caf:0, meal, tag, ref};
 }
 function fitContext(items, meal){
   const list = entries(curDate), s = sumEntries(list), de = dayEnergy(s.kcal, curDate), L = [];
@@ -2217,6 +2259,221 @@ function addFitAlt(i){
   const box = $(fitLast.host); if (box){ box.classList.add("hidden"); box.innerHTML = ""; }
   if (fitLast.ctx === "sel") clearSelection();
   renderDay();
+}
+
+/* ------------------------------------------------------------------ */
+/* Menüden seç: menü fotoğrafı → programa/bütçeye en uygun kalemler    */
+/* ------------------------------------------------------------------ */
+let menu = null; // {imgs:[{data,preview}], mode, note, meal, items, picks, notes, conf, rest}
+const MENU_SYSTEM = `Sen kullanıcının diyetisyeninin asistanısın; restoran menüsünün fotoğrafından, kullanıcının PROGRAMINA ve durumuna en uygun seçenekleri bulursun.
+Girdi: menü fotoğrafları, MOD, öğün, profil (kilo, hedef, intolerans), program, bugüne kadar yenenler, kalan bütçe, mutfak bağlamı, kullanıcı notu.
+MOD:
+- BÜTÇE: kalan kcal'e ve (varsa) kalan makro gramlarına sığan, programın o öğününe en yakın kalemleri seç; 2-3 kombinasyon (ana + garnitür/salata + içecek) öner, kombinasyon toplamı kalan bütçeyi aşmasın (hiçbiri sığmıyorsa en az aşanı ver ve söyle).
+- SERBEST: bugünün bütçesine bakma; yalnızca programın kurallarına, öğün yapısına, hedefe ve intoleransa göre en uygun kalemleri sırala; 2-3 kombinasyon öner.
+Kurallar:
+- Menüden yalnızca değerlendirmeye değer 5-10 kalemi listele; yasaklı/program dışı olanı listeleme (kullanıcı notunda özellikle sorulan hariç). Her kalem için restoran porsiyonu tahmini gram, kcal, protein, karbonhidrat, yağ (yaygın besin tablolarına göre yaklaşık), uyum (uygun / kismen / degil), puan 0-100, 1 cümle gerekçe, süt ürünü içeriyorsa lactose true.
+- Fiyatları yok say. Menü dili yabancıysa adı aynen yaz, desc alanına Türkçe kısa açıklama koy.
+- Laktoz intoleransı varsa süt ürünlü kalemleri işaretle; laktaz enzimi (Relactase) alıyorsa gerekçede "enzimle olur" de.
+- Menü okunamıyorsa items boş, notes'ta neden.
+Türkçe, kısa, dürüst. YALNIZCA şu JSON'u döndür, başka metin yazma:
+{"restaurant":"mutfak türü, kısa","items":[{"name":"menüdeki ad","desc":"Türkçe kısa açıklama","grams":300,"kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"fit":"uygun|kismen|degil","score":0,"why":"1 cümle","lactose":false}],"picks":[{"title":"Önerim 1","idx":[0,2],"kcal":0,"why":"1 cümle"}],"notes":"kısa","confidence":"yüksek|orta|düşük"}`;
+const MENU_MODE = {butce:"Bütçeye göre", serbest:"Serbest"};
+async function menuPick(files){
+  if (!ai.key){ askClaude(""); return; }
+  $("selBox").classList.add("hidden"); sel = null; $("aiBox").classList.add("hidden"); $("scanBox").classList.add("hidden"); closePhoto();
+  $("menuBox").classList.remove("hidden");
+  $("menuBox").innerHTML = `<div class="selname"><b><span class="spin"></span>Fotoğraf hazırlanıyor…</b></div>`;
+  try{
+    const imgs = []; for (const f of files.slice(0, 4)) imgs.push(await fileToJpeg(f, 1600));
+    const mode = load(LS.menuMode, "butce");
+    menu = {imgs, mode:MENU_MODE[mode] ? mode : "butce", note:"", meal:defaultMeal(), items:null, picks:[], notes:"", conf:"", rest:""};
+    renderMenuStart();
+  }catch(e){
+    $("menuBox").innerHTML = `<div class="selname"><b>Fotoğraf okunamadı</b><span class="muted">${esc(e.message || e.name)}</span></div><div class="row" style="margin-top:8px"><button class="ghost" id="menuCancel">Kapat</button></div>`;
+  }
+}
+function menuThumbs(){ return `<div class="thumbs">${menu.imgs.map((i) => `<img class="thumb" src="${i.preview}" alt="menü">`).join("")}</div>`; }
+function menuModeHint(){
+  if (menu.mode === "serbest") return "Bugünün bütçesine bakılmaz; programın kural ve öğün yapısına en uygun seçenekler.";
+  const r = remaining(curDate);
+  return r ? `Kalan ${fmt0(r.kcal)} kcal${r.p != null ? ` (P ${fmt0(r.p)} · K ${fmt0(r.c)} · Y ${fmt0(r.f)} g)` : ""} içine sığan, programa en yakın seçenekler ve kombinasyonlar.` : "Bütçe yok (profil veya hedef kcal girilmemiş); yalnızca programa göre değerlendirilir.";
+}
+function renderMenuStart(){
+  $("menuBox").innerHTML = `${menuThumbs()}
+    <label class="lbl" style="margin-top:8px">Mod</label>
+    <div class="chips" id="menuModes">${Object.entries(MENU_MODE).map(([k, v]) => `<div class="pill ${menu.mode === k ? "on" : ""}" data-mode="${k}">${v}</div>`).join("")}</div>
+    <div class="hint" id="menuModeHint" style="margin-top:6px">${esc(menuModeHint())}</div>
+    <div class="grid2" style="margin-top:8px"><div><label class="lbl">Öğün</label><select id="menuMeal">${MEALS.map((m) => `<option ${m === menu.meal ? "selected" : ""}>${m}</option>`).join("")}</select></div></div>
+    <label class="lbl" style="margin-top:8px">Not (isteğe bağlı)</label>
+    <input type="text" id="menuNote" placeholder="ör. balık sevmem; 2 kişi paylaşacağız; 1 kadeh şarap içeceğim" value="${esc(menu.note)}">
+    <div class="row" style="margin-top:10px"><button class="primary" id="menuRead">Menüyü oku</button><button class="ghost" id="menuCancel">Vazgeç</button></div>
+    <div class="hint">Menü fotoğrafı doğrudan Claude'a gider, uygulama saklamaz. Porsiyonlar restoran tahminidir (±%25); eklediğin kaydın gramını sonradan ✎ ile düzeltebilirsin.</div>`;
+}
+function menuContext(){
+  const L = [];
+  L.push(`MOD: ${menu.mode === "serbest" ? "SERBEST" : "BÜTÇE"}`);
+  L.push(`ÖĞÜN: ${menu.meal} · TARİH / SAAT: ${curDate} ${new Date().toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}`);
+  L.push(`KALAN BÜTÇE: ${remainingText(curDate)}`);
+  L.push("BUGÜNE KADAR:"); L.push(...todayLines(curDate));
+  const pc = packContext(); if (pc) L.push(pc.trim());
+  if (menu.note) L.push(`KULLANICI NOTU: ${menu.note}`);
+  L.push("Menüyü oku ve JSON olarak değerlendir.");
+  return L.join("\n");
+}
+async function menuAnalyze(){
+  if (!menu) return;
+  menu.note = ($("menuNote") ? $("menuNote").value : menu.note).trim().slice(0, 300);
+  if ($("menuMeal")) menu.meal = $("menuMeal").value;
+  save(LS.menuMode, menu.mode);
+  $("menuBox").innerHTML = `${menuThumbs()}<div class="selname" style="margin-top:8px"><b><span class="spin"></span>Claude menüyü okuyor (${MENU_MODE[menu.mode].toLowerCase()})…</b><span class="muted">20-60 sn sürebilir.</span></div>`;
+  try{
+    const content = menu.imgs.map((i) => ({type:"image", source:{type:"base64", media_type:"image/jpeg", data:i.data}}));
+    content.push({type:"text", text:menuContext()});
+    const j = await claudeCall([{type:"text", text:MENU_SYSTEM}, progBlock()], [{role:"user", content}], false, "menu", {effort:"high", maxTokens:6000});
+    const num = (v) => Math.max(0, +v || 0), st = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
+    menu.items = (Array.isArray(j.items) ? j.items : []).slice(0, 12).map((it) => {
+      const fit = String(it.fit || "").toLowerCase();
+      const o = {name:st(it.name, 80), desc:st(it.desc, 120), g:num(it.grams), kcal:num(it.kcal), p:num(it.protein_g), c:num(it.carb_g), f:num(it.fat_g),
+        fit:fit.startsWith("uyg") ? "uygun" : fit.startsWith("de") ? "degil" : "kismen", score:Math.min(100, Math.round(num(it.score))), why:st(it.why, 200), lact:!!it.lactose};
+      if (!o.kcal) o.kcal = macroKcal(o.p, o.c, o.f);
+      return Object.assign(o, sugVals(o));
+    }).filter((it) => it.name);
+    menu.picks = (Array.isArray(j.picks) ? j.picks : []).slice(0, 4).map((p) => ({title:st(p.title, 40) || "Öneri", idx:(Array.isArray(p.idx) ? p.idx : []).map((i) => +i).filter((i) => Number.isInteger(i) && i >= 0 && i < menu.items.length), kcal:num(p.kcal), why:st(p.why, 200)})).filter((p) => p.idx.length);
+    for (const p of menu.picks) p.kcal = p.idx.reduce((x, i) => x + menu.items[i].kcal, 0);
+    menu.notes = st(j.notes, 300); menu.conf = st(j.confidence, 10); menu.rest = st(j.restaurant, 60);
+    renderMenuResult();
+  }catch(e){
+    $("menuBox").innerHTML = `${menuThumbs()}<div class="selname" style="margin-top:8px"><b>Menü okunamadı</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="menuRead">Tekrar dene</button><button class="ghost" id="menuBack">Geri</button><button class="ghost" id="menuCancel">Vazgeç</button></div>`;
+  }
+}
+const FIT_ICON = {uygun:"✅ uygun", kismen:"⚠️ kısmen", degil:"❌ değil"};
+function renderMenuResult(){
+  const items = menu.items, other = menu.mode === "butce" ? "serbest" : "butce";
+  $("menuBox").innerHTML = `${menuThumbs()}
+    <div class="row between" style="margin:10px 0 4px"><b>🧾 ${esc(menu.rest || "Menü")}${menu.conf ? `<span class="conf">güven: ${esc(menu.conf)}</span>` : ""}</b><span class="muted" style="font-size:12px">${esc(MENU_MODE[menu.mode])} · ${esc(menu.meal)}</span></div>
+    ${!items.length ? `<div class="hint" style="margin:0 0 6px">Değerlendirilecek kalem bulunamadı.</div>` : ""}
+    ${menu.picks.map((p, pi) => `<div class="pm"><div class="row between"><b>${esc(p.title)} <span class="muted" style="font-weight:400">${fmt0(p.kcal)} kcal</span></b><button class="sm" data-mp="${pi}" title="Kombinasyondaki hepsini günlüğe ekle">Hepsini ekle</button></div>
+      <div class="muted" style="font-size:13px;margin-top:4px">${p.idx.map((i) => esc(items[i].name)).join(" + ")}${p.why ? `<br>${esc(p.why)}` : ""}</div></div>`).join("")}
+    ${items.length ? `<label class="lbl" style="margin-top:10px">Kalemler (uyum sırası)</label>` : ""}
+    ${items.map((it, i) => `<div class="food"><div class="en"><b>${esc(it.name)}<span class="fb ${it.fit}">${FIT_ICON[it.fit]}${it.score ? ` ${it.score}` : ""}</span>${it.lact && profile.lact ? '<span class="tag lact" title="süt ürünü">🥛</span>' : ""}</b>
+        <span class="muted">${it.desc ? esc(it.desc) + " · " : ""}${fmt0(it.g)} g · ${fmt0(it.kcal)} kcal · P ${fmt1(it.p)} K ${fmt1(it.c)} Y ${fmt1(it.f)}${it.why ? `<br>${esc(it.why)}` : ""}</span></div>
+      <div class="acts"><button data-mi="${i}" title="Günlüğe ekle">＋</button></div></div>`).join("")}
+    ${menu.notes ? `<div class="hint">Not: ${esc(menu.notes)}</div>` : ""}
+    <div class="hint" id="menuMsg" style="margin:6px 0 0;color:var(--ok)"></div>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="menuOther" data-mode="${other}">${MENU_MODE[other]} oku</button><button class="ghost" id="menuCancel" style="margin-left:auto">Kapat</button></div>
+    <div class="hint">Değerler restoran porsiyonu tahminidir. Eklenen kayıtlar "menü" etiketi taşır; gramı ✎ ile düzeltebilirsin.</div>`;
+}
+function menuAdd(idxs){
+  if (!menu || !menu.items) return;
+  const names = [];
+  for (const i of idxs){ const it = menu.items[i]; if (!it) continue; addEntry(curDate, entryFromSuggestion(it, menu.meal, "menü")); names.push(it.name); }
+  renderDay();
+  const m = $("menuMsg"); if (m) m.textContent = names.length ? `Eklendi (${menu.meal}): ${names.join(", ")}` : "";
+}
+function onMenuClick(ev){
+  const pill = ev.target.closest(".pill[data-mode]");
+  if (pill && menu){ menu.mode = pill.dataset.mode; save(LS.menuMode, menu.mode); pill.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.toggle("on", p === pill)); const h = $("menuModeHint"); if (h) h.textContent = menuModeHint(); return; }
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.id === "menuRead") menuAnalyze();
+  else if (b.id === "menuBack"){ if (menu) renderMenuStart(); }
+  else if (b.id === "menuOther"){ if (menu){ menu.mode = b.dataset.mode; menuAnalyze(); } }
+  else if (b.id === "menuCancel"){ menu = null; $("menuBox").classList.add("hidden"); $("menuBox").innerHTML = ""; }
+  else if (b.dataset.mi != null) menuAdd([+b.dataset.mi]);
+  else if (b.dataset.mp != null){ const p = menu && menu.picks[+b.dataset.mp]; if (p) menuAdd(p.idx); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Günün kalanını planla: program + kalan bütçe → somut öğün planı     */
+/* ------------------------------------------------------------------ */
+let plans = load(LS.plans, {}); // {date: {t, data}}
+const PLAN_SYSTEM = `Sen kullanıcının diyetisyeninin asistanısın; günün kalanı için PROGRAMA ve kalan bütçeye uyan somut bir yemek planı yazarsın.
+Girdi: profil (kilo, hedef, intolerans), program, bugün şimdiye kadar yenenler (öğün ve saatle), kalan bütçe (kcal ve varsa makro gramları), saat, su/kafein durumu, uygulamanın yiyecek listesi, mutfak bağlamı.
+Kurallar:
+- Program varsa saati geçmemiş öğünleri programdaki yapı ve miktarlarla planla; yenmiş öğünü tekrar planlama; program dışına çıkılmışsa kalan öğünlerde telafi et (bütçe ve makro). Tarih ileri bir günse tüm günü planla.
+- Program yoksa hedefe (kilo verme / koruma / kas), bütçeye ve makro hedefine göre planla; protein açığını kapat.
+- Her madde: yiyecek adı (mümkünse YİYECEK LİSTESİ'ndeki adla birebir aynı; listede yoksa serbest ad), gram, kcal, protein, karbonhidrat, yağ (yaygın tablolara göre), kısa not (programdaki karşılığı).
+- Toplam kalan bütçeyi aşmasın; aşmak zorunluysa (ör. protein hedefi) nedenini yaz. Kalan bütçe çok düşükse hafif seçeneklerle ya da "bu öğün atlanabilir" diyerek çöz.
+- Laktoz intoleransı: süt ürünü planlama; şartsa laktozsuz yaz; laktaz enzimi (Relactase) alıyorsa belirt.
+- Gerçekçi ve ulaşılabilir: Türk ev / lokanta yemekleri; seyahatteyse mutfak bağlamına uy.
+Türkçe, kısa. YALNIZCA şu JSON'u döndür, başka metin yazma:
+{"summary":"kalan bütçe ve strateji, 1-2 cümle","meals":[{"name":"Akşam","time":"19:30","program_ref":"programda bu öğün için yazılan, kısa","items":[{"food":"Mercimek çorbası","grams":250,"kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"note":"1 kase"}],"kcal":0}],"total":{"kcal":0,"protein_g":0,"carb_g":0,"fat_g":0},"end_of_day":"planla gün sonu: bütçe ve hedefe göre 1 cümle","swaps":["değişim önerisi"],"lactose":"varsa not, yoksa boş","confidence":"yüksek|orta|düşük"}`;
+function foodNames(){ return allFoods().map((f) => f.name).slice(0, 450); }
+function planSystem(){
+  return [{type:"text", text:PLAN_SYSTEM}, progBlock(), {type:"text", text:"YİYECEK LİSTESİ (adı birebir kullan): " + foodNames().join("; "), cache_control:{type:"ephemeral"}}];
+}
+function planContext(date){
+  const L = [], today = date === todayStr(), list = entries(date);
+  L.push(`TARİH: ${date}${today ? ` (bugün), SAAT: ${new Date().toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})} — saati geçmiş öğünleri planlama` : " (ileri tarih; tüm günü planla)"}`);
+  L.push(`KALAN BÜTÇE: ${remainingText(date)}`);
+  L.push(today ? "BUGÜNE KADAR:" : "BU GÜN İÇİN KAYITLAR:"); L.push(...todayLines(date));
+  L.push(`SU: ${((waterLog[date] || 0) / 1000).toFixed(1)} L / hedef ${(waterGoalMl() / 1000).toFixed(1)} L · KAFEİN: ${fmt0(sumCaf(list))} mg / sınır ${fmt0(cafLimit())} mg`);
+  const pc = packContext(); if (pc) L.push(pc.trim());
+  L.push(today ? "Günün kalanını JSON olarak planla." : "Günü JSON olarak planla.");
+  return L.join("\n");
+}
+function planFrom(j){
+  const num = (v) => Math.max(0, +v || 0), st = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
+  const meals = (Array.isArray(j.meals) ? j.meals : []).slice(0, 6).map((m) => {
+    const items = (Array.isArray(m.items) ? m.items : []).slice(0, 8).map((it) => { const o = {name:st(it.food || it.name, 80), g:num(it.grams), kcal:num(it.kcal), p:num(it.protein_g), c:num(it.carb_g), f:num(it.fat_g), note:st(it.note, 120)}; if (!o.kcal) o.kcal = macroKcal(o.p, o.c, o.f); return Object.assign(o, sugVals(o)); }).filter((it) => it.name);
+    return {name:st(m.name, 40) || "Öğün", time:st(m.time, 20), ref:st(m.program_ref, 200), items, kcal:items.reduce((x, it) => x + it.kcal, 0)};
+  }).filter((m) => m.items.length || m.ref);
+  const sum = (k) => meals.reduce((x, m) => x + m.items.reduce((y, it) => y + it[k], 0), 0);
+  return {summary:st(j.summary, 500), meals, total:{kcal:sum("kcal"), p:sum("p"), c:sum("c"), f:sum("f")}, end:st(j.end_of_day, 300), swaps:arr(j.swaps).slice(0, 5), lactose:st(j.lactose, 300), conf:st(j.confidence, 10)};
+}
+function renderPlanBtn(){
+  const show = !!ai.key && curDate >= todayStr();
+  $("planRow").classList.toggle("hidden", !show); if (!show) return;
+  plans = load(LS.plans, {}); const p = plans[curDate];
+  $("planBtn").textContent = p ? "🗓️ Planı göster" : (curDate === todayStr() ? "🗓️ Günün kalanını planla" : "🗓️ Günü planla");
+  $("planMeta").textContent = p ? `Son plan: ${new Date(p.t).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}` : "";
+}
+async function runPlan(force){
+  if (!ai.key){ askClaude(""); return; }
+  plans = load(LS.plans, {});
+  if (!force && plans[curDate]){ renderPlan(); return; }
+  $("planBox").classList.remove("hidden");
+  $("planBox").innerHTML = `<div class="selname"><b><span class="spin"></span>${program ? "Programa ve kalan bütçeye göre" : "Kalan bütçeye göre"} planlanıyor…</b><span class="muted">15-40 sn sürebilir.</span></div>`;
+  try{
+    const j = await claudeCall(planSystem(), [{role:"user", content:planContext(curDate)}], false, "plan", {effort:"medium", maxTokens:5000});
+    const data = planFrom(j);
+    if (!data.meals.length && !data.summary) throw new Error("Plan üretilemedi.");
+    plans = load(LS.plans, {}); plans[curDate] = {t:Date.now(), data};
+    const keys = Object.keys(plans).sort(); while (keys.length > 30) delete plans[keys.shift()];
+    save(LS.plans, plans);
+    renderPlan(); renderPlanBtn();
+  }catch(e){
+    $("planBox").innerHTML = `<div class="selname"><b>Plan alınamadı</b><span class="muted">${esc(e.name === "AbortError" ? "Zaman aşımı." : e.message)}</span></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="planRetry">Tekrar dene</button><button class="ghost" id="planClose">Kapat</button></div>`;
+  }
+}
+function renderPlan(){
+  const p = plans[curDate]; if (!p){ $("planBox").classList.add("hidden"); return; }
+  const d = p.data;
+  $("planBox").classList.remove("hidden");
+  $("planBox").innerHTML = `<div class="rv">
+    <div class="row between"><b>🗓️ ${curDate === todayStr() ? "Günün kalanı" : "Gün planı"}${d.conf ? `<span class="conf">güven: ${esc(d.conf)}</span>` : ""}</b><span class="muted" style="font-size:12px">${new Date(p.t).toLocaleString("tr-TR", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})}</span></div>
+    ${d.summary ? `<p style="margin-top:8px">${esc(d.summary)}</p>` : ""}
+    ${d.meals.map((m, mi) => `<div class="pm"><div class="row between"><b>${esc(m.name)}${m.time ? ` <span class="muted" style="font-weight:400">${esc(m.time)}</span>` : ""} <span class="muted" style="font-weight:400">· ${fmt0(m.kcal)} kcal</span></b>${m.items.length ? `<button class="sm" data-pmi="${mi}" title="Öğündeki hepsini günlüğe ekle">Öğünü ekle</button>` : ""}</div>
+      ${m.ref ? `<div class="hint" style="margin:2px 0 0">Programda: ${esc(m.ref)}</div>` : ""}
+      ${m.items.map((it, ii) => `<div class="food"><div class="en"><b>${esc(it.name)}${it.listed ? "" : '<span class="tag">serbest</span>'}</b><span class="muted">${fmt0(it.g)} g · ${fmt0(it.kcal)} kcal · P ${fmt1(it.p)} K ${fmt1(it.c)} Y ${fmt1(it.f)}${it.note ? ` · ${esc(it.note)}` : ""}</span></div><div class="acts"><button data-pmi="${mi}" data-pii="${ii}" title="Günlüğe ekle">＋</button></div></div>`).join("")}</div>`).join("")}
+    <div class="ptot"><b>Plan toplamı: ${fmt0(d.total.kcal)} kcal</b><span class="mini">${d.total.p || d.total.c || d.total.f ? macroLine(d.total) : ""}</span></div>
+    ${d.end ? `<div class="hint" style="margin:6px 0 0">${esc(d.end)}</div>` : ""}
+    ${d.lactose ? `<div class="hint" style="margin:6px 0 0;color:var(--carb)">🥛 ${esc(d.lactose)}</div>` : ""}
+    ${d.swaps.length ? `<h3>Değişim seçenekleri</h3><ul>${d.swaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <div class="hint" id="planMsg" style="margin:6px 0 0;color:var(--ok)"></div>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="planRefresh">Yenile (yeni çağrı)</button><button class="ghost" id="planClose" style="margin-left:auto">Kapat</button></div>
+    <div class="hint">Listedeki adla birebir eşleşen maddeler listenin değerleriyle eklenir; "serbest" olanlar Claude'un tahminiyle. Eklenenler "plan" etiketi taşır.</div>
+  </div>`;
+}
+function planAdd(mi, ii){
+  const p = plans[curDate]; if (!p) return;
+  const m = p.data.meals[mi]; if (!m) return;
+  const items = ii == null ? m.items : [m.items[ii]].filter(Boolean);
+  const meal = MEALS.includes(m.name) ? m.name : (MEALS.find((x) => norm(m.name).includes(norm(x).slice(0, 3))) || "Ara öğün");
+  for (const it of items) addEntry(curDate, entryFromSuggestion(it, meal, "plan"));
+  renderDay();
+  const msg = $("planMsg"); if (msg) msg.textContent = items.length ? `Eklendi (${meal}): ${items.map((it) => it.name).join(", ")}` : "";
 }
 
 function acceptAi(){
@@ -2489,7 +2746,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportPayload(){
-  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, waterLog, waterAdds, reviews:load(LS.reviews, {}), program};
+  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, waterLog, waterAdds, reviews:load(LS.reviews, {}), program, plans:load(LS.plans, {})};
 }
 // Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
 async function exportData(){
@@ -2543,6 +2800,7 @@ function importData(file){
       waterAdds = d.waterAdds && typeof d.waterAdds === "object" ? d.waterAdds : {}; save(LS.waterAdds, waterAdds);
       program = d.program && typeof d.program === "object" && d.program.plan ? d.program : null; if (program) save(LS.program, program); else localStorage.removeItem(LS.program);
       progDraft = null; progMode = "";
+      if (d.plans && typeof d.plans === "object") save(LS.plans, d.plans); else localStorage.removeItem(LS.plans);
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
       save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
@@ -2554,7 +2812,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {}; waterLog = {}; waterAdds = {}; program = null; progDraft = null; progMode = "";
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {}; waterLog = {}; waterAdds = {}; program = null; progDraft = null; progMode = ""; menu = null; $("menuBox").classList.add("hidden"); $("planBox").classList.add("hidden");
   renderAll();
 }
 
@@ -2745,6 +3003,19 @@ function init(){
   $("progFile").addEventListener("change", () => { const fs = Array.from($("progFile").files || []); if (fs.length) programRead(fs); $("progFile").value = ""; });
   $("fitBtn").addEventListener("click", () => { if (!sel) return; const g = selGrams(), k = g / 100; if (!(g > 0)){ $("selQ").focus(); return; } runFit([{name:sel.name, g, kcal:sel.kcal * k, p:sel.p * k, c:sel.c * k, f:sel.f * k}], $("selMeal").value, "fitBox", "sel"); });
   $("fitBox").addEventListener("click", onFitClick);
+  // menü fotoğrafı
+  $("menuBtn").addEventListener("click", () => $("menuInput").click());
+  $("menuInput").addEventListener("change", () => { const fs = Array.from($("menuInput").files || []); if (fs.length) menuPick(fs); $("menuInput").value = ""; });
+  $("menuBox").addEventListener("click", onMenuClick);
+  // günün kalanı planı
+  $("planBtn").addEventListener("click", () => runPlan(false));
+  $("planBox").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.id === "planRefresh"){ if (confirm("Yeni bir çağrı yapılacak (ücretli). Devam?")) runPlan(true); }
+    else if (b.id === "planRetry") runPlan(true);
+    else if (b.id === "planClose") $("planBox").classList.add("hidden");
+    else if (b.dataset.pmi != null) planAdd(+b.dataset.pmi, b.dataset.pii != null ? +b.dataset.pii : null);
+  });
 
   renderAll();
   refreshPacks();
