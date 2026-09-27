@@ -84,6 +84,8 @@
   .geninfo .gcap{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
   .geninfo .gnum{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
   .geninfo .gnum small{font-size:13px;font-weight:600;color:var(--muted);margin-left:4px}
+  .hydro{margin:4px 0 12px;font-size:14px;font-variant-numeric:tabular-nums}
+  .hydro .tbar>div{transition:width .3s}
   .tgt{margin:4px 0 8px}
   .tgtl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
   .tbar{height:8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
@@ -235,6 +237,18 @@
       <div id="targetBox"></div>
       <div class="row hidden" id="reviewRow" style="margin-bottom:10px"><button class="primary" id="reviewBtn">🩺 Yorumla</button><span class="muted" id="reviewMeta" style="font-size:12px"></span></div>
       <div id="reviewBox" class="selbox hidden"></div>
+      <div class="hydro">
+        <div class="row between">
+          <span>💧 Su <b id="waterVal">0 L</b> <span class="muted">/ <span id="waterGoal"></span></span></span>
+          <div class="row tight"><button class="sm" data-w="200">+200</button><button class="sm" data-w="330">+330</button><button class="sm" data-w="500">+500</button><button class="sm ghost" data-w="-200" title="Geri al">−</button></div>
+        </div>
+        <div class="tbar" style="margin-top:6px"><div id="waterBar" style="background:var(--prot)"></div></div>
+        <div class="row between" style="margin-top:10px">
+          <span>☕ Kafein <b id="cafVal">0 mg</b> <span class="muted">/ <span id="cafLim"></span></span></span>
+          <span class="muted" id="cafLast" style="font-size:12px"></span>
+        </div>
+        <div class="tbar" style="margin-top:6px"><div id="cafBar"></div></div>
+      </div>
       <div id="energyBox" class="hidden">
         <div class="hint" id="dayEnergy" style="margin:0 0 8px"></div>
         <div class="row" style="margin-bottom:10px"><label class="lbl" style="margin:0;flex:1 1 auto">Bugün attığım adım (isteğe bağlı)</label><input type="number" id="daySteps" min="0" step="100" inputmode="numeric" placeholder="ör. 6000" style="width:120px;flex:0 0 auto"></div>
@@ -305,6 +319,7 @@
           <div><label class="lbl">Karb g</label><input type="number" id="mC" min="0" step="0.1" inputmode="decimal"></div>
           <div><label class="lbl">Yağ g</label><input type="number" id="mF" min="0" step="0.1" inputmode="decimal"></div>
         </div>
+        <div class="grid2" style="margin-top:8px"><div><label class="lbl">Kafein (mg, isteğe bağlı)</label><input type="number" id="mCaf" min="0" step="1" inputmode="numeric"></div></div>
         <div class="grid2" style="margin-top:8px">
           <div><label class="lbl">Öğün</label><select id="mMeal"></select></div>
           <div><label class="chk"><input type="checkbox" id="mSave"> Yiyecek listesine de kaydet</label></div>
@@ -343,6 +358,7 @@
           <div><label class="lbl">Karb g</label><input type="number" id="fC" min="0" step="0.1" inputmode="decimal"></div>
           <div><label class="lbl">Yağ g</label><input type="number" id="fF" min="0" step="0.1" inputmode="decimal"></div>
         </div>
+        <div class="grid2" style="margin-top:8px"><div><label class="lbl">Kafein (mg / 100 g-ml)</label><input type="number" id="fCaf" min="0" step="1" inputmode="numeric" placeholder="0"></div></div>
         <div class="grid2" style="margin-top:8px">
           <div><label class="lbl">Porsiyon adı (isteğe bağlı)</label><input type="text" id="fPl" placeholder="1 dilim"></div>
           <div><label class="lbl">Porsiyon (g)</label><input type="number" id="fPg" min="0" step="1" inputmode="decimal"></div>
@@ -460,6 +476,10 @@
       <div class="grid2" style="margin-top:8px">
         <div><label class="lbl">Günlük açık (kcal; kilo vermek için)</label><input type="number" id="pDef" min="0" max="1500" step="50" inputmode="numeric" placeholder="0"></div>
         <div><label class="lbl">Hedef</label><select id="pGoal"><option value="koruma">Kilo koruma</option><option value="verme">Kilo verme</option><option value="kas">Kas kazanımı</option></select></div>
+      </div>
+      <div class="grid2" style="margin-top:8px">
+        <div><label class="lbl">Su hedefi (L/gün; boşsa 35 ml × kilo)</label><input type="number" id="pWater" min="0" max="10" step="0.1" inputmode="decimal" placeholder="2,8"></div>
+        <div><label class="lbl">Kafein sınırı (mg/gün; boşsa 400)</label><input type="number" id="pCaf" min="0" max="1000" step="10" inputmode="numeric" placeholder="400"></div>
       </div>
       <label class="lbl" style="margin-top:8px">Sağlık notu (isteğe bağlı; uzman yorumunda dikkate alınır)</label>
       <input type="text" id="pNotes" placeholder="ör. tip 2 diyabet, tansiyon ilacı, laktoz hassasiyeti" maxlength="300">
@@ -582,7 +602,7 @@ function fmtQ(q){ if (q === 0.5) return "½"; if (q === 1.5) return "1½"; retur
 
 /* ------------------------------------------------------------------ */
 /* Yerleşik yiyecek tablosu — 100 g başına yaklaşık değerler           */
-/* [id, ad, kcal, protein, karbonhidrat, yağ, porsiyon adı, porsiyon g, kategori] */
+/* [id, ad, kcal, protein, karbonhidrat, yağ, porsiyon adı, porsiyon g, kategori, kafein mg/100 (isteğe bağlı)] */
 /* ------------------------------------------------------------------ */
 const BUILTIN = [
   // Ekmek & tahıl
@@ -724,8 +744,8 @@ const BUILTIN = [
   ["hamburger","Hamburger",250,13,25,11,"1 adet",220,"hamur"],
   ["tost","Peynirli tost",300,13,33,13,"1 adet",120,"hamur"],
   // Tatlı & atıştırmalık
-  ["cikolata","Sütlü çikolata",535,7.7,59,30,"1 paket",80,"tatli"],
-  ["bitter","Bitter çikolata (%70)",598,7.8,46,43,"1 kare",10,"tatli"],
+  ["cikolata","Sütlü çikolata",535,7.7,59,30,"1 paket",80,"tatli",20],
+  ["bitter","Bitter çikolata (%70)",598,7.8,46,43,"1 kare",10,"tatli",80],
   ["biskuvi","Bisküvi",480,6,65,21,"1 adet",10,"tatli"],
   ["kek","Kek",380,5,50,17,"1 dilim",60,"tatli"],
   ["baklava","Baklava",430,6,50,23,"1 dilim",40,"tatli"],
@@ -733,26 +753,28 @@ const BUILTIN = [
   ["dondurma","Dondurma",207,3.5,24,11,"1 top",60,"tatli"],
   ["cips","Patates cipsi",536,7,53,35,"1 küçük paket",40,"tatli"],
   // İçecek & diğer
-  ["kola","Kola",42,0,10.6,0,"1 kutu",330,"icecek"],
+  ["kola","Kola",42,0,10.6,0,"1 kutu",330,"icecek",10],
   ["portakal-suyu","Portakal suyu",45,0.7,10.4,0.2,"1 bardak",200,"icecek"],
-  ["cay","Çay (şekersiz)",1,0,0.3,0,"1 bardak",150,"icecek"],
-  ["kahve","Kahve / Türk kahvesi (sade)",2,0.1,0,0,"1 fincan",60,"icecek"],
-  ["turk-kahvesi-sekerli","Türk kahvesi (orta şekerli)",30,0.1,7,0,"1 fincan (70 ml)",70,"icecek"],
-  ["americano","Americano",3,0.3,0.6,0,"1 orta (300 ml)",300,"icecek"],
-  ["iced-americano","Iced Americano",3,0.3,0.6,0,"1 orta (350 ml)",350,"icecek"],
-  ["espresso","Espresso",10,0.3,1.7,0,"1 shot (30 ml)",30,"icecek"],
-  ["filtre-kahve","Filtre kahve (sade)",1,0.3,0,0,"1 kupa (250 ml)",250,"icecek"],
-  ["latte","Latte (yarım yağlı süt)",42,2.6,4,1.7,"1 orta (300 ml)",300,"icecek"],
-  ["latte-yagsiz","Latte (yağsız süt)",27,2.7,4,0,"1 orta (300 ml)",300,"icecek"],
-  ["iced-latte","Iced Latte",27,1.7,2.7,1,"1 orta (350 ml)",350,"icecek"],
-  ["cappuccino","Cappuccino",28,1.8,2.7,1.1,"1 orta (250 ml)",250,"icecek"],
-  ["flat-white","Flat White",46,2.5,3.8,2.3,"1 adet (240 ml)",240,"icecek"],
-  ["cortado","Cortado",40,2.5,3.8,1.5,"1 fincan (150 ml)",150,"icecek"],
-  ["macchiato","Espresso Macchiato",30,1.5,2,1,"1 fincan (40 ml)",40,"icecek"],
-  ["mocha","Mocha (kremalı)",75,2.6,9,3,"1 orta (300 ml)",300,"icecek"],
-  ["nescafe","Nescafé / hazır kahve (sade)",2,0.1,0.3,0,"1 kupa (250 ml)",250,"icecek"],
-  ["nescafe-sutlu","Hazır kahve (sütlü, şekersiz)",25,1.3,2,1.3,"1 kupa (250 ml)",250,"icecek"],
-  ["3u1arada","3'ü 1 arada (toz)",440,3,80,11,"1 poşet",18,"icecek"],
+  ["cay","Çay (şekersiz)",1,0,0.3,0,"1 bardak",150,"icecek",20],
+  ["yesil-cay","Yeşil çay",1,0,0.2,0,"1 bardak",200,"icecek",15],
+  ["enerji-icecegi","Enerji içeceği",45,0,11,0,"1 kutu",250,"icecek",32],
+  ["kahve","Kahve / Türk kahvesi (sade)",2,0.1,0,0,"1 fincan",60,"icecek",80],
+  ["turk-kahvesi-sekerli","Türk kahvesi (orta şekerli)",30,0.1,7,0,"1 fincan (70 ml)",70,"icecek",70],
+  ["americano","Americano",3,0.3,0.6,0,"1 orta (300 ml)",300,"icecek",43],
+  ["iced-americano","Iced Americano",3,0.3,0.6,0,"1 orta (350 ml)",350,"icecek",40],
+  ["espresso","Espresso",10,0.3,1.7,0,"1 shot (30 ml)",30,"icecek",212],
+  ["filtre-kahve","Filtre kahve (sade)",1,0.3,0,0,"1 kupa (250 ml)",250,"icecek",40],
+  ["latte","Latte (yarım yağlı süt)",42,2.6,4,1.7,"1 orta (300 ml)",300,"icecek",32],
+  ["latte-yagsiz","Latte (yağsız süt)",27,2.7,4,0,"1 orta (300 ml)",300,"icecek",32],
+  ["iced-latte","Iced Latte",27,1.7,2.7,1,"1 orta (350 ml)",350,"icecek",30],
+  ["cappuccino","Cappuccino",28,1.8,2.7,1.1,"1 orta (250 ml)",250,"icecek",35],
+  ["flat-white","Flat White",46,2.5,3.8,2.3,"1 adet (240 ml)",240,"icecek",55],
+  ["cortado","Cortado",40,2.5,3.8,1.5,"1 fincan (150 ml)",150,"icecek",42],
+  ["macchiato","Espresso Macchiato",30,1.5,2,1,"1 fincan (40 ml)",40,"icecek",158],
+  ["mocha","Mocha (kremalı)",75,2.6,9,3,"1 orta (300 ml)",300,"icecek",37],
+  ["nescafe","Nescafé / hazır kahve (sade)",2,0.1,0.3,0,"1 kupa (250 ml)",250,"icecek",24],
+  ["nescafe-sutlu","Hazır kahve (sütlü, şekersiz)",25,1.3,2,1.3,"1 kupa (250 ml)",250,"icecek",22],
+  ["3u1arada","3'ü 1 arada (toz)",440,3,80,11,"1 poşet",18,"icecek",250],
   ["bira","Bira",43,0.5,3.6,0,"1 şişe (50 cl)",500,"icecek"],
   ["sarap","Şarap (kırmızı)",85,0.1,2.6,0,"1 kadeh",150,"icecek"],
   ["protein-tozu","Protein tozu (whey)",400,80,8,6,"1 ölçek",30,"diger"],
@@ -857,7 +879,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews", water:"yemekWater" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -876,16 +898,16 @@ let packData = load(LS.packData, {});       // indirilen paket içerikleri {id:{
 /* Mutfak paketleri — ayrı dosyalarda, seçilince indirilir ve kalır    */
 /* ------------------------------------------------------------------ */
 const PACKS = [
-  {id:"si", name:"Slovenya", flag:"🇸🇮", v:1, desc:"Ljubljana ve Slovenya: jota, štruklji, kranjska klobasa, potica, kremšnita…"},
-  {id:"eu", name:"Avrupa restoran klasikleri", flag:"🇪🇺", v:1, desc:"Steak, makarnalar, pizza, salatalar, tatlılar, kahveler, soslar"},
-  {id:"it", name:"İtalya", flag:"🇮🇹", v:1, desc:"Focaccia, ossobuco, cacio e pepe, mozzarella, cannoli…"},
+  {id:"si", name:"Slovenya", flag:"🇸🇮", v:2, desc:"Ljubljana ve Slovenya: jota, štruklji, kranjska klobasa, potica, kremšnita…"},
+  {id:"eu", name:"Avrupa restoran klasikleri", flag:"🇪🇺", v:2, desc:"Steak, makarnalar, pizza, salatalar, tatlılar, kahveler, soslar"},
+  {id:"it", name:"İtalya", flag:"🇮🇹", v:2, desc:"Focaccia, ossobuco, cacio e pepe, mozzarella, cannoli…"},
   {id:"fr", name:"Fransa", flag:"🇫🇷", v:1, desc:"Quiche, bœuf bourguignon, peynirler, crème brûlée, macaron…"},
-  {id:"de", name:"Almanya & Avusturya", flag:"🇩🇪", v:1, desc:"Schnitzel, Bratwurst, Brezel, Spätzle, Sachertorte, Weißbier…"},
-  {id:"es", name:"İspanya", flag:"🇪🇸", v:1, desc:"Paella, tortilla, tapas, jamón, churros, sangria…"},
-  {id:"gr", name:"Yunanistan", flag:"🇬🇷", v:1, desc:"Moussaka, souvlaki, gyros, tzatziki, feta, loukoumades…"},
+  {id:"de", name:"Almanya & Avusturya", flag:"🇩🇪", v:2, desc:"Schnitzel, Bratwurst, Brezel, Spätzle, Sachertorte, Weißbier…"},
+  {id:"es", name:"İspanya", flag:"🇪🇸", v:2, desc:"Paella, tortilla, tapas, jamón, churros, sangria…"},
+  {id:"gr", name:"Yunanistan", flag:"🇬🇷", v:2, desc:"Moussaka, souvlaki, gyros, tzatziki, feta, loukoumades…"},
   {id:"ba", name:"Balkanlar", flag:"🇭🇷", v:1, desc:"Hırvatistan, Bosna, Sırbistan: ćevapi, peka, ajvar, kajmak, krempita…"},
   {id:"ce", name:"Orta Avrupa", flag:"🇨🇿", v:1, desc:"Çekya, Macaristan, Polonya: svíčková, gulyás, lángos, pierogi, trdelník…"},
-  {id:"kafe", name:"Kafe zincirleri", flag:"☕", v:1, desc:"Starbucks, Arabica Coffee, Caffè Nero: latte, cappuccino, mocha, frappuccino, şurup… Boy: Tall 354 · Grande 473 · Venti 591 ml (miktarı gram/ml olarak da yazabilirsin)"},
+  {id:"kafe", name:"Kafe zincirleri", flag:"☕", v:2, desc:"Starbucks, Arabica Coffee, Caffè Nero: latte, cappuccino, mocha, frappuccino, şurup… Boy: Tall 354 · Grande 473 · Venti 591 ml (miktarı gram/ml olarak da yazabilirsin)"},
 ];
 function packById(id){ return PACKS.find((p) => p.id === id); }
 async function fetchPack(p){
@@ -949,7 +971,7 @@ function allFoods(){
   const base = [];
   for (const a of BUILTIN){
     if (hidden.includes(a[0])) continue;
-    const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", builtin:true};
+    const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", caf:+a[9] || 0, builtin:true};
     base.push(overrides[a[0]] ? Object.assign(f, overrides[a[0]]) : f);
   }
   for (const id of packsOn){
@@ -957,11 +979,11 @@ function allFoods(){
     if (!p || !d) continue;
     for (const a of d.items){
       if (hidden.includes(a[0])) continue;
-      const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", builtin:true, pack:p.id};
+      const f = {id:a[0], name:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], pl:a[6] || "", pg:a[7] || 0, cat:a[8] || "diger", caf:+a[9] || 0, builtin:true, pack:p.id};
       base.push(overrides[a[0]] ? Object.assign(f, overrides[a[0]]) : f);
     }
   }
-  return base.concat(customFoods.map((f) => Object.assign({pl:"", pg:0, cat:"diger"}, f, {builtin:false})));
+  return base.concat(customFoods.map((f) => Object.assign({pl:"", pg:0, cat:"diger", caf:0}, f, {builtin:false})));
 }
 function foodTag(f){
   if (!f.builtin) return `<span class="tag">${f.src === "ai" ? "AI" : f.src === "off" ? "barkod" : "özel"}</span>`;
@@ -994,6 +1016,7 @@ function syncFromStorage(){
   profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
   stepsLog = load(LS.steps, {});
   weightLog = load(LS.weights, {});
+  waterLog = load(LS.water, {});
 }
 /* ------------------------------------------------------------------ */
 /* Profil, enerji bütçesi ve adım eşdeğeri                             */
@@ -1001,6 +1024,12 @@ function syncFromStorage(){
 let profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}, load(LS.profile, {}));
 let stepsLog = load(LS.steps, {});   // {"YYYY-MM-DD": atılan adım}
 let weightLog = load(LS.weights, {}); // {"YYYY-MM-DD": kg} — profil kilosu her değişimde tarihiyle saklanır
+let waterLog = load(LS.water, {});    // {"YYYY-MM-DD": ml}
+const CAF_LIMIT_DEFAULT = 400;         // yetişkin için yaygın üst sınır (EFSA); gebelikte 200
+function waterGoalMl(){ return profile.water > 0 ? Math.round(profile.water * 1000) : (profile.w > 0 ? Math.round(profile.w * 35) : 2500); }
+function cafLimit(){ return profile.caf > 0 ? profile.caf : CAF_LIMIT_DEFAULT; }
+function sumCaf(list){ return list.reduce((a, e) => a + (+e.caf || 0), 0); }
+function lastCafTime(list){ const ts = list.filter((e) => +e.caf > 0 && e.ts).map((e) => e.ts); return ts.length ? Math.max(...ts) : 0; }
 const BASE_STEPS = 2500;            // masa başı katsayısının zaten içerdiği günlük yürüme
 function profileOk(){ return profile.h > 0 && profile.w > 0; }
 // Bazal metabolizma: Mifflin-St Jeor
@@ -1034,7 +1063,7 @@ function dayEnergy(intake, date){
   return {budget:b, walked, extra, surplus, text: surplus > 0 ? `+${fmt0(surplus)} kcal fazla` + (c ? ` · ${stepsText(surplus, true)}` : "") : `${fmt0(-surplus)} kcal kredi`};
 }
 function entries(date){ return log[date] || []; }
-function addEntry(date, e){ syncFromStorage(); (log[date] = log[date] || []).push(e); save(LS.log, log); }
+function addEntry(date, e){ syncFromStorage(); if (!e.ts) e.ts = Date.now(); (log[date] = log[date] || []).push(e); save(LS.log, log); }
 function removeEntry(date, id){
   syncFromStorage();
   const list = entries(date); const i = list.findIndex((x) => x.id === id);
@@ -1095,6 +1124,17 @@ function renderSummary(list){
           <div class="tbar"><div style="width:${ratio}%;background:${left >= 0 ? "var(--ok)" : "var(--warn)"}"></div></div></div>`;
   }
   $("targetBox").innerHTML = th;
+  // su
+  const wml = +(waterLog[curDate] || 0), wg = waterGoalMl();
+  $("waterVal").textContent = (wml / 1000).toLocaleString("tr-TR", {minimumFractionDigits:1, maximumFractionDigits:2}) + " L";
+  $("waterGoal").textContent = (wg / 1000).toLocaleString("tr-TR", {maximumFractionDigits:1}) + " L";
+  $("waterBar").style.width = Math.min(100, wml / wg * 100) + "%";
+  // kafein
+  const cmg = sumCaf(list), cl = cafLimit(), lt = lastCafTime(list);
+  $("cafVal").textContent = fmt0(cmg) + " mg"; $("cafLim").textContent = fmt0(cl) + " mg";
+  $("cafBar").style.width = Math.min(100, cmg / cl * 100) + "%";
+  $("cafBar").style.background = cmg > cl ? "var(--fat)" : cmg > cl * 0.75 ? "var(--carb)" : "var(--ok)";
+  $("cafLast").textContent = lt ? "son: " + new Date(lt).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"}) : "";
   const de = dayEnergy(s.kcal, curDate);
   $("energyBox").classList.toggle("hidden", !de);
   if (de){
@@ -1140,7 +1180,7 @@ function renderLog(list){
       if (e.id === editId){ h += editForm(e); continue; }
       h += `<div class="ent" data-id="${e.id}">
         <div class="en"><b>${esc(e.name)}${e.tag === "foto" ? '<span class="tag">foto</span>' : ""}</b><span class="muted">${e.ul ? fmtQ(e.q) + " " + esc(e.ul) + " · " : ""}${e.g > 0 ? fmt0(e.g) + " g" : "miktar girilmedi"}</span></div>
-        <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span>${stepsFor(e.kcal) ? `<span class="mini"><i style="color:var(--ok)">A ${fmt0(stepsFor(e.kcal))}</i> <span class="muted">adım</span></span>` : ""}</div>
+        <div class="ev"><b>${fmt0(e.kcal)} kcal</b><span class="mini">${macroLine(e)}</span>${stepsFor(e.kcal) || e.caf > 0 ? `<span class="mini">${stepsFor(e.kcal) ? `<i style="color:var(--ok)">A ${fmt0(stepsFor(e.kcal))}</i> <span class="muted">adım</span>` : ""}${e.caf > 0 ? `${stepsFor(e.kcal) ? " · " : ""}☕ ${fmt0(e.caf)} mg` : ""}</span>` : ""}</div>
         <div class="acts"><button data-act="edit" title="Düzenle">✎</button><button data-act="del" class="danger" title="Sil">✕</button></div>
       </div>`;
     }
@@ -1175,7 +1215,7 @@ function saveEdit(id){
   if (Math.abs(g - (e.g || 0)) > 0.01){ e.q = null; e.ul = null; }
   if (e.ref){
     e.g = g; const k = g / 100;
-    e.kcal = e.ref.kcal * k; e.p = e.ref.p * k; e.c = e.ref.c * k; e.f = e.ref.f * k;
+    e.kcal = e.ref.kcal * k; e.p = e.ref.p * k; e.c = e.ref.c * k; e.f = e.ref.f * k; e.caf = (e.ref.caf || 0) * k;
   } else {
     e.g = g;
     e.p = +$("eP").value || 0; e.c = +$("eC").value || 0; e.f = +$("eF").value || 0;
@@ -1215,7 +1255,7 @@ Yöntem:
 4. Kategori şunlardan biri: corba, yemek, tahil, hamur, et, baklagil, sebze, meyve, sut, peynir, meze, yag, kuruyemis, tatli, icecek, diger.
 
 Yanıtın YALNIZCA aşağıdaki JSON nesnesi olsun; öncesinde veya sonrasında başka metin yazma:
-{"name":"yemeğin düzgün Türkçe adı","kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"category":"yemek","portion_label":"1 porsiyon","portion_g":0,"units":{"yemek_kasigi_g":0,"kase_g":0,"yemek_tabagi_g":0},"recipe_note":"esas alınan tarif/varsayımlar, 1-2 cümle","source":"kaynak adı veya URL","confidence":"yüksek|orta|düşük"}`;
+{"name":"yemeğin düzgün Türkçe adı","kcal":0,"protein_g":0,"carb_g":0,"fat_g":0,"category":"yemek","portion_label":"1 porsiyon","portion_g":0,"units":{"yemek_kasigi_g":0,"kase_g":0,"yemek_tabagi_g":0},"caffeine_mg_100g":0,"recipe_note":"esas alınan tarif/varsayımlar, 1-2 cümle","source":"kaynak adı veya URL","confidence":"yüksek|orta|düşük"}`;
 
 function packContext(){
   const ctxPacks = packsOn.map(packById).filter(Boolean).map((p) => p.name);
@@ -1355,7 +1395,7 @@ function aiToFood(j, asked){
   const cat = CATS[j.category] ? j.category : "diger";
   const pg = num(j.portion_g) || unitDefaults({cat}).porsiyon;
   return {id:"c_" + uid(), name:String(j.name || asked).trim().slice(0, 80) || asked, kcal, p, c, f, cat, u,
-          pl:String(j.portion_label || "1 porsiyon").slice(0, 40), pg, src:"ai",
+          pl:String(j.portion_label || "1 porsiyon").slice(0, 40), pg, src:"ai", caf:num(j.caffeine_mg_100g),
           note:String(j.recipe_note || "").slice(0, 400), source:String(j.source || "").slice(0, 200), conf:String(j.confidence || "").slice(0, 10)};
 }
 let aiPending = null;
@@ -1542,12 +1582,13 @@ Ev ölçüleri gram tablosu (kategori: ölçü):
 ${unitTableText()}
 Kategori değerleri: corba, yemek, tahil, hamur, et, baklagil, sebze, meyve, sut, peynir, meze, yag, kuruyemis, tatli, icecek, diger.
 YALNIZCA şu JSON nesnesini döndür, başka metin yazma:
-{"items":[{"name":"Pirinç pilavı","grams":150,"kcal_100g":165,"protein_100g":3,"carb_100g":27,"fat_100g":5,"category":"tahil"}],"questions":[{"id":"q1","text":"Pilav ne kadar?","options":[{"label":"3 yemek kaşığı","hint":"≈60 g"},{"label":"Yarım tabak","hint":"≈125 g"},{"label":"Tam tabak","hint":"≈250 g"}]}],"notes":"kısa gözlem","confidence":"yüksek|orta|düşük"}`;
+{"items":[{"name":"Pirinç pilavı","grams":150,"kcal_100g":165,"protein_100g":3,"carb_100g":27,"fat_100g":5,"caffeine_mg_100g":0,"category":"tahil"}],"questions":[{"id":"q1","text":"Pilav ne kadar?","options":[{"label":"3 yemek kaşığı","hint":"≈60 g"},{"label":"Yarım tabak","hint":"≈125 g"},{"label":"Tam tabak","hint":"≈250 g"}]}],"notes":"kısa gözlem","confidence":"yüksek|orta|düşük"}`;
 const PHOTO_SYSTEM2 = `Sen Türk ve Avrupa mutfağını iyi bilen bir beslenme uzmanısın. AŞAMA 2: Bir tabak fotoğrafından çıkarılan ilk bileşen tahmini ve kullanıcının anket cevapları verildi. Cevaplara göre gramları ve gerekiyorsa 100 g değerlerini (ör. bol yağ → yağ artar) güncelle; fotoğrafta görünmeyen ama cevaplarda belirtilenleri (ekmek, içecek, sos) yeni bileşen olarak ekle; "yok" denenleri çıkar. Cevaplanmamış soru için ilk tahmini koru.
 Ev ölçüleri gram tablosu (kategori: ölçü):
 ${unitTableText()}
 YALNIZCA şu JSON nesnesini döndür, başka metin yazma:
-{"items":[{"name":"...","grams":0,"kcal_100g":0,"protein_100g":0,"carb_100g":0,"fat_100g":0,"category":"yemek"}],"notes":"varsayımlar, 1-2 cümle","confidence":"yüksek|orta|düşük"}`;
+{"items":[{"name":"...","grams":0,"kcal_100g":0,"protein_100g":0,"carb_100g":0,"fat_100g":0,"caffeine_mg_100g":0,"category":"yemek"}],"notes":"varsayımlar, 1-2 cümle","confidence":"yüksek|orta|düşük"}
+caffeine_mg_100g: kahve, çay, kola, enerji içeceği, çikolata için 100 g/ml başına kafein; diğerlerinde 0.`;
 
 // Ölçek referansları: kullanıcı fotoğrafa koyar, boyutları modele verilir
 const PHOTO_REFS = {
@@ -1585,7 +1626,7 @@ function photoItemsFrom(j){
   const num = (v) => Math.max(0, +v || 0);
   const items = (Array.isArray(j.items) ? j.items : []).map((it) => ({
     name:String(it.name || "Bileşen").slice(0, 60), g:num(it.grams),
-    kcal:num(it.kcal_100g), p:num(it.protein_100g), c:num(it.carb_100g), f:num(it.fat_100g),
+    kcal:num(it.kcal_100g), p:num(it.protein_100g), c:num(it.carb_100g), f:num(it.fat_100g), caf:num(it.caffeine_mg_100g),
     cat:CATS[it.category] ? it.category : "diger"
   })).filter((it) => it.g > 0 && (it.kcal > 0 || it.p > 0 || it.c > 0 || it.f > 0));
   for (const it of items) if (!it.kcal) it.kcal = macroKcal(it.p, it.c, it.f);
@@ -1693,7 +1734,7 @@ function photoAddAll(){
   for (const it of photo.items){
     if (!(it.g > 0)) continue;
     const k = it.g / 100;
-    addEntry(curDate, {id:uid(), fid:null, name:it.name, g:it.g, kcal:it.kcal * k, p:it.p * k, c:it.c * k, f:it.f * k, meal, tag:"foto", ref:{kcal:it.kcal, p:it.p, c:it.c, f:it.f}});
+    addEntry(curDate, {id:uid(), fid:null, name:it.name, g:it.g, kcal:it.kcal * k, p:it.p * k, c:it.c * k, f:it.f * k, caf:(it.caf || 0) * k, meal, tag:"foto", ref:{kcal:it.kcal, p:it.p, c:it.c, f:it.f, caf:it.caf || 0}});
   }
   photo = null; $("photoBox").classList.add("hidden"); $("photoBox").innerHTML = "";
   renderDay();
@@ -1706,7 +1747,7 @@ function renderPhotoBtn(){ $("photoRow").classList.toggle("hidden", !ai.key); $(
 /* ------------------------------------------------------------------ */
 const GOAL_LABEL = {koruma:"kilo koruma", verme:"kilo verme", kas:"kas kazanımı"};
 const REVIEW_SYSTEM = `Sen deneyimli bir klinik diyetisyensin; Türk mutfağını ve gündelik yeme alışkanlıklarını iyi bilirsin. Kullanıcı, yemek günlüğü uygulamasından çıkan bir dosya gönderir: profil, enerji bütçesi, bugünün kayıtları, son 14 günün özeti, atılan adımlar, kilo geçmişi, veri kalitesi notları.
-Görevin: durumu dürüst ve doğrudan değerlendirmek. Nazik dolgu cümlesi yok; övgü gerekmiyorsa yok. Somut, ölçülebilir, yarın uygulanabilir öneriler. Türkçe yaz.
+Görevin: durumu dürüst ve doğrudan değerlendirmek. Su ve kafein verisi varsa onları da yorumla (kafein sınırı ve saatinin uykuya etkisi dahil). Nazik dolgu cümlesi yok; övgü gerekmiyorsa yok. Somut, ölçülebilir, yarın uygulanabilir öneriler. Türkçe yaz.
 Kurallar:
 - Yalnızca dosyadaki veriyle konuş; veri yoksa uydurma, "veri yok" de. Lif, şeker, sodyum, su, mikro besinler takip edilmiyor; bunlar hakkında ancak kayıtlı yiyeceklerden çıkarım yapabilirsin ve bunu belirt.
 - Protein ihtiyacını profilden hesapla (g/kg): koruma 1,2–1,6; kilo verme 1,6–2,0; kas kazanımı 1,6–2,2. Bugünün protein g/kg değerini ver.
@@ -1729,6 +1770,7 @@ function buildDossier(date){
   const list = entries(date), s = sumEntries(list), m = macroStats(s), de = dayEnergy(s.kcal, date);
   lines.push(`BUGÜN TOPLAM: ${fmt0(s.kcal)} kcal, P ${fmt1(s.p)} g, K ${fmt1(s.c)} g, Y ${fmt1(s.f)} g, E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}, yenen ağırlık ${fmt0(s.g)} g` + (P.w ? `, protein ${(s.p / P.w).toFixed(2)} g/kg` : ""));
   lines.push(`BUGÜN ENERJİ DURUMU: ${de ? de.text.replace(/≈.*$/, "").trim() + (de.walked ? ` (yürüyüş ${de.walked} adım, +${fmt0(de.extra)} kcal)` : "") : "bütçe yok"}`);
+  lines.push(`SU: ${((waterLog[date] || 0) / 1000).toFixed(1)} L / hedef ${(waterGoalMl() / 1000).toFixed(1)} L. KAFEİN: ${fmt0(sumCaf(list))} mg / sınır ${fmt0(cafLimit())} mg${lastCafTime(list) ? `, son kafein ${new Date(lastCafTime(list)).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}` : ""}`);
   lines.push("BUGÜN KAYITLAR:");
   if (!list.length) lines.push("- kayıt yok");
   for (const meal of MEALS) for (const e of list.filter((x) => x.meal === meal)) lines.push(`- [${meal}] ${e.name}: ${e.g ? fmt0(e.g) + " g" : "miktar yok"}, ${fmt0(e.kcal)} kcal, P ${fmt1(e.p)} K ${fmt1(e.c)} Y ${fmt1(e.f)}${e.tag === "foto" ? " (foto tahmini)" : e.fid && String(e.fid).startsWith("c_") ? " (özel/AI/barkod)" : ""}`);
@@ -1737,7 +1779,7 @@ function buildDossier(date){
   for (let i = 1; i <= 14; i++){
     const d = shiftDay(date, -i), l = entries(d), t = sumEntries(l);
     if (l.length) days++;
-    lines.push(`- ${d}: ${l.length ? `${fmt0(t.kcal)} kcal, ${fmt1(t.p)}/${fmt1(t.c)}/${fmt1(t.f)}, ${l.length} kayıt` : "kayıt yok"}${stepsLog[d] ? `, ${stepsLog[d]} adım` : ""}`);
+    lines.push(`- ${d}: ${l.length ? `${fmt0(t.kcal)} kcal, ${fmt1(t.p)}/${fmt1(t.c)}/${fmt1(t.f)}, ${l.length} kayıt` : "kayıt yok"}${stepsLog[d] ? `, ${stepsLog[d]} adım` : ""}${waterLog[d] ? `, su ${(waterLog[d] / 1000).toFixed(1)} L` : ""}${sumCaf(l) ? `, kafein ${fmt0(sumCaf(l))} mg` : ""}`);
   }
   lines.push(`VERİ KALİTESİ: son 14 günün ${days} gününde kayıt var; foto tahminleri ±%20-30; barkod verisi topluluk kaynaklı; kayıtsız gün = kaydedilmemiş.`);
   return lines.join("\n");
@@ -1894,8 +1936,8 @@ function addSelected(){
   if (!(g > 0)){ $("selQ").focus(); return; }
   const k = g / 100;
   addEntry(curDate, {id:uid(), fid:sel.id, name:sel.name, g, q:u.key === "g" ? null : q, ul:u.key === "g" ? null : u.label,
-                     kcal:sel.kcal * k, p:sel.p * k, c:sel.c * k, f:sel.f * k,
-                     meal:$("selMeal").value, ref:{kcal:sel.kcal, p:sel.p, c:sel.c, f:sel.f}});
+                     kcal:sel.kcal * k, p:sel.p * k, c:sel.c * k, f:sel.f * k, caf:(sel.caf || 0) * k,
+                     meal:$("selMeal").value, ref:{kcal:sel.kcal, p:sel.p, c:sel.c, f:sel.f, caf:sel.caf || 0}});
   pushRecent(sel.id);
   clearSelection();
   renderDay(); renderRecent();
@@ -1920,12 +1962,13 @@ function addManual(){
   if ($("mSave").checked){
     if (!ref){ alert("Listeye kaydetmek için miktar (g) gerekli."); return; }
     syncFromStorage();
-    const cf = {id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, pl:"1 porsiyon", pg:g, cat:"diger"};
+    const cf = {id:"c_" + uid(), name, kcal:ref.kcal, p:ref.p, c:ref.c, f:ref.f, caf:(+$("mCaf").value || 0) / g * 100, pl:"1 porsiyon", pg:g, cat:"diger"};
     if (pendingBarcode){ cf.barcode = pendingBarcode; cf.src = "off"; cf.note = "Etiketten elle girildi"; }
     customFoods.push(cf); save(LS.foods, customFoods);
   }
-  addEntry(curDate, {id:uid(), fid:null, name, g, kcal, p, c, f, meal, ref});
-  ["mName", "mG", "mKcal", "mP", "mC", "mF"].forEach((id) => $(id).value = "");
+  const caf = Math.max(0, +$("mCaf").value || 0); if (ref) ref.caf = caf / g * 100;
+  addEntry(curDate, {id:uid(), fid:null, name, g, kcal, p, c, f, caf, meal, ref});
+  ["mName", "mG", "mKcal", "mP", "mC", "mF", "mCaf"].forEach((id) => $(id).value = "");
   $("mSave").checked = false; pendingBarcode = null; $("scanBox").classList.add("hidden");
   renderDay();
 }
@@ -1951,7 +1994,7 @@ function openFoodForm(f){
   $("fTitle").textContent = f ? "Düzenle" : "Yeni yiyecek";
   $("fName").value = f ? f.name : "";
   $("fKcal").value = f ? f.kcal : ""; $("fP").value = f ? f.p : ""; $("fC").value = f ? f.c : ""; $("fF").value = f ? f.f : "";
-  $("fPl").value = f ? f.pl || "" : ""; $("fPg").value = f && f.pg ? f.pg : "";
+  $("fPl").value = f ? f.pl || "" : ""; $("fPg").value = f && f.pg ? f.pg : ""; $("fCaf").value = f && f.caf ? f.caf : "";
   $("fCat").value = f ? (CATS[f.cat] ? f.cat : "diger") : "diger";
   const u = f && f.u ? f.u : {};
   for (const [k] of UNITS) $("fU_" + k).value = u[k] || "";
@@ -1980,7 +2023,7 @@ function saveFood(){
   const name = $("fName").value.trim();
   if (!name){ alert("Ad gerekli."); $("fName").focus(); return; }
   const p = +$("fP").value || 0, c = +$("fC").value || 0, f = +$("fF").value || 0;
-  const o = {name, kcal:+$("fKcal").value || macroKcal(p, c, f), p, c, f, pl:$("fPl").value.trim(), pg:Math.max(0, +$("fPg").value || 0), cat:$("fCat").value || "diger", u:{}};
+  const o = {name, kcal:+$("fKcal").value || macroKcal(p, c, f), p, c, f, caf:Math.max(0, +$("fCaf").value || 0), pl:$("fPl").value.trim(), pg:Math.max(0, +$("fPg").value || 0), cat:$("fCat").value || "diger", u:{}};
   for (const [k] of UNITS){ const v = +$("fU_" + k).value; if (v > 0) o.u[k] = v; }
   syncFromStorage();
   if (fEdit === "new"){ customFoods.push(Object.assign({id:"c_" + uid()}, o)); save(LS.foods, customFoods); }
@@ -2025,6 +2068,7 @@ function renderProfile(){
   $("pH").value = profile.h || ""; $("pW").value = profile.w || ""; $("pA").value = profile.age || ""; $("pS").value = profile.sex || "m";
   $("pAct").value = String(profile.act || 1.2); $("pPace").value = String(profile.pace || 5); $("pDef").value = profile.deficit || "";
   $("pGoal").value = profile.goal || "koruma"; $("pNotes").value = profile.notes || "";
+  $("pWater").value = profile.water || ""; $("pCaf").value = profile.caf || "";
   renderProfileInfo(); renderWeightHist();
 }
 function renderWeightHist(){
@@ -2033,7 +2077,8 @@ function renderWeightHist(){
 }
 function readProfileForm(){
   return {h:+$("pH").value || 0, w:+$("pW").value || 0, age:+$("pA").value || 0, sex:$("pS").value === "f" ? "f" : "m", act:+$("pAct").value || 1.2, pace:+$("pPace").value || 5, deficit:Math.max(0, +$("pDef").value || 0),
-          goal:$("pGoal").value || "koruma", notes:String($("pNotes").value || "").trim().slice(0, 300)};
+          goal:$("pGoal").value || "koruma", notes:String($("pNotes").value || "").trim().slice(0, 300),
+          water:Math.max(0, +$("pWater").value || 0), caf:Math.max(0, +$("pCaf").value || 0)};
 }
 function renderProfileInfo(){
   const saved = profile; profile = readProfileForm();
@@ -2077,7 +2122,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportPayload(){
-  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, reviews:load(LS.reviews, {})};
+  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, waterLog, reviews:load(LS.reviews, {})};
 }
 // Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
 async function exportData(){
@@ -2127,6 +2172,7 @@ function importData(file){
       stepsLog = d.stepsLog && typeof d.stepsLog === "object" ? d.stepsLog : {}; save(LS.steps, stepsLog);
       weightLog = d.weightLog && typeof d.weightLog === "object" ? d.weightLog : {}; save(LS.weights, weightLog);
       reviews = d.reviews && typeof d.reviews === "object" ? d.reviews : {}; save(LS.reviews, reviews);
+      waterLog = d.waterLog && typeof d.waterLog === "object" ? d.waterLog : {}; save(LS.water, waterLog);
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
       save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
@@ -2138,7 +2184,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {};
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {}; waterLog = {};
   renderAll();
 }
 
@@ -2304,6 +2350,13 @@ function init(){
     else if (b.id === "reviewClose") $("reviewBox").classList.add("hidden");
   });
   $("reviewBox").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.id === "reviewQ") askReview(); });
+  document.querySelector(".hydro").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button[data-w]"); if (!b) return;
+    waterLog = load(LS.water, {});
+    const v = Math.max(0, (+waterLog[curDate] || 0) + (+b.dataset.w));
+    if (v) waterLog[curDate] = v; else delete waterLog[curDate];
+    save(LS.water, waterLog); renderSummary(entries(curDate));
+  });
   $("daySteps").addEventListener("input", () => { stepsLog = load(LS.steps, {}); const v = Math.max(0, +$("daySteps").value || 0); if (v) stepsLog[curDate] = v; else delete stepsLog[curDate]; save(LS.steps, stepsLog); renderSummary(entries(curDate)); });
   $("fxRate").value = +load(LS.fx, 0) || "";
   $("fxRate").addEventListener("input", () => { save(LS.fx, +$("fxRate").value || 0); renderCost(); });
