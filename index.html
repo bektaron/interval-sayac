@@ -187,11 +187,21 @@
   #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;padding:14px 10px;font-size:18px;border-radius:14px}
   #player .pbtns button.big{flex:2;font-size:20px}
   /* bitiş + durumlar */
-  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .pnextline{display:none}
+  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .pnextline,
+  #player.done #prevBtn,#player.done #nextBtn{display:none}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
   #player.done .pclock{font-size:22vw}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden}
+  textarea{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;
+           font:14px/1.35 ui-monospace,Menlo,monospace;color:var(--txt);outline:none;resize:vertical}
+  textarea:focus{border-color:var(--accent)}
+  /* kısa bildirim (alert yerine; bazı iOS tarayıcıları alert/confirm'ü göstermeyebilir) */
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);transform:translate(-50%,16px);
+         width:max-content;max-width:min(92vw,520px);background:#0e2a3d;border:1px solid var(--accent);color:var(--txt);
+         padding:11px 15px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.45);
+         z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -204,6 +214,19 @@
       <select id="savedList" style="width:auto;max-width:160px"></select>
       <button id="loadBtn" class="ghost" title="Yükle">Yükle</button>
       <button id="delBtn" class="ghost danger" title="Sil">Sil</button>
+      <button id="xferBtn" class="ghost" title="Kayıtları taşı (Safari ↔ Bluefy)">⇅</button>
+    </div>
+  </div>
+
+  <!-- Kayıtları taşı (tarayıcılar arası) -->
+  <div class="card hidden" id="xferCard">
+    <h2>Kayıtları taşı</h2>
+    <div class="hint" style="margin:0 0 10px">Safari, ana ekran uygulaması ve Bluefy ayrı hafıza kullanır: birinde kaydettiğin antrenman diğerinde görünmez. Kaydın olduğu yerde <b>Dışa aktar</b>'a bas ve metni kopyala; öbür tarayıcıda bu kutuya yapıştırıp <b>İçe aktar</b>'a bas. Nabız profili de taşınır. Metni bir nota yapıştırırsan yedek de olur.</div>
+    <textarea id="xferText" rows="4" spellcheck="false" autocomplete="off" placeholder="Dışa aktarılan metin burada görünür / buraya yapıştır"></textarea>
+    <div class="row tight" style="margin-top:8px">
+      <button id="expBtn" class="ghost">⬆︎ Dışa aktar</button>
+      <button id="impBtn" class="ghost">⬇︎ İçe aktar</button>
+      <button id="xferClose" class="ghost" style="margin-left:auto">Kapat</button>
     </div>
   </div>
 
@@ -495,6 +518,8 @@
   </div>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script>
 "use strict";
 /* ------------------------------------------------------------------ */
@@ -523,6 +548,13 @@ function fmt(sec){
   return m + ":" + String(s).padStart(2,"0");
 }
 function totalSec(){ return state.segments.reduce((a,x)=>a+x.sec,0); }
+// innerHTML'e giren kullanıcı metni (ad) için
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let toastT=0;
+function toast(msg,ms){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"), ms||Math.min(9000,2500+msg.length*45));
+}
 
 /* ------------------------------------------------------------------ */
 /* Generator                                                           */
@@ -652,7 +684,7 @@ function renderVars(){
     row.className = "row tight"; row.style.marginBottom = i===0?"8px":"0";
     row.innerHTML = `
       <input type="color" value="${v.color}" data-vc="${i}">
-      <input type="text" class="seg-grow" value="${v.name}" data-vn="${i}">`;
+      <input type="text" class="seg-grow" value="${esc(v.name)}" data-vn="${i}">`;
     box.appendChild(row);
   });
   box.querySelectorAll("[data-vc]").forEach(el=>el.oninput=e=>{
@@ -675,7 +707,7 @@ function renderSegments(){
     el.className = "seg";
     el.innerHTML = `
       <span class="dot" style="background:${v.color}"></span>
-      <span class="name">${v.name}</span>
+      <span class="name">${esc(v.name)}</span>
       <input type="number" value="${m}"   min="0" style="width:58px" data-min="${i}">
       <span style="color:var(--muted)">:</span>
       <input type="number" value="${sec}" min="0" max="59" style="width:58px" data-sec="${i}">
@@ -689,11 +721,11 @@ function renderSegments(){
   });
   // bind
   box.querySelectorAll("[data-min]").forEach(el=>el.onchange=e=>{
-    const i=+e.target.dataset.min; state.segments[i].sec = (parseInt(e.target.value)||0)*60 + state.segments[i].sec%60; renderSegments();
+    const i=+e.target.dataset.min; state.segments[i].sec = Math.max(0,parseInt(e.target.value)||0)*60 + state.segments[i].sec%60; renderSegments();
   });
   box.querySelectorAll("[data-sec]").forEach(el=>el.onchange=e=>{
     const i=+e.target.dataset.sec; const m=Math.floor(state.segments[i].sec/60);
-    state.segments[i].sec = m*60 + Math.min(59,parseInt(e.target.value)||0); renderSegments();
+    state.segments[i].sec = m*60 + Math.min(59,Math.max(0,parseInt(e.target.value)||0)); renderSegments();
   });
   box.querySelectorAll("[data-up]").forEach(el=>el.onclick=e=>move(+e.target.dataset.up,-1));
   box.querySelectorAll("[data-dn]").forEach(el=>el.onclick=e=>move(+e.target.dataset.dn,1));
@@ -718,7 +750,7 @@ function renderSegments(){
   $("giSeg").textContent = state.segments.length;
   $("giTot").textContent = fmt(tot===1&&state.segments.length===0?0:tot);
   const lg=$("legend");
-  if(lg) lg.innerHTML = state.variations.map(v=>`<span class="lgi"><i style="background:${v.color}"></i>${v.name}</span>`).join("");
+  if(lg) lg.innerHTML = state.variations.map(v=>`<span class="lgi"><i style="background:${v.color}"></i>${esc(v.name)}</span>`).join("");
 }
 function move(i,dir){
   const j=i+dir; if(j<0||j>=state.segments.length) return;
@@ -731,7 +763,26 @@ function move(i,dir){
 /* ------------------------------------------------------------------ */
 const LS_KEY="intervalWorkouts";
 function loadAll(){ try{return JSON.parse(localStorage.getItem(LS_KEY))||{}}catch(e){return{}} }
-function saveAll(o){ localStorage.setItem(LS_KEY, JSON.stringify(o)); }
+function saveAll(o){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); return true; }
+  catch(e){ toast("Kaydedilemedi: tarayıcı hafızası dolu ya da kapalı (gizli sekme?)."); return false; }
+}
+// Kayıtlı/içe aktarılan antrenmanı doğrular ve sadeleştirir; kullanılamazsa null.
+const DEF_VARS=[{ name:"Gevşe", color:"#059669" },{ name:"Yüklen", color:"#ea580c" }];
+function cleanWorkout(w){
+  if(!w || !Array.isArray(w.segments)) return null;
+  const segments=w.segments.filter(x=>x && (x.v===A||x.v===B) && +x.sec>0).map(x=>({ v:x.v, sec:Math.round(+x.sec) }));
+  if(!segments.length) return null;
+  const variations=DEF_VARS.map((d,i)=>{
+    const x=(Array.isArray(w.variations) && w.variations[i]) || {};
+    return { name: typeof x.name==="string" && x.name.trim() ? x.name : d.name,
+             color: /^#[0-9a-f]{6}$/i.test(x.color) ? x.color : d.color };
+  });
+  const z=(n,d)=>{ n=Math.round(+n); return n>=1 && n<=5 ? n : d; };
+  const tgt=Array.isArray(w.tgt) && w.tgt.length===2 ? [z(w.tgt[0],2), z(w.tgt[1],4)] : [2,4];
+  const prep=Math.round(+w.prepSec);
+  return { variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt };
+}
 function refreshSaved(){
   const all=loadAll(); const sel=$("savedList"); sel.innerHTML="";
   const names=Object.keys(all);
@@ -743,10 +794,22 @@ function refreshSaved(){
 /* Audio (optional beep)                                               */
 /* ------------------------------------------------------------------ */
 let actx=null;
+// iOS: AudioContext yalnızca dokunma anında açılabilir. Başlat/Oynat dokunuşunda çağrılır;
+// aksi hâlde sayaç içinde (dokunma dışında) oluşan bağlam askıda kalır ve bip duyulmaz.
+function audioUnlock(){
+  if(!settings.sound) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state!=="running"){ const r=actx.resume(); if(r && r.catch) r.catch(()=>{}); }
+    const src=actx.createBufferSource(); src.buffer=actx.createBuffer(1,1,22050);
+    src.connect(actx.destination); src.start(0);
+  }catch(e){}
+}
 function beep(freq=880,dur=0.12,vol=0.25){
   if(!settings.sound) return;
   try{
     actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state!=="running"){ const r=actx.resume(); if(r && r.catch) r.catch(()=>{}); }
     const o=actx.createOscillator(), g=actx.createGain();
     o.frequency.value=freq; o.type="sine"; o.connect(g); g.connect(actx.destination);
     g.gain.setValueAtTime(vol,actx.currentTime);
@@ -766,14 +829,15 @@ function buildTimeline(){
   return t;
 }
 async function startPlayer(){
-  if(!state.segments.length){ alert("Önce segment ekle ya da üret."); return; }
+  if(!state.segments.length){ toast("Önce segment ekle ya da üret."); return; }
+  audioUnlock();
   P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
   HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0}; $("pGauge").innerHTML="";
   $("player").classList.remove("hidden","done");
   $("builder").style.display="none";
-  requestWake();
+  requestWake().then(ok=>{ if(!ok && P && P.running) toast("Ekran açık tutulamıyor: bu tarayıcı izin vermedi. Antrenman boyunca iPhone'da Ayarlar › Ekran ve Parlaklık › Otomatik Kilit'i 'Asla' yap; ekran kilitlenince sayaç ve nabız bağlantısı durabilir.", 9000); });
   try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){}
   buildProfile(); renderPlayer(); loop();
 }
@@ -876,6 +940,7 @@ function finish(){
   const pl=$("player"); pl.classList.add("done"); pl.style.background="#16a34a";
   $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
   $("pNext").textContent="Aferin.";
+  $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
   beep(523,.15); setTimeout(()=>beep(784,.25),160);
   releaseWake();
 }
@@ -896,8 +961,10 @@ function loop(){
     updateCursor();
   }
   if(P.segLeft<=0){
-    if(P.idx+1<P.timeline.length){ P.idx++; P.segLeft=P.timeline[P.idx].sec; P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
-    else finish();
+    // Taşan süre sonraki segmentten düşülür: ekran kilidi/arka plan sonrası sayaç gerçek zamandan geri kalmaz.
+    while(P.segLeft<=0 && P.idx+1<P.timeline.length){ P.idx++; P.segLeft+=P.timeline[P.idx].sec; }
+    if(P.segLeft<=0) finish();
+    else { P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
   }
 }
 
@@ -1141,7 +1208,7 @@ function renderHR(){
 
 /* Wake lock */
 let wakeLock=null;
-async function requestWake(){ try{ if("wakeLock" in navigator) wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
+async function requestWake(){ try{ if("wakeLock" in navigator){ wakeLock=await navigator.wakeLock.request("screen"); return true; } }catch(e){} return false; }
 function releaseWake(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && P && P.running) requestWake(); });
 
@@ -1198,8 +1265,11 @@ $("soundPill").onclick=()=>{
 $("inPrep").onchange=e=>settings.prepSec=Math.max(0,parseInt(e.target.value)||0);
 
 // nabız profili (kişiye ait; antrenman kaydından bağımsız saklanır)
-$("hrBirth").value=hrProf.birth||""; $("hrRest").value=hrProf.rest||""; $("hrMax").value=hrProf.max||"";
-$("hrWeight").value=hrProf.weight||""; $("hrSex").value=hrProf.sex==="f"?"f":"m";
+function syncHRProfUI(){
+  $("hrBirth").value=hrProf.birth||""; $("hrRest").value=hrProf.rest||""; $("hrMax").value=hrProf.max||"";
+  $("hrWeight").value=hrProf.weight||""; $("hrSex").value=hrProf.sex==="f"?"f":"m";
+}
+syncHRProfUI();
 ["hrBirth","hrRest","hrMax","hrWeight","hrSex"].forEach(id=>$(id).oninput=$(id).onchange=()=>{
   hrProf={birth:$("hrBirth").value||"", rest:+$("hrRest").value||0, max:+$("hrMax").value||0, weight:+$("hrWeight").value||0, sex:$("hrSex").value==="f"?"f":"m"};
   saveHRProf(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR();
@@ -1213,28 +1283,86 @@ syncTgtUI();
 
 $("saveBtn").onclick=()=>{
   const name=($("inName").value||"").trim();
-  if(!name){ alert("Bir ad gir."); return; }
-  if(!state.segments.length){ alert("Boş antrenman kaydedilmez."); return; }
+  if(!name){ toast("Kaydetmek için bir ad gir."); $("inName").focus(); return; }
+  if(!state.segments.length){ toast("Boş antrenman kaydedilmez."); return; }
   const all=loadAll();
   all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt] };
-  saveAll(all); state.name=name; refreshSaved();
-  $("savedList").value=name; alert("Kaydedildi: "+name);
+  if(!saveAll(all)) return;
+  state.name=name; refreshSaved();
+  $("savedList").value=name; toast("Kaydedildi: "+name);
 };
 $("loadBtn").onclick=()=>{
-  const n=$("savedList").value; if(!n) return;
-  const all=loadAll(); const w=all[n]; if(!w) return;
+  const n=$("savedList").value;
+  if(!n){
+    toast("Bu tarayıcıda kayıtlı antrenman yok. Safari'de ya da ana ekran uygulamasında kaydettiklerin Bluefy'de görünmez (her uygulamanın hafızası ayrı). Açılan kutuyla taşıyabilirsin.", 9000);
+    openXfer(); return;
+  }
+  const w=cleanWorkout(loadAll()[n]);
+  if(!w){ toast(`"${n}" okunamadı (kayıt bozuk ya da boş).`); refreshSaved(); return; }
   state.variations=w.variations; state.segments=w.segments;
-  settings.prepSec=w.prepSec??5; settings.sound=w.sound??true; state.name=n;
-  settings.tgt = Array.isArray(w.tgt)&&w.tgt.length===2 ? [+w.tgt[0]||2,+w.tgt[1]||4] : [2,4]; syncTgtUI();
+  settings.prepSec=w.prepSec; settings.sound=w.sound; state.name=n;
+  settings.tgt=w.tgt; syncTgtUI();
   $("inName").value=n; $("inPrep").value=settings.prepSec;
   $("soundPill").classList.toggle("on",settings.sound);
   $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
   renderVars(); renderSegments();
+  $("genHint").textContent=`"${n}" yüklendi. Üretici ayarlarından birini değiştirirsen liste yeniden üretilir (yüklenen kayıt silinmez).`;
+  toast(`Yüklendi: ${n} · ${state.segments.length} segment · ${fmt(totalSec())}`);
 };
 $("delBtn").onclick=()=>{
-  const n=$("savedList").value; if(!n) return;
+  const n=$("savedList").value; if(!n){ toast("Silinecek kayıt yok."); return; }
   if(!confirm(n+" silinsin mi?")) return;
-  const all=loadAll(); delete all[n]; saveAll(all); refreshSaved();
+  const all=loadAll(); delete all[n];
+  if(saveAll(all)){ refreshSaved(); toast("Silindi: "+n); }
+};
+
+// kayıtları taşı: Safari / ana ekran uygulaması / Bluefy arasında metin olarak dışa-içe aktarma
+function openXfer(){ const c=$("xferCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"}); }
+$("xferBtn").onclick=()=>{ if($("xferCard").classList.contains("hidden")) openXfer(); else $("xferCard").classList.add("hidden"); };
+$("xferClose").onclick=()=>$("xferCard").classList.add("hidden");
+function cleanHRProf(h){
+  const r=(v,lo,hi)=>{ v=+v; return v>=lo && v<=hi ? v : 0; };
+  return { birth: /^\d{4}-\d{2}-\d{2}$/.test(h.birth) ? h.birth : "", rest:r(h.rest,30,120), max:r(h.max,100,230),
+           weight:r(h.weight,30,250), sex: h.sex==="f" ? "f" : "m" };
+}
+const hrProfEmpty=h=>!(h.birth || h.rest || h.max || h.weight);
+$("expBtn").onclick=async()=>{
+  const workouts={};
+  for(const [k,w] of Object.entries(loadAll())){ const c=cleanWorkout(w); if(c) workouts[k]=c; }
+  const n=Object.keys(workouts).length;
+  if(!n && hrProfEmpty(hrProf)){ toast("Bu tarayıcıda dışa aktarılacak kayıt yok."); return; }
+  const t=$("xferText"); t.value=JSON.stringify({ app:"interval-sayac", ver:1, workouts, hrProfile:hrProf });
+  let copied=false;
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(t.value); copied=true; } }catch(e){}
+  if(!copied){ t.focus(); t.setSelectionRange(0,t.value.length); }
+  toast(`${n} antrenman`+(hrProfEmpty(hrProf)?"":" + nabız profili")+(copied ? " panoya kopyalandı. Öbür tarayıcıda kutuya yapıştır." : " kutuya yazıldı; tümünü seçip kopyala."), 7000);
+};
+$("impBtn").onclick=()=>{
+  const raw=($("xferText").value||"").trim();
+  if(!raw){ toast("Önce dışa aktarılan metni kutuya yapıştır."); $("xferText").focus(); return; }
+  let d; try{ d=JSON.parse(raw); }catch(e){ toast("Metin okunamadı: eksik ya da bozuk kopyalanmış olabilir."); return; }
+  if(!d || typeof d!=="object"){ toast("Metin okunamadı."); return; }
+  const src = d.workouts && typeof d.workouts==="object" ? d.workouts : d;   // sarmalı ya da ham kayıt listesi
+  const all=loadAll(); let added=0, replaced=0;
+  if(!Array.isArray(src)) for(const [k,w] of Object.entries(src)){
+    const name=String(k).trim(), c=cleanWorkout(w); if(!name || !c) continue;
+    if(all[name]) replaced++; else added++;
+    all[name]=c;
+  }
+  let hrMsg="";
+  if(d.hrProfile && typeof d.hrProfile==="object"){
+    const hp=cleanHRProf(d.hrProfile);
+    if(!hrProfEmpty(hp)){
+      if(hrProfEmpty(hrProf)){
+        hrProf=hp; saveHRProf(); syncHRProfUI(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR();
+        hrMsg=" Nabız profili de alındı.";
+      } else if(JSON.stringify(hp)!==JSON.stringify(hrProf)) hrMsg=" Nabız profili burada zaten dolu olduğu için değiştirilmedi.";
+    }
+  }
+  if(!added && !replaced){ toast(hrMsg ? hrMsg.trim() : "Metinde içe aktarılacak antrenman bulunamadı."); return; }
+  if(!saveAll(all)) return;
+  refreshSaved();
+  toast(`İçe aktarıldı: ${added} yeni`+(replaced?`, ${replaced} güncellenen`:"")+` antrenman. Listeden seçip Yükle'ye bas.`+hrMsg, 8000);
 };
 
 // nabız bandı
@@ -1242,16 +1370,16 @@ $("hrBtn").onclick=hrConnect;
 $("hrOffBtn").onclick=hrDisconnect;
 if(!hrSupported){
   $("hrBtn").disabled=true;
-  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır.";
+  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
 } else {
   $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener.";
 }
 
 $("startBtn").onclick=startPlayer;
 $("exitBtn").onclick=exitPlayer;
-$("playBtn").onclick=()=>{ if($("player").classList.contains("done")) return; P.running=!P.running; P.last=performance.now(); renderPlayer(); };
-$("prevBtn").onclick=()=>gotoSeg(P.idx-1);
-$("nextBtn").onclick=()=>gotoSeg(P.idx+1);
+$("playBtn").onclick=()=>{ if($("player").classList.contains("done")){ exitPlayer(); return; } audioUnlock(); P.running=!P.running; P.last=performance.now(); renderPlayer(); };
+$("prevBtn").onclick=()=>{ if(!$("player").classList.contains("done")) gotoSeg(P.idx-1); };
+$("nextBtn").onclick=()=>{ if(!$("player").classList.contains("done")) gotoSeg(P.idx+1); };
 
 /* çevrimdışı PWA */
 if ('serviceWorker' in navigator) {
