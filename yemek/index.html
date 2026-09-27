@@ -240,9 +240,30 @@
       <div class="hydro">
         <div class="row between">
           <span>💧 Su <b id="waterVal">0 L</b> <span class="muted">/ <span id="waterGoal"></span></span></span>
-          <div class="row tight"><button class="sm" data-w="200">+200</button><button class="sm" data-w="330">+330</button><button class="sm" data-w="500">+500</button><button class="sm ghost" data-w="-200" title="Geri al">−</button></div>
+          <div class="row tight"><button class="sm ghost hidden" id="waterUndo" title="Son ekleneni geri al">Geri al</button><button class="sm primary" id="waterBtn">Su ekle</button></div>
         </div>
         <div class="tbar" style="margin-top:6px"><div id="waterBar" style="background:var(--prot)"></div></div>
+        <div id="waterMenu" class="hidden" style="margin-top:8px">
+          <div class="chips">
+            <div class="pill" data-w="200">Bardak <span class="qh">200 ml</span></div>
+            <div class="pill" data-w="250">250 ml</div>
+            <div class="pill" data-w="330">33 cl</div>
+            <div class="pill" data-w="500">50 cl</div>
+            <div class="pill" data-w="750">75 cl</div>
+            <div class="pill" data-w="1000">1 L</div>
+            <div class="pill" data-w="1500">1,5 L</div>
+          </div>
+          <label class="lbl" style="margin-top:8px">Soda / maden suyu</label>
+          <div class="chips">
+            <div class="pill" data-w="200" data-t="soda">20 cl</div>
+            <div class="pill" data-w="250" data-t="soda">25 cl</div>
+            <div class="pill" data-w="330" data-t="soda">33 cl</div>
+            <div class="pill" data-w="500" data-t="soda">50 cl</div>
+            <div class="pill" data-w="1000" data-t="soda">1 L</div>
+          </div>
+          <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input type="number" id="waterMl" min="0" step="10" inputmode="numeric" placeholder="ml" style="flex:1 1 auto;min-width:0"><button class="sm" id="waterAdd">Ekle</button><button class="sm ghost" id="waterClose">Kapat</button></div>
+          <div class="hint" id="waterToday" style="margin-top:6px"></div>
+        </div>
         <div class="row between" style="margin-top:10px">
           <span>☕ Kafein <b id="cafVal">0 mg</b> <span class="muted">/ <span id="cafLim"></span></span></span>
           <span class="muted" id="cafLast" style="font-size:12px"></span>
@@ -879,7 +900,7 @@ const BUILTIN = [
 /* ------------------------------------------------------------------ */
 /* Depolama                                                            */
 /* ------------------------------------------------------------------ */
-const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews", water:"yemekWater" };
+const LS = { log:"yemekLog", foods:"yemekFoods", over:"yemekOverrides", hidden:"yemekHidden", targets:"yemekTargets", recent:"yemekRecent", ai:"yemekAi", wish:"yemekWish", packs:"yemekPacks", packData:"yemekPackData", backup:"yemekLastBackup", snooze:"yemekBackupSnooze", photoRef:"yemekPhotoRef", usage:"yemekUsage", fx:"yemekFx", profile:"yemekProfile", steps:"yemekSteps", weights:"yemekWeights", reviews:"yemekReviews", water:"yemekWater", waterAdds:"yemekWaterAdds" };
 function load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert("Kaydedilemedi: depolama dolu veya kapalı."); } }
 
@@ -1017,6 +1038,7 @@ function syncFromStorage(){
   stepsLog = load(LS.steps, {});
   weightLog = load(LS.weights, {});
   waterLog = load(LS.water, {});
+  waterAdds = load(LS.waterAdds, {});
 }
 /* ------------------------------------------------------------------ */
 /* Profil, enerji bütçesi ve adım eşdeğeri                             */
@@ -1025,6 +1047,28 @@ let profile = Object.assign({h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:
 let stepsLog = load(LS.steps, {});   // {"YYYY-MM-DD": atılan adım}
 let weightLog = load(LS.weights, {}); // {"YYYY-MM-DD": kg} — profil kilosu her değişimde tarihiyle saklanır
 let waterLog = load(LS.water, {});    // {"YYYY-MM-DD": ml}
+let waterAdds = load(LS.waterAdds, {}); // {"YYYY-MM-DD": [ml, ml, …]} — geri alma için
+function fmtMl(ml){ return ml >= 1000 ? (ml / 1000).toLocaleString("tr-TR", {maximumFractionDigits:2}) + " L" : ml + " ml"; }
+function addMl(a){ return typeof a === "number" ? a : (+a.ml || 0); }               // eski kayıtlar düz sayı
+function fmtAdd(a){ return typeof a === "number" ? fmtMl(a) : (a.t === "soda" ? "Soda " : "") + fmtMl(+a.ml || 0); }
+function addWater(ml, type){
+  ml = Math.round(+ml || 0); if (!ml) return;
+  waterLog = load(LS.water, {}); waterAdds = load(LS.waterAdds, {});
+  waterLog[curDate] = (+waterLog[curDate] || 0) + ml;
+  (waterAdds[curDate] = waterAdds[curDate] || []).push(type === "soda" ? {ml, t:"soda"} : ml);
+  save(LS.water, waterLog); save(LS.waterAdds, waterAdds);
+  renderSummary(entries(curDate));
+}
+function undoWater(){
+  waterLog = load(LS.water, {}); waterAdds = load(LS.waterAdds, {});
+  const list = waterAdds[curDate] || []; if (!list.length) return;
+  const ml = addMl(list.pop());
+  waterLog[curDate] = Math.max(0, (+waterLog[curDate] || 0) - ml);
+  if (!waterLog[curDate]) delete waterLog[curDate];
+  if (!list.length) delete waterAdds[curDate];
+  save(LS.water, waterLog); save(LS.waterAdds, waterAdds);
+  renderSummary(entries(curDate));
+}
 const CAF_LIMIT_DEFAULT = 400;         // yetişkin için yaygın üst sınır (EFSA); gebelikte 200
 function waterGoalMl(){ return profile.water > 0 ? Math.round(profile.water * 1000) : (profile.w > 0 ? Math.round(profile.w * 35) : 2500); }
 function cafLimit(){ return profile.caf > 0 ? profile.caf : CAF_LIMIT_DEFAULT; }
@@ -1129,6 +1173,9 @@ function renderSummary(list){
   $("waterVal").textContent = (wml / 1000).toLocaleString("tr-TR", {minimumFractionDigits:1, maximumFractionDigits:2}) + " L";
   $("waterGoal").textContent = (wg / 1000).toLocaleString("tr-TR", {maximumFractionDigits:1}) + " L";
   $("waterBar").style.width = Math.min(100, wml / wg * 100) + "%";
+  const adds = waterAdds[curDate] || [];
+  $("waterUndo").classList.toggle("hidden", !adds.length);
+  $("waterToday").textContent = adds.length ? "Bugün: " + adds.map(fmtAdd).join(" + ") : "";
   // kafein
   const cmg = sumCaf(list), cl = cafLimit(), lt = lastCafTime(list);
   $("cafVal").textContent = fmt0(cmg) + " mg"; $("cafLim").textContent = fmt0(cl) + " mg";
@@ -1770,7 +1817,8 @@ function buildDossier(date){
   const list = entries(date), s = sumEntries(list), m = macroStats(s), de = dayEnergy(s.kcal, date);
   lines.push(`BUGÜN TOPLAM: ${fmt0(s.kcal)} kcal, P ${fmt1(s.p)} g, K ${fmt1(s.c)} g, Y ${fmt1(s.f)} g, E% ${fmt0(m.ePct.p)}/${fmt0(m.ePct.c)}/${fmt0(m.ePct.f)}, yenen ağırlık ${fmt0(s.g)} g` + (P.w ? `, protein ${(s.p / P.w).toFixed(2)} g/kg` : ""));
   lines.push(`BUGÜN ENERJİ DURUMU: ${de ? de.text.replace(/≈.*$/, "").trim() + (de.walked ? ` (yürüyüş ${de.walked} adım, +${fmt0(de.extra)} kcal)` : "") : "bütçe yok"}`);
-  lines.push(`SU: ${((waterLog[date] || 0) / 1000).toFixed(1)} L / hedef ${(waterGoalMl() / 1000).toFixed(1)} L. KAFEİN: ${fmt0(sumCaf(list))} mg / sınır ${fmt0(cafLimit())} mg${lastCafTime(list) ? `, son kafein ${new Date(lastCafTime(list)).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}` : ""}`);
+  const sodaMl = (waterAdds[date] || []).filter((a) => typeof a === "object" && a.t === "soda").reduce((x, a) => x + (+a.ml || 0), 0);
+  lines.push(`SU: ${((waterLog[date] || 0) / 1000).toFixed(1)} L / hedef ${(waterGoalMl() / 1000).toFixed(1)} L${sodaMl ? ` (bunun ${(sodaMl / 1000).toFixed(1)} L'si soda/maden suyu)` : ""}. KAFEİN: ${fmt0(sumCaf(list))} mg / sınır ${fmt0(cafLimit())} mg${lastCafTime(list) ? `, son kafein ${new Date(lastCafTime(list)).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"})}` : ""}`);
   lines.push("BUGÜN KAYITLAR:");
   if (!list.length) lines.push("- kayıt yok");
   for (const meal of MEALS) for (const e of list.filter((x) => x.meal === meal)) lines.push(`- [${meal}] ${e.name}: ${e.g ? fmt0(e.g) + " g" : "miktar yok"}, ${fmt0(e.kcal)} kcal, P ${fmt1(e.p)} K ${fmt1(e.c)} Y ${fmt1(e.f)}${e.tag === "foto" ? " (foto tahmini)" : e.fid && String(e.fid).startsWith("c_") ? " (özel/AI/barkod)" : ""}`);
@@ -2122,7 +2170,7 @@ function saveTargets(){
 
 /* --- dışa/içe aktar --- */
 function exportPayload(){
-  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, waterLog, reviews:load(LS.reviews, {})};
+  return {app:"yemek-gunlugu", version:4, exported:new Date().toISOString(), log, customFoods, overrides, hidden, targets, wish, packsOn, usage:load(LS.usage, []), profile, stepsLog, weightLog, waterLog, waterAdds, reviews:load(LS.reviews, {})};
 }
 // Yedekle: iOS/Android'de paylaşım menüsü (Dosyalara Kaydet → iCloud Drive); desteklenmiyorsa dosya indirme
 async function exportData(){
@@ -2173,6 +2221,7 @@ function importData(file){
       weightLog = d.weightLog && typeof d.weightLog === "object" ? d.weightLog : {}; save(LS.weights, weightLog);
       reviews = d.reviews && typeof d.reviews === "object" ? d.reviews : {}; save(LS.reviews, reviews);
       waterLog = d.waterLog && typeof d.waterLog === "object" ? d.waterLog : {}; save(LS.water, waterLog);
+      waterAdds = d.waterAdds && typeof d.waterAdds === "object" ? d.waterAdds : {}; save(LS.waterAdds, waterAdds);
       save(LS.log, log); save(LS.foods, customFoods); save(LS.over, overrides); save(LS.hidden, hidden); save(LS.targets, targets); save(LS.recent, recent); save(LS.wish, wish); save(LS.packs, packsOn);
       save(LS.backup, Date.now());
       renderAll(); refreshPacks(); alert("İçe aktarıldı.");
@@ -2184,7 +2233,7 @@ function wipeAll(){
   if (!confirm("Tüm günlük, özel yiyecekler ve hedefler silinecek. Emin misin?")) return;
   if (!confirm("Geri alınamaz. Gerçekten silinsin mi?")) return;
   Object.values(LS).forEach((k) => localStorage.removeItem(k));
-  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {}; waterLog = {};
+  log = {}; customFoods = []; overrides = {}; hidden = []; targets = {kcal:0, p:0, c:0, f:0}; recent = []; wish = []; ai = {key:"", web:true}; packsOn = []; packData = {}; profile = {h:0, w:0, age:0, sex:"m", act:1.2, pace:5, deficit:0}; stepsLog = {}; weightLog = {}; reviews = {}; waterLog = {}; waterAdds = {};
   renderAll();
 }
 
@@ -2350,13 +2399,12 @@ function init(){
     else if (b.id === "reviewClose") $("reviewBox").classList.add("hidden");
   });
   $("reviewBox").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.id === "reviewQ") askReview(); });
-  document.querySelector(".hydro").addEventListener("click", (ev) => {
-    const b = ev.target.closest("button[data-w]"); if (!b) return;
-    waterLog = load(LS.water, {});
-    const v = Math.max(0, (+waterLog[curDate] || 0) + (+b.dataset.w));
-    if (v) waterLog[curDate] = v; else delete waterLog[curDate];
-    save(LS.water, waterLog); renderSummary(entries(curDate));
-  });
+  $("waterBtn").addEventListener("click", () => { $("waterMenu").classList.toggle("hidden"); });
+  $("waterClose").addEventListener("click", () => $("waterMenu").classList.add("hidden"));
+  $("waterMenu").addEventListener("click", (ev) => { const p = ev.target.closest(".pill[data-w]"); if (p) addWater(p.dataset.w, p.dataset.t); });
+  $("waterAdd").addEventListener("click", () => { addWater($("waterMl").value); $("waterMl").value = ""; });
+  $("waterMl").addEventListener("keydown", (ev) => { if (ev.key === "Enter"){ addWater($("waterMl").value); $("waterMl").value = ""; } });
+  $("waterUndo").addEventListener("click", undoWater);
   $("daySteps").addEventListener("input", () => { stepsLog = load(LS.steps, {}); const v = Math.max(0, +$("daySteps").value || 0); if (v) stepsLog[curDate] = v; else delete stepsLog[curDate]; save(LS.steps, stepsLog); renderSummary(entries(curDate)); });
   $("fxRate").value = +load(LS.fx, 0) || "";
   $("fxRate").addEventListener("input", () => { save(LS.fx, +$("fxRate").value || 0); renderCost(); });
