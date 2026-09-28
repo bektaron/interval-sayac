@@ -141,27 +141,31 @@
      kalan tüm yüksekliği doldurur */
   #player .pgauge{flex:1 1 0;min-height:0;align-self:stretch;position:relative;margin:0}
   #player .pgauge:empty,#player .pzones:empty{display:none}
+  #player.hr .pgauge:empty{display:block}      /* kurulmadan önce de ölçülebilsin */
   #player .pgauge svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.35);stroke-width:22}
   #player .pgauge .zarc{fill:none;stroke-width:16;transition:opacity .35s}
   #player .pgauge .fuel{fill:none;stroke-width:7}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28)}
   #player .pgauge .fuel.fat{stroke:#fde68a}
-  #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:100px 100px}
+  #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
   #player .pgauge .gavgmk polygon{fill:#ffb300;stroke:rgba(0,0,0,.6);stroke-width:1.5}
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
                        filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
-  #player .pgauge .gbpm{font-size:48px}
+  #player .pgauge .gbpm{font-size:56px}
   #player .pgauge .gbpm.up{fill:#fde68a} #player .pgauge .gbpm.down{fill:#bae6fd}
   #player .pgauge .gdir{font-size:20px;stroke:rgba(0,0,0,.45);stroke-width:1.2;paint-order:stroke}
   #player .pgauge .gdir.up{fill:#fde68a} #player .pgauge .gdir.down{fill:#bae6fd}
-  #player .pgauge .gavg{font-size:12px;font-weight:700;opacity:.95}
-  #player .pgauge .gavg .a{fill:#ffb300} #player .pgauge .gavg .p{fill:#fecaca}
-  #player .pgauge .gzone{font-size:14px;font-weight:800;fill:#fde68a}
-  #player .pgauge .gfuel{font-size:11.5px;font-weight:700}
-  #player .pgauge .gfuel .f{fill:#fde68a}
+  #player .pgauge .gavg{font-size:13px;font-weight:700;fill:#ffb300}
+  #player .pgauge .gzone{font-size:13px;font-weight:800;fill:#fde68a}
+  #player .pgauge .gpeak{font-size:13px;font-weight:700;fill:#fecaca}
+  /* yağ/KH/kcal: ∩'ün dar iç alanına sığmadığı için göstergenin altında tam genişlik */
+  #player .pfuel{flex:0 0 auto;font-size:clamp(13px,3.8vw,18px);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;
+                 text-shadow:0 1px 6px rgba(0,0,0,.35);margin-top:2px}
+  #player .pfuel:empty{display:none}
+  #player .pfuel .f{color:#fde68a}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px}
@@ -557,6 +561,7 @@
     <div class="pclock" id="pClock">0:00</div>
     <div class="phr" id="pHR"></div>
     <div class="pgauge" id="pGauge"></div>
+    <div class="pfuel" id="pFuel"></div>
     <div class="pzones" id="pZones"></div>
   </div>
   <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
@@ -1380,82 +1385,117 @@ const tr1=n=>n.toLocaleString("tr-TR",{maximumFractionDigits:1,minimumFractionDi
 function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
 function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND_BAND ? "↗" : HRS.trend<-TREND_BAND ? "↘" : "→"; }
 
-/* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = beyaz nokta, tepe = kırmızı nokta, ortalama = dışta sarı ok;
-       iç halka = birikimli enerjinin yağ payı --- */
-const G={cx:100,cy:100,r:76,a0:-120,a1:120}, FUEL_R=56;
-// Z0..Z5 yay genişlikleri (derece, toplam 240): en çok kullanılan Z1–Z2 geniş, nadir çıkılan Z4–Z5 dar.
-// Bölge içinde nabız doğrusal; Z0 altı sol uca, maks. üstü sağ uca sabitlenir.
-const ZONE_ARC=[45,55,50,35,30,25];
-function zoneArc(i){ let a=G.a0; for(let k=0;k<i;k++) a+=ZONE_ARC[k]; return [a, a+ZONE_ARC[i]]; }
-function gPt(ang,r){ const t=ang*Math.PI/180; return [G.cx+r*Math.sin(t), G.cy-r*Math.cos(t)]; }
-function gArc(aA,aB,r){
-  const [x1,y1]=gPt(aA,r),[x2,y2]=gPt(aB,r); const lg=(aB-aA)>180?1:0;
-  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+/* --- ∩ (ters U) nabız göstergesi ------------------------------------------------------------
+   Yol: sol bacak (aşağıdan yukarı) → tepede yarım daire → sağ bacak (yukarıdan aşağı).
+   Tepede Yüklen hedefi ortalanır; hedefin altındaki bölgeler sol tarafa, üstündekiler sağ tarafa
+   yerleşir (hedefe yakın bölge daha geniş). Bölge içinde nabız doğrusal; Z0 altı sol dibe,
+   maks. üstü sağ dibe sabitlenir. Dış halka bölgeler, iç halka birikimli yağ payı; beyaz nokta anlık,
+   kırmızı nokta tepe, yumurta sarısı üçgen ortalama. Yükseklik kutunun oranından hesaplanır. */
+let GU=null;                                       // geometri + bölge yerleşimi (buildGauge kurar)
+const FUEL_D=-20, TGT_D=14;                        // yağ halkası içeride, hedef parantezi dışarıda (yola paralel)
+// s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
+function gP(s,d){
+  const g=GU, r=g.R+(d||0);
+  if(s<=g.Lg) return { x:g.cx-r, y:g.yb-s, a:-90 };
+  if(s<=g.Lg+g.arc){ const a=-90+(s-g.Lg)/g.arc*180, t=a*Math.PI/180; return { x:g.cx+r*Math.sin(t), y:g.cy-r*Math.cos(t), a }; }
+  return { x:g.cx+r, y:g.cy+(s-g.Lg-g.arc), a:90 };
 }
-function gAng(bpm,z){
-  const e=z.edges; let a=G.a0;
-  if(!(bpm>e[0])) return G.a0;
-  for(let i=0;i<6;i++){
-    if(bpm<e[i+1]) return a+ZONE_ARC[i]*(bpm-e[i])/(e[i+1]-e[i]);
-    a+=ZONE_ARC[i];
-  }
-  return G.a1;
+// [s0,s1] aralığını çizen yol: bacaklar düz çizgi, tepe yay
+function gSeg(s0,s1,d){
+  const g=GU; s0=Math.max(0,s0); s1=Math.min(g.S,s1); if(!(s1>s0)) return "";
+  const r=g.R+(d||0), A=g.Lg, B=g.Lg+g.arc, p=s=>{ const q=gP(s,d); return `${q.x.toFixed(2)} ${q.y.toFixed(2)}`; };
+  let out="M"+p(s0), s=s0;
+  if(s<A){ const e=Math.min(s1,A); out+=" L"+p(e); s=e; }
+  if(s<s1 && s<B){ const e=Math.min(s1,B); out+=` A${r} ${r} 0 0 1 `+p(e); s=e; }
+  if(s<s1) out+=" L"+p(s1);
+  return out;
+}
+// Bölgelerin yol üzerindeki sınırları: e[i] = Zi'nin başladığı s, e[6] = S. Hedef (t) tepede 60°.
+function gLayout(t){
+  const g=GU, S=g.S, mid=S/2, wT=Math.min(g.arc/3, S/3), L=mid-wT/2, e=new Array(7);
+  const W=i=>{ const d=Math.abs(i-t); return d===1 ? 1.3 : d===2 ? 1 : 0.7; };
+  const spread=(ids,from,len)=>{ const tw=ids.reduce((a,i)=>a+W(i),0); let x=from; ids.forEach(i=>{ e[i]=x; x+=len*W(i)/tw; }); };
+  const below=[0,1,2,3,4,5].filter(i=>i<t), above=[0,1,2,3,4,5].filter(i=>i>t);
+  if(below.length){ spread(below,0,L); e[t]=L; } else e[t]=0;              // altında bölge yoksa hedef sol ucu da kaplar
+  if(above.length){ spread(above,mid+wT/2,L); } 
+  e[6]=S;
+  return e;
+}
+function gS(bpm,z){                                 // nabız → yol konumu
+  const b=z.edges, e=GU.e;
+  if(!(bpm>b[0])) return 0;
+  for(let i=0;i<6;i++) if(bpm<b[i+1]) return e[i]+(e[i+1]-e[i])*(bpm-b[i])/(b[i+1]-b[i]);
+  return GU.S;
 }
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
-  if(!z){ g.innerHTML=""; return; }
-  let arcs=`<path class="track" d="${gArc(G.a0,G.a1,G.r)}"/>`;
-  for(let i=0;i<6;i++){ const [a,b]=zoneArc(i); arcs+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gArc(a,b,G.r)}"/>`; }
-  arcs+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
-  arcs+=`<path class="fuel bg" id="gFuelBg" d="${gArc(G.a0,G.a1,FUEL_R)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
-  const top=G.cy-G.r;
-  g.innerHTML=`<svg viewBox="0 -16 200 200">${arcs}
+  if(!z){ g.innerHTML=""; GU=null; return; }
+  const w=g.clientWidth||300, h=g.clientHeight||300;
+  const H=Math.round(Math.max(200, Math.min(330, 200*h/w)));
+  const R=76, cx=100, cy=R+26, yb=H-8, Lg=Math.max(0,yb-cy), arc=Math.PI*R;
+  GU={ cx, cy, R, H, yb, Lg, arc, S:2*Lg+arc };
+  GU.e=gLayout(tgtOk(settings.tgt[1],4));          // tepede Yüklen hedefi
+  let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
+  for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gSeg(GU.e[i],GU.e[i+1],0)}"/>`;
+  p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
+  p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
+  // yazılar ∩'ün içinde, iç boşlukta dikey ortalanır
+  const top=Math.max(cy-40, (cy-52+yb)/2-64), y=o=>(top+o).toFixed(1);
+  // işaretler orijinde tanımlı (dış yön = −y); updateGauge yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
+  g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none">
-      <polygon points="100,${top-12} 93,${top-23} 107,${top-23}"/>
-      <polygon id="gTrendR" style="display:none" points="93,${top-37} 108,${top-31} 93,${top-25}"/>
-      <polygon id="gTrendL" style="display:none" points="107,${top-37} 92,${top-31} 107,${top-25}"/>
+      <polygon points="0,-12 -7,-23 7,-23"/>
+      <polygon id="gTrendR" style="display:none" points="10,-23 22,-17.5 10,-12"/>
+      <polygon id="gTrendL" style="display:none" points="-10,-23 -22,-17.5 -10,-12"/>
     </g>
-    <g class="gpk" id="gPeak" style="display:none"><circle cx="100" cy="${top}" r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/></g>
-    <g class="gcur" id="gCur" style="display:none"><circle cx="100" cy="${top}" r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
-    <text class="gdir" x="100" y="64" id="gDir"></text>
-    <text class="gbpm" x="100" y="112" id="gBpm">—</text>
-    <text class="gavg" x="100" y="146" id="gAvg"></text>
-    <text class="gzone" x="100" y="163" id="gZone"></text>
-    <text class="gfuel" x="100" y="180" id="gFuel"></text>
+    <g class="gpk" id="gPeak" style="display:none"><circle r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/></g>
+    <g class="gcur" id="gCur" style="display:none"><circle r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
+    <text class="gdir" x="100" y="${y(16)}" id="gDir"></text>
+    <text class="gbpm" x="100" y="${y(70)}" id="gBpm">—</text>
+    <text class="gavg" x="100" y="${y(90)}" id="gAvg"></text>
+    <text class="gpeak" x="100" y="${y(106)}" id="gPeakT"></text>
+    <text class="gzone" x="100" y="${y(126)}" id="gZone"></text>
   </svg>`;
 }
+const fuelHTML=()=>kcalPerMin(100)>0 ? `<span class="f">Yağ ${tr1(HRS.fat)} g</span> · KH ${tr1(HRS.carb)} g · ${Math.round(HRS.kcal)} kcal` : "";
+// İşareti nabzın yol üzerindeki yerine taşır ve dış yöne çevirir; ilk görünüşte uçarak gelmesin diye geçiş kapalı
+function gPlace(el,bpm,z){
+  if(!(bpm>0)){ el.style.display="none"; return; }
+  const q=gP(gS(bpm,z),0), tf=`translate(${q.x.toFixed(1)}px,${q.y.toFixed(1)}px) rotate(${q.a.toFixed(1)}deg)`;
+  if(el.style.display==="none"){ el.style.transition="none"; el.style.display=""; el.style.transform=tf; el.getBoundingClientRect(); el.style.transition=""; }
+  else el.style.transform=tf;
+}
 function updateGauge(){
-  const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild) return;
+  const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild || !GU) return;
   const bpm=HR.bpm, fresh = bpm!=null && (performance.now()-HR.at)<HR_STALE_MS;
   g.classList.toggle("stale", !fresh);
-  const rot=(el,b)=>{ if(b!=null && b>0){ el.style.display=""; el.style.transform=`rotate(${gAng(b,z).toFixed(1)}deg)`; } else el.style.display="none"; };
-  rot($("gCur"), bpm);
-  rot($("gPeak"), HRS.max);                      // oturumun tepe nabzı: kırmızı nokta kalır
+  gPlace($("gCur"), bpm, z);
+  gPlace($("gPeak"), HRS.max, z);                  // oturumun tepe nabzı: kırmızı nokta kalır
   const avg=hrAvg();
-  rot($("gAvgMk"), avg);
-  $("gAvg").innerHTML = (avg!=null ? `<tspan class="a">ort ${avg}</tspan>` : "") +
-                        (HRS.max>0 ? (avg!=null?" · ":"")+`<tspan class="p">tepe ${HRS.max}</tspan>` : "");
-  const tr=hrTrendArrow();                       // ortalama yükseliyor → sağa (saat yönü), düşüyor → sola
+  gPlace($("gAvgMk"), avg, z);
+  $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
+  $("gPeakT").textContent = HRS.max>0 ? `tepe ${HRS.max}` : "";
+  const tr=hrTrendArrow();                         // ortalama yükseliyor → nabız artan yöne, düşüyor → azalan yöne
   $("gTrendR").style.display = tr==="↗" ? "" : "none";
   $("gTrendL").style.display = tr==="↘" ? "" : "none";
-  // hedef bölge: hedef yay parlak, diğerleri sönük, dışta beyaz parantez; nabız rakamı ve ok yönü gösterir
+  // o anki segmentin hedefi: hedef bölge parlak, diğerleri sönük, dışta beyaz parantez; nabız rakamı ve ok yönü gösterir
   const zi = bpm!=null ? zoneOf(bpm,z) : -1, tgt=currentTarget();
   for(let i=0;i<6;i++){ const a=$("gArc"+i); if(a) a.style.opacity = (tgt<0 || i===tgt) ? "1" : ".35"; }
   const tp=$("gTgt");
-  if(tgt>=0){ const [a,b]=zoneArc(tgt); tp.style.display=""; tp.setAttribute("d", gArc(a,b,G.r+14)); } else tp.style.display="none";
+  if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
   const dir = (tgt<0 || zi<0) ? "" : zi===tgt ? "ok" : zi<tgt ? "up" : "down";
   const bp=$("gBpm"); bp.textContent = bpm!=null ? bpm : "—";
   bp.setAttribute("class", "gbpm"+(dir==="up"||dir==="down" ? " "+dir : ""));
   const gd=$("gDir"); gd.textContent = ({ok:"✓", up:"▲", down:"▼"})[dir]||""; gd.setAttribute("class", "gdir "+dir);
-  $("gZone").textContent = zi<0 ? "" : tgt<0 ? `Z${zi} · ${ZONE_NAME[zi]}`
-    : dir==="ok" ? `Z${zi} · hedefte ✓` : `Z${zi} → hedef Z${tgt} ${dir==="up" ? "↑" : "↓"}`;
+  // ∩'ün içi dar: kısa tut (yön zaten rakamın üstündeki ▲/▼ ile gösteriliyor)
+  $("gZone").textContent = zi<0 ? "" : tgt<0 ? `Z${zi} · ${ZONE_NAME[zi]}` : dir==="ok" ? `Z${zi} · hedefte` : `Z${zi} · hedef Z${tgt}`;
   $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt), zi, tgt);
-  // iç halka: birikimli enerjinin yağ payı (sarı, soldan); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
+  // iç halka: birikimli enerjinin yağ payı (sarı, sol dipten başlar); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
   const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
   $("gFuelBg").style.display = has ? "" : "none";
   const fat=$("gFat");
-  if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gArc(G.a0, G.a0+(G.a1-G.a0)*fs, FUEL_R)); } else fat.style.display="none";
-  $("gFuel").innerHTML = has ? `<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · KH ${tr1(HRS.carb)} g · ${Math.round(HRS.kcal)} kcal` : "";
+  if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gSeg(0, GU.S*fs, FUEL_D)); } else fat.style.display="none";
+  $("pFuel").innerHTML = fuelHTML();
 }
 
 function renderHR(){
@@ -1469,8 +1509,12 @@ function renderHR(){
     p.innerHTML=`<span class="hb">♥</span><span>${txt}</span><span class="unit">bpm</span>`+(avg!=null?`<span class="unit">ort ${avg} ${hrTrendArrow()}</span>`:"");
     p.classList.toggle("stale", stale);
   } else p.innerHTML="";
-  if(on && z){ if(!$("pGauge").firstChild) buildGauge(); updateGauge(); }
-  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; }
+  if(on && z){
+    // gösterge kutusu ölçülerek kurulur: önce bölge çipleri yerleşsin ki kalan yükseklik doğru ölçülsün
+    if(!$("pGauge").firstChild){ $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt),-1,-1); $("pFuel").innerHTML=fuelHTML(); buildGauge(); }
+    updateGauge();
+  }
+  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
@@ -1681,6 +1725,12 @@ function renderHistory(){
     const s=loadSessions().find(x=>x.id===el.dataset.sid); const c=s && cleanSession(s); if(c) openSummary(c,false);
   });
 }
+
+// Ekran döndürülünce / boyut değişince ∩ gösterge yeni kutuya göre yeniden kurulur
+let gResizeT=0;
+window.addEventListener("resize", ()=>{ clearTimeout(gResizeT); gResizeT=setTimeout(()=>{
+  if(!$("player").classList.contains("hidden") && $("pGauge").firstChild){ $("pGauge").innerHTML=""; renderHR(); }
+},150); });
 
 /* Wake lock */
 let wakeLock=null;
