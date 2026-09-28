@@ -103,6 +103,9 @@
   .zc b{display:block;font-size:11px;color:var(--muted)}
   .zc span{display:block;font-size:12px;font-weight:800;white-space:nowrap}
   .hidden{display:none!important}
+  .zmgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .zmgrid label{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:2px}
+  .zmgrid input{padding:8px 8px;text-align:center}
   .hint{font-size:12px;color:var(--muted);margin-top:8px}
 
   /* ---- Player (big screen) — akışkan dikey düzen, çakışmasız ---- */
@@ -158,9 +161,12 @@
   #player .pgauge .gbpm.up{fill:#fde68a} #player .pgauge .gbpm.down{fill:#bae6fd}
   #player .pgauge .gdir{font-size:20px;stroke:rgba(0,0,0,.45);stroke-width:1.2;paint-order:stroke}
   #player .pgauge .gdir.up{fill:#fde68a} #player .pgauge .gdir.down{fill:#bae6fd}
-  #player .pgauge .gavg{font-size:13px;font-weight:700;fill:#ffb300}
-  #player .pgauge .gzone{font-size:13px;font-weight:800;fill:#fde68a}
-  #player .pgauge .gpeak{font-size:13px;font-weight:700;fill:#fecaca}
+  #player .pgauge .gavg{font-size:18px;font-weight:800;fill:#ffb300}
+  #player .pgauge .gzone{font-size:20px;font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
+  #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
+  #player .pgauge .gpeak{font-size:18px;font-weight:800;fill:#fecaca}
+  #player .pgauge .gf{font-size:16px;font-weight:700}
+  #player .pgauge .gf.f{fill:#fde68a}
   /* yağ/KH/kcal: ∩'ün dar iç alanına sığmadığı için göstergenin altında tam genişlik */
   #player .pfuel{flex:0 0 auto;font-size:clamp(13px,3.8vw,18px);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;
                  text-shadow:0 1px 6px rgba(0,0,0,.35);margin-top:2px}
@@ -519,6 +525,15 @@
     <div class="grid2" style="margin-bottom:8px">
       <div><label class="lbl">Kilo (kg) — kcal için</label><input type="number" id="hrWeight" min="30" max="250" step="0.5" inputmode="decimal" placeholder="ör. 94"></div>
       <div><label class="lbl">Cinsiyet — kcal formülü için</label><select id="hrSex"><option value="m">Erkek</option><option value="f">Kadın</option></select></div>
+    </div>
+    <label class="lbl">Bölge sınırları</label>
+    <div class="radiorow" style="margin-bottom:8px">
+      <label><input type="radio" name="zmode" value="auto" checked> Otomatik (dinlenik / maks.)</label>
+      <label><input type="radio" name="zmode" value="manual"> Elle (bpm)</label>
+    </div>
+    <div id="zmanBox" class="hidden" style="margin-bottom:8px">
+      <div class="zmgrid" id="zmanGrid"></div>
+      <div class="hint" style="margin-top:6px">Her bölgenin alt sınırı (bpm) ve maks. nabız; küçükten büyüğe. Z0 altındaki nabız da Z0 sayılır. Örneğin kardiyoloğunun verdiği değerler.</div>
     </div>
     <div class="zchips" id="hrZoneChips" style="margin-bottom:6px"></div>
     <div class="hint" id="hrZoneHint" style="margin-bottom:12px"></div>
@@ -1288,7 +1303,7 @@ const ZONE_PCT=[.5,.6,.7,.8,.9,1];
 const Z0_PCT=.4;                                   // Z0 alt sınırı (rezervin / maks. nabzın %40'ı)
 const ZONE_COLOR=["#e2e8f0","#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];   // Z0..Z5
 const ZONE_NAME=["Toparlanma","Çok hafif","Hafif","Orta","Zor","Maksimum"];
-const HRP_DEFAULT={birth:"", rest:0, max:0, weight:0, sex:"m"};
+const HRP_DEFAULT={birth:"", rest:0, max:0, weight:0, sex:"m", zmode:"auto", zman:[]};   // zman: Z0..Z5 alt sınırları + maks. (elle)
 function loadHRProf(){
   const p={...HRP_DEFAULT};
   try{ const st=JSON.parse(localStorage.getItem(HRP_KEY)); if(st && st.birth!==undefined) Object.assign(p, st); }catch(e){}
@@ -1303,15 +1318,31 @@ function ageFromBirth(b){
   const m=n.getMonth()-d.getMonth(); if(m<0 || (m===0 && n.getDate()<d.getDate())) a--;
   return (a>0 && a<120) ? a : 0;
 }
-// Dinlenik nabız girildiyse Karvonen (kalp atım rezervi), yoksa maks. nabız yüzdesi.
-function hrZones(){
+// Elle girilen sınırlar: 7 tamsayı (Z0..Z5 alt + maks.), 30–230, küçükten büyüğe. Hata yoksa "".
+const ZMAN_LBL=["Z0 alt","Z1 alt","Z2 alt","Z3 alt","Z4 alt","Z5 alt","Maks."];
+function zmanError(a){
+  if(!Array.isArray(a) || a.length!==7) return "7 değerin hepsini gir.";
+  for(let i=0;i<7;i++){ const v=a[i]; if(!Number.isInteger(v) || v<30 || v>230) return `${ZMAN_LBL[i]}: 30–230 arası tam sayı olmalı.`; }
+  for(let i=1;i<7;i++) if(a[i]<=a[i-1]) return `${ZMAN_LBL[i]} (${a[i]}), ${ZMAN_LBL[i-1]} (${a[i-1]}) değerinden büyük olmalı.`;
+  return "";
+}
+// Otomatik: dinlenik nabız girildiyse Karvonen (kalp atım rezervi), yoksa maks. nabız yüzdesi.
+function hrZonesAuto(){
   const age=ageFromBirth(hrProf.birth), rest=+hrProf.rest||0;
   const max=+hrProf.max||(age?220-age:0);
   if(!max || rest>=max) return null;
   const pc=p=>Math.round(rest ? rest+p*(max-rest) : p*max);
   const bounds=ZONE_PCT.map(pc);                   // Z1..Z5 alt sınırları + maks.
   const edges=[pc(Z0_PCT), ...bounds];             // Z0..Z5 alt sınırları + maks. (7 değer)
-  return {max, rest, age, bounds, edges, karvonen:rest>0};
+  return {max, rest, age, bounds, edges, karvonen:rest>0, manual:false};
+}
+// Elle mod seçili ve değerler geçerliyse onlar; değilse otomatik
+function hrZones(){
+  if(hrProf.zmode==="manual" && !zmanError(hrProf.zman)){
+    const e=hrProf.zman.slice();
+    return {max:e[6], rest:+hrProf.rest||0, age:ageFromBirth(hrProf.birth), bounds:e.slice(1), edges:e, karvonen:false, manual:true};
+  }
+  return hrZonesAuto();
 }
 // 0 = Z0 (Z1'in altındaki her şey), 1..5 = Z1..Z5
 function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
@@ -1322,9 +1353,13 @@ function renderZoneSetup(){
   const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
   if(!z){ box.innerHTML=""; h.textContent="Doğum tarihi (ya da bilinen maks. nabız) girince bölgeler hesaplanır ve sayaç ekranında dairesel gösterge açılır."; return; }
   box.innerHTML=zoneChipsHTML(ZONE_NAME.map((n,i)=>`${z.edges[i]}–${z.edges[i+1]}`), -1);
-  h.textContent=`Maks. nabız ${z.max}${hrProf.max?" (girilen)":` (220 − ${z.age} yaş)`} · `+
-    (z.karvonen ? `Karvonen: dinlenik ${z.rest} üstü rezervin yüzdesi` : "maks. nabız yüzdesi")+
-    ` · Z0 Toparlanma (${z.edges[0]} altı da Z0 sayılır), Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir.`+
+  const err = hrProf.zmode==="manual" ? zmanError(hrProf.zman) : "";
+  h.textContent=(err ? `Elle sınırlar kullanılamıyor: ${err} Şimdilik otomatik sınırlar kullanılıyor. · ` : "")+
+    (z.manual ? `Elle girilen sınırlar · maks. ${z.max}`
+      : `Maks. nabız ${z.max}${hrProf.max?" (girilen)":` (220 − ${z.age} yaş)`} · `+
+        (z.karvonen ? `Karvonen: dinlenik ${z.rest} üstü rezervin yüzdesi` : "maks. nabız yüzdesi"))+
+    ` · Z0 Toparlanma (${z.edges[0]} altı da Z0 sayılır), Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. `+
+    (z.manual ? "Elle modda yukarıdaki dinlenik/maks. alanları bölgeler için kullanılmaz (kcal için yaş ve kilo kullanılır)." : "Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir.")+
     (+hrProf.weight>0 ? " Kilo girildi: kcal (Keytel, ±%20-30) ve yağ/KH payı (nüfus ortalaması eğrisi) sayaç ekranındaki göstergenin iç halkasında birikimli gösterilir." : " Kilo girersen kcal ve yağ/KH halkası açılır.");
 }
 
@@ -1427,35 +1462,39 @@ function gS(bpm,z){                                 // nabız → yol konumu
   for(let i=0;i<6;i++) if(bpm<b[i+1]) return e[i]+(e[i+1]-e[i])*(bpm-b[i])/(b[i+1]-b[i]);
   return GU.S;
 }
+// ∩ içindeki satırlar: [id, sınıf, önceki taban çizgisinden aralık]. Bölge+yön en üstte, sonra nabız, ort (+eğilim), tepe.
+const GAUGE_ROWS=[["gZone","gzone",20],["gBpm","gbpm",60],["gAvg","gavg",24],["gPeakT","gpeak",22]];
+const GAUGE_FUEL_ROWS=[["gF1","gf f",26],["gF2","gf",20],["gF3","gf",20]];
+const GAUGE_ROWS_FUEL=[...GAUGE_ROWS,...GAUGE_FUEL_ROWS].reduce((a,r)=>a+r[2],0);
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; GU=null; return; }
-  const w=g.clientWidth||300, h=g.clientHeight||300;
-  const H=Math.round(Math.max(200, Math.min(330, 200*h/w)));
-  const R=76, cx=100, cy=R+26, yb=H-8, Lg=Math.max(0,yb-cy), arc=Math.PI*R;
-  GU={ cx, cy, R, H, yb, Lg, arc, S:2*Lg+arc };
+  const R=76, cx=100, cy=R+26;
+  const measureH=()=>Math.round(Math.max(200, Math.min(330, 200*(g.clientHeight||300)/(g.clientWidth||300))));
+  // yağ/KH/kcal üç satır olarak ∩'ün içine sığıyorsa içeride; sığmıyorsa göstergenin altındaki satıra iner (yeniden ölçülür)
+  const hasFuel=kcalPerMin(100)>0;
+  $("pFuel").innerHTML="";
+  let H=measureH(), fin = hasFuel && (H-8)-(cy-40) >= GAUGE_ROWS_FUEL+8;
+  if(hasFuel && !fin){ $("pFuel").innerHTML=fuelHTML(); H=measureH(); }
+  const yb=H-8, Lg=Math.max(0,yb-cy), arc=Math.PI*R;
+  GU={ cx, cy, R, H, yb, Lg, arc, S:2*Lg+arc, fin };
   GU.e=gLayout(tgtOk(settings.tgt[1],4));          // tepede Yüklen hedefi
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
   for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gSeg(GU.e[i],GU.e[i+1],0)}"/>`;
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
-  // yazılar ∩'ün içinde, iç boşlukta dikey ortalanır
-  const top=Math.max(cy-40, (cy-52+yb)/2-64), y=o=>(top+o).toFixed(1);
+  // yazılar ∩'ün içinde, alt alta; iç boşlukta dikey ortalanır (yazı taban çizgisi aralıkları GAUGE_ROWS)
+  const rows = fin ? GAUGE_ROWS.concat(GAUGE_FUEL_ROWS) : GAUGE_ROWS;
+  const total=rows.reduce((a,r)=>a+r[2],0), top=Math.max(cy-40, (cy-52+yb)/2-total/2);
+  let yy=top; const texts=rows.map(([id,cls,adv])=>{ yy+=adv; return `<text class="${cls}" x="100" y="${yy.toFixed(1)}" id="${id}"></text>`; }).join("");
   // işaretler orijinde tanımlı (dış yön = −y); updateGauge yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
-    <g class="gavgmk" id="gAvgMk" style="display:none">
-      <polygon points="0,-12 -7,-23 7,-23"/>
-      <polygon id="gTrendR" style="display:none" points="10,-23 22,-17.5 10,-12"/>
-      <polygon id="gTrendL" style="display:none" points="-10,-23 -22,-17.5 -10,-12"/>
-    </g>
+    <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,-12 -7,-23 7,-23"/></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/></g>
     <g class="gcur" id="gCur" style="display:none"><circle r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
-    <text class="gdir" x="100" y="${y(16)}" id="gDir"></text>
-    <text class="gbpm" x="100" y="${y(70)}" id="gBpm">—</text>
-    <text class="gavg" x="100" y="${y(90)}" id="gAvg"></text>
-    <text class="gpeak" x="100" y="${y(106)}" id="gPeakT"></text>
-    <text class="gzone" x="100" y="${y(126)}" id="gZone"></text>
+    ${texts}
   </svg>`;
+  $("gBpm").textContent="—";
 }
 const fuelHTML=()=>kcalPerMin(100)>0 ? `<span class="f">Yağ ${tr1(HRS.fat)} g</span> · KH ${tr1(HRS.carb)} g · ${Math.round(HRS.kcal)} kcal` : "";
 // İşareti nabzın yol üzerindeki yerine taşır ve dış yöne çevirir; ilk görünüşte uçarak gelmesin diye geçiş kapalı
@@ -1473,11 +1512,9 @@ function updateGauge(){
   gPlace($("gPeak"), HRS.max, z);                  // oturumun tepe nabzı: kırmızı nokta kalır
   const avg=hrAvg();
   gPlace($("gAvgMk"), avg, z);
-  $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
+  // ortalama ve eğilimi (↗ yükseliyor, ↘ düşüyor, → sabit) aynı satırda; halkada yalnız ortalama üçgeni
+  $("gAvg").textContent = avg!=null ? `ort ${avg} ${hrTrendArrow()}`.trim() : "";
   $("gPeakT").textContent = HRS.max>0 ? `tepe ${HRS.max}` : "";
-  const tr=hrTrendArrow();                         // ortalama yükseliyor → nabız artan yöne, düşüyor → azalan yöne
-  $("gTrendR").style.display = tr==="↗" ? "" : "none";
-  $("gTrendL").style.display = tr==="↘" ? "" : "none";
   // o anki segmentin hedefi: hedef bölge parlak, diğerleri sönük, dışta beyaz parantez; nabız rakamı ve ok yönü gösterir
   const zi = bpm!=null ? zoneOf(bpm,z) : -1, tgt=currentTarget();
   for(let i=0;i<6;i++){ const a=$("gArc"+i); if(a) a.style.opacity = (tgt<0 || i===tgt) ? "1" : ".35"; }
@@ -1486,16 +1523,18 @@ function updateGauge(){
   const dir = (tgt<0 || zi<0) ? "" : zi===tgt ? "ok" : zi<tgt ? "up" : "down";
   const bp=$("gBpm"); bp.textContent = bpm!=null ? bpm : "—";
   bp.setAttribute("class", "gbpm"+(dir==="up"||dir==="down" ? " "+dir : ""));
-  const gd=$("gDir"); gd.textContent = ({ok:"✓", up:"▲", down:"▼"})[dir]||""; gd.setAttribute("class", "gdir "+dir);
-  // ∩'ün içi dar: kısa tut (yön zaten rakamın üstündeki ▲/▼ ile gösteriliyor)
-  $("gZone").textContent = zi<0 ? "" : tgt<0 ? `Z${zi} · ${ZONE_NAME[zi]}` : dir==="ok" ? `Z${zi} · hedefte` : `Z${zi} · hedef Z${tgt}`;
+  // bölge + yön tek satırda: "Z2 ▲ Z3" (hedefe çık), "Z4 ▼ Z3" (in), "Z3 ✓" (hedefte), hedef yoksa "Z1"
+  const gz=$("gZone");
+  gz.textContent = zi<0 ? "" : tgt<0 ? `Z${zi}` : dir==="ok" ? `Z${zi} ✓` : `Z${zi} ${dir==="up" ? "▲" : "▼"} Z${tgt}`;
+  gz.setAttribute("class", "gzone "+dir);
   $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt), zi, tgt);
   // iç halka: birikimli enerjinin yağ payı (sarı, sol dipten başlar); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
   const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
   $("gFuelBg").style.display = has ? "" : "none";
   const fat=$("gFat");
   if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gSeg(0, GU.S*fs, FUEL_D)); } else fat.style.display="none";
-  $("pFuel").innerHTML = fuelHTML();
+  if(GU.fin){ $("gF1").textContent=`Yağ ${tr1(HRS.fat)} g`; $("gF2").textContent=`KH ${tr1(HRS.carb)} g`; $("gF3").textContent=`${Math.round(HRS.kcal)} kcal`; }
+  else $("pFuel").innerHTML = fuelHTML();
 }
 
 function renderHR(){
@@ -1511,7 +1550,7 @@ function renderHR(){
   } else p.innerHTML="";
   if(on && z){
     // gösterge kutusu ölçülerek kurulur: önce bölge çipleri yerleşsin ki kalan yükseklik doğru ölçülsün
-    if(!$("pGauge").firstChild){ $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt),-1,-1); $("pFuel").innerHTML=fuelHTML(); buildGauge(); }
+    if(!$("pGauge").firstChild){ $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt),-1,-1); buildGauge(); }
     updateGauge();
   }
   else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
@@ -1793,15 +1832,33 @@ function syncCoolUI(){ $("coolPill").classList.toggle("on",settings.cool); $("co
 $("coolPill").onclick=()=>{ settings.cool=!settings.cool; syncCoolUI(); };
 
 // nabız profili (kişiye ait; antrenman kaydından bağımsız saklanır)
+// elle bölge kutuları (Z0..Z5 alt + maks.)
+$("zmanGrid").innerHTML=ZMAN_LBL.map((l,i)=>`<div><label for="zman${i}">${l}</label><input type="number" id="zman${i}" min="30" max="230" step="1" inputmode="numeric"></div>`).join("");
 function syncHRProfUI(){
   $("hrBirth").value=hrProf.birth||""; $("hrRest").value=hrProf.rest||""; $("hrMax").value=hrProf.max||"";
   $("hrWeight").value=hrProf.weight||""; $("hrSex").value=hrProf.sex==="f"?"f":"m";
+  const man=hrProf.zmode==="manual";
+  document.querySelector(`input[name="zmode"][value="${man?"manual":"auto"}"]`).checked=true;
+  $("zmanBox").classList.toggle("hidden", !man);
+  for(let i=0;i<7;i++) $("zman"+i).value = Array.isArray(hrProf.zman) && Number.isFinite(hrProf.zman[i]) ? hrProf.zman[i] : "";
 }
 syncHRProfUI();
+const hrProfChanged=()=>{ saveHRProf(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR(); };
 ["hrBirth","hrRest","hrMax","hrWeight","hrSex"].forEach(id=>$(id).oninput=$(id).onchange=()=>{
-  hrProf={birth:$("hrBirth").value||"", rest:+$("hrRest").value||0, max:+$("hrMax").value||0, weight:+$("hrWeight").value||0, sex:$("hrSex").value==="f"?"f":"m"};
-  saveHRProf(); $("pGauge").innerHTML=""; renderZoneSetup(); renderHR();
+  hrProf={...hrProf, birth:$("hrBirth").value||"", rest:+$("hrRest").value||0, max:+$("hrMax").value||0, weight:+$("hrWeight").value||0, sex:$("hrSex").value==="f"?"f":"m"};
+  hrProfChanged();
 });
+document.querySelectorAll('input[name="zmode"]').forEach(r=>r.onchange=()=>{
+  const man=document.querySelector('input[name="zmode"]:checked').value==="manual";
+  hrProf={...hrProf, zmode: man ? "manual" : "auto"};
+  // elle moda ilk geçişte kutuları o anki otomatik sınırlarla doldur (yalnız değiştirmek istediğini düzeltirsin)
+  if(man && zmanError(hrProf.zman)){ const a=hrZonesAuto(); hrProf.zman = a ? a.edges.slice() : [90,100,110,120,130,140,150]; }
+  syncHRProfUI(); hrProfChanged();
+});
+for(let i=0;i<7;i++) $("zman"+i).oninput=$("zman"+i).onchange=()=>{
+  hrProf={...hrProf, zman: ZMAN_LBL.map((l,k)=>{ const v=parseInt($("zman"+k).value,10); return Number.isFinite(v) ? v : null; })};
+  hrProfChanged();
+};
 renderZoneSetup();
 // hedef bölge (antrenmanla kaydedilir)
 // hedefler 0..5 (Z0 geçerli; "||" ile varsayılana düşürme 0'ı yutardı)
@@ -1859,10 +1916,12 @@ $("xferBtn").onclick=()=>{ if($("xferCard").classList.contains("hidden")) openXf
 $("xferClose").onclick=()=>$("xferCard").classList.add("hidden");
 function cleanHRProf(h){
   const r=(v,lo,hi)=>{ v=+v; return v>=lo && v<=hi ? v : 0; };
+  const zman=Array.isArray(h.zman) ? h.zman.slice(0,7).map(v=>Number.isInteger(v) ? v : null) : [];
   return { birth: /^\d{4}-\d{2}-\d{2}$/.test(h.birth) ? h.birth : "", rest:r(h.rest,30,120), max:r(h.max,100,230),
-           weight:r(h.weight,30,250), sex: h.sex==="f" ? "f" : "m" };
+           weight:r(h.weight,30,250), sex: h.sex==="f" ? "f" : "m",
+           zmode: h.zmode==="manual" && !zmanError(zman) ? "manual" : "auto", zman: zmanError(zman) ? [] : zman };
 }
-const hrProfEmpty=h=>!(h.birth || h.rest || h.max || h.weight);
+const hrProfEmpty=h=>!(h.birth || h.rest || h.max || h.weight || h.zmode==="manual");
 $("expBtn").onclick=async()=>{
   const workouts={};
   for(const [k,w] of Object.entries(loadAll())){ const c=cleanWorkout(w); if(c) workouts[k]=c; }
