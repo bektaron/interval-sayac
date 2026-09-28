@@ -452,6 +452,7 @@
     <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
     <div class="row tight" style="margin-bottom:6px">
       <button id="hrBtn" class="ghost">💓 Bağlan</button>
+      <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
       <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
       <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
       <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
@@ -1041,7 +1042,7 @@ function loop(){
 /* Nabız — Web Bluetooth, standart Heart Rate servisi (0x180D/0x2A37)  */
 /* Polar H10 dahil çoğu göğüs bandı bu servisi yayınlar.               */
 /* ------------------------------------------------------------------ */
-const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0 };
+const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0, step:"", connecting:false };
 const HR_STALE_MS = 5000;
 const hrSupported = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 
@@ -1062,43 +1063,77 @@ function onHR(e){
   const p=$("pHR");
   if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
 }
+// Sayısal UUID: bazı iOS Web Bluetooth tarayıcıları "heart_rate" gibi takma adları çözmeyebilir.
+const HR_SVC=0x180D, HR_CHR=0x2A37;
+const HR_STEP={ list:"liste", connect:"bağlantı", service:"servis", chr:"özellik", notify:"bildirim" };
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+// Hata metni: bazı tarayıcılar yalnızca çıplak bir kod döndürür (ör. "2"); adı da ekle ki ayırt edilebilsin.
+const hrErrText=err=>{ if(err==null) return "bilinmeyen hata"; const t=[err.name, err.message].filter(Boolean).join(" "); return t || String(err); };
 async function hrSubscribe(){
-  const server=await HR.dev.gatt.connect();
-  const svc=await server.getPrimaryService("heart_rate");
-  const chr=await svc.getCharacteristic("heart_rate_measurement");
-  await chr.startNotifications();
+  HR.step=HR_STEP.connect;  const server=await HR.dev.gatt.connect();
+  HR.step=HR_STEP.service;  const svc=await server.getPrimaryService(HR_SVC);
+  HR.step=HR_STEP.chr;      const chr=await svc.getCharacteristic(HR_CHR);
+  HR.step=HR_STEP.notify;   await chr.startNotifications();
   chr.addEventListener("characteristicvaluechanged", onHR);
   HR.chr=chr;
   hrSetStatus("Bağlı: "+(HR.dev.name||"nabız bandı"));
   renderHR();
 }
-async function hrConnect(){
-  if(!hrSupported){ alert("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+// all=true: filtresiz liste (tanı için). Normalde nabız servisi YA DA "Polar" adıyla yayın yapanlar listelenir.
+async function hrConnect(all){
+  if(!hrSupported){ toast("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+  all = all===true;
   const gen=++HR.gen; HR.want=false;
+  let dev;
   try{
-    hrSetStatus("Aranıyor…");
-    const dev=await navigator.bluetooth.requestDevice({ filters:[{ services:["heart_rate"] }] });
-    if(gen!==HR.gen) return;
-    if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
-    HR.dev=dev; HR.want=true; HR.bpm=null; HR.at=0;
-    dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
-    await hrSubscribe();
+    HR.step=HR_STEP.list; hrSetStatus("Aranıyor…");
+    dev=await navigator.bluetooth.requestDevice(all
+      ? { acceptAllDevices:true, optionalServices:[HR_SVC] }
+      : { filters:[{ services:[HR_SVC] }, { namePrefix:"Polar" }], optionalServices:[HR_SVC] });
   }catch(err){
     if(gen!==HR.gen) return;
-    HR.want=false;
     const cancelled = err && err.name==="NotFoundError";
-    hrSetStatus(cancelled ? "Cihaz seçilmedi" : "Bağlanamadı: "+((err&&err.message)||err));
-    renderHR();
+    hrSetStatus(cancelled ? (all ? "Cihaz seçilmedi." : "Cihaz seçilmedi. Bant listede yoksa 🔍 Tüm cihazlar'ı dene.")
+                          : `Bağlanamadı (${HR.step}): ${hrErrText(err)}`);
+    renderHR(); return;
   }
+  if(gen!==HR.gen) return;
+  if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
+  HR.dev=dev; HR.bpm=null; HR.at=0;
+  dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
+  // iOS'ta ilk bağlantı denemesi geçici olarak düşebiliyor: 3 kez dene (arada bağlantıyı sıfırla).
+  // Denemeler sürerken kopma olayı otomatik yeniden bağlanmayı başlatmasın diye HR.connecting kullanılır.
+  const name=dev.name||"cihaz";
+  HR.connecting=true;
+  try{
+    for(let attempt=1; attempt<=3; attempt++){
+      try{
+        hrSetStatus(`Bağlanıyor: ${name}…`+(attempt>1 ? ` (deneme ${attempt}/3)` : ""));
+        await hrSubscribe();
+        if(gen===HR.gen) HR.want=true;
+        return;
+      }catch(err){
+        if(gen!==HR.gen) return;
+        HR.chr=null;
+        try{ if(dev.gatt.connected) dev.gatt.disconnect(); }catch(e){}
+        const noHR = err && err.name==="NotFoundError" && (HR.step===HR_STEP.service || HR.step===HR_STEP.chr);
+        if(!noHR && attempt<3){ await wait(800*attempt); if(gen!==HR.gen) return; continue; }
+        hrSetStatus(noHR ? `"${name}" nabız servisi (0x180D) sunmuyor; nabız bandı bu değil.`
+                         : `Bağlanamadı (${HR.step}): ${hrErrText(err)}`);
+        renderHR(); return;
+      }
+    }
+  }finally{ if(gen===HR.gen) HR.connecting=false; }
 }
 async function hrOnDisconnect(gen){
-  if(gen!==HR.gen) return;             // eski bağlantının olayı
-  HR.chr=null; renderHR();
-  if(!HR.want){ hrSetStatus("Bağlı değil"); return; }
+  if(gen!==HR.gen || HR.connecting) return;   // eski bağlantının olayı ya da ilk bağlanma denemeleri sürüyor
+  try{ if(HR.dev && HR.dev.gatt.connected) return; }catch(e){}   // gecikmiş olay: cihaz şu an bağlı
+  const was=!!HR.chr; HR.chr=null; renderHR();
+  if(!HR.want){ if(was) hrSetStatus("Bağlı değil"); return; }   // başarısız denemenin hata mesajını ezme
   for(let i=1;i<=5;i++){
     if(gen!==HR.gen || !HR.want) return;
     hrSetStatus(`Bağlantı koptu, yeniden deneniyor (${i}/5)…`);
-    await new Promise(r=>setTimeout(r, 1000*i));
+    await wait(1000*i);
     if(gen!==HR.gen || !HR.want) return;
     try{ await hrSubscribe(); return; }catch(e){}
   }
@@ -1106,7 +1141,7 @@ async function hrOnDisconnect(gen){
   HR.want=false; hrSetStatus("Yeniden bağlanamadı. Bağlan'a tekrar bas."); renderHR();
 }
 function hrDisconnect(){
-  HR.gen++; HR.want=false;
+  HR.gen++; HR.want=false; HR.connecting=false;
   try{ if(HR.dev && HR.dev.gatt.connected) HR.dev.gatt.disconnect(); }catch(e){}
   HR.chr=null; HR.bpm=null; HR.at=0;
   hrSetStatus("Bağlı değil"); renderHR();
@@ -1272,6 +1307,7 @@ function renderHR(){
   else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
+  $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
   $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
@@ -1441,13 +1477,15 @@ $("impBtn").onclick=()=>{
 };
 
 // nabız bandı
-$("hrBtn").onclick=hrConnect;
+$("hrBtn").onclick=()=>hrConnect(false);
+$("hrAllBtn").onclick=()=>hrConnect(true);
 $("hrOffBtn").onclick=hrDisconnect;
 if(!hrSupported){
-  $("hrBtn").disabled=true;
+  $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden");
   $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
 } else {
-  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener.";
+  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener. "+
+    "Listede görünmüyorsa: iPhone Ayarlar › Bluetooth'ta bant bağlı görünüyorsa 'Bu Aygıtı Unut', Polar Flow/Beat gibi uygulamaları kapat; yine yoksa 🔍 Tüm cihazlar ile bak.";
 }
 
 $("startBtn").onclick=startPlayer;
