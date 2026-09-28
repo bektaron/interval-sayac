@@ -452,6 +452,7 @@
     <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
     <div class="row tight" style="margin-bottom:6px">
       <button id="hrBtn" class="ghost">💓 Bağlan</button>
+      <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
       <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
       <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
       <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
@@ -1062,32 +1063,51 @@ function onHR(e){
   const p=$("pHR");
   if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
 }
+// Sayısal UUID: bazı iOS Web Bluetooth tarayıcıları "heart_rate" gibi takma adları çözmeyebilir.
+const HR_SVC=0x180D, HR_CHR=0x2A37;
 async function hrSubscribe(){
   const server=await HR.dev.gatt.connect();
-  const svc=await server.getPrimaryService("heart_rate");
-  const chr=await svc.getCharacteristic("heart_rate_measurement");
+  const svc=await server.getPrimaryService(HR_SVC);
+  const chr=await svc.getCharacteristic(HR_CHR);
   await chr.startNotifications();
   chr.addEventListener("characteristicvaluechanged", onHR);
   HR.chr=chr;
   hrSetStatus("Bağlı: "+(HR.dev.name||"nabız bandı"));
   renderHR();
 }
-async function hrConnect(){
-  if(!hrSupported){ alert("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+// all=true: filtresiz liste (tanı için). Normalde nabız servisi YA DA "Polar" adıyla yayın yapanlar listelenir.
+async function hrConnect(all){
+  if(!hrSupported){ toast("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
+  all = all===true;
   const gen=++HR.gen; HR.want=false;
+  const errMsg=err=>(err&&err.message)||String(err);
+  let dev;
   try{
     hrSetStatus("Aranıyor…");
-    const dev=await navigator.bluetooth.requestDevice({ filters:[{ services:["heart_rate"] }] });
+    dev=await navigator.bluetooth.requestDevice(all
+      ? { acceptAllDevices:true, optionalServices:[HR_SVC] }
+      : { filters:[{ services:[HR_SVC] }, { namePrefix:"Polar" }], optionalServices:[HR_SVC] });
+  }catch(err){
     if(gen!==HR.gen) return;
-    if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
-    HR.dev=dev; HR.want=true; HR.bpm=null; HR.at=0;
-    dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
+    const cancelled = err && err.name==="NotFoundError";
+    hrSetStatus(cancelled ? (all ? "Cihaz seçilmedi." : "Cihaz seçilmedi. Bant listede yoksa 🔍 Tüm cihazlar'ı dene.")
+                          : "Bağlanamadı: "+errMsg(err));
+    renderHR(); return;
+  }
+  if(gen!==HR.gen) return;
+  if(HR.dev && HR.dev!==dev){ try{ HR.dev.gatt.disconnect(); }catch(e){} }
+  HR.dev=dev; HR.want=true; HR.bpm=null; HR.at=0;
+  dev.addEventListener("gattserverdisconnected", ()=>hrOnDisconnect(gen));
+  try{
+    hrSetStatus("Bağlanıyor: "+(dev.name||"cihaz")+"…");
     await hrSubscribe();
   }catch(err){
     if(gen!==HR.gen) return;
-    HR.want=false;
-    const cancelled = err && err.name==="NotFoundError";
-    hrSetStatus(cancelled ? "Cihaz seçilmedi" : "Bağlanamadı: "+((err&&err.message)||err));
+    HR.want=false; HR.chr=null;
+    try{ if(dev.gatt.connected) dev.gatt.disconnect(); }catch(e){}
+    hrSetStatus(err && err.name==="NotFoundError"
+      ? `"${dev.name||"Cihaz"}" nabız servisi (0x180D) sunmuyor; nabız bandı bu değil.`
+      : "Bağlanamadı: "+errMsg(err));
     renderHR();
   }
 }
@@ -1272,6 +1292,7 @@ function renderHR(){
   else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
+  $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
   $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
@@ -1441,13 +1462,15 @@ $("impBtn").onclick=()=>{
 };
 
 // nabız bandı
-$("hrBtn").onclick=hrConnect;
+$("hrBtn").onclick=()=>hrConnect(false);
+$("hrAllBtn").onclick=()=>hrConnect(true);
 $("hrOffBtn").onclick=hrDisconnect;
 if(!hrSupported){
-  $("hrBtn").disabled=true;
+  $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden");
   $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
 } else {
-  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener.";
+  $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener. "+
+    "Listede görünmüyorsa: iPhone Ayarlar › Bluetooth'ta bant bağlı görünüyorsa 'Bu Aygıtı Unut', Polar Flow/Beat gibi uygulamaları kapat; yine yoksa 🔍 Tüm cihazlar ile bak.";
 }
 
 $("startBtn").onclick=startPlayer;
