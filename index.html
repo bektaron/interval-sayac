@@ -111,6 +111,10 @@
           padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 10px)}
   #player .ptop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex:0 0 auto}
   #player .ptr{display:flex;align-items:flex-start;gap:8px}
+  /* sıradaki interval: üst çubuğun ortasında (dikey yer kaplamaz) */
+  #player .ptop .pnext{flex:1 1 0;min-width:0;align-self:center;text-align:center;font-size:clamp(12px,3.6vw,20px);font-weight:700;
+                       line-height:1.15;opacity:.92;text-shadow:0 1px 8px rgba(0,0,0,.3)}
+  #player .ptop .pnext small{display:block;font-size:.8em;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
   #player .x{flex:0 0 auto;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.3);color:#fff;
              border-radius:10px;padding:6px 11px;font-size:16px;line-height:1}
   /* istatistik bloğu */
@@ -118,8 +122,6 @@
   #player .stat.right{text-align:right}
   #player .stat .cap{font-size:clamp(11px,3.2vw,17px);letter-spacing:.03em;text-transform:uppercase;opacity:.9;font-weight:700}
   #player .stat .val{font-size:clamp(22px,7vw,42px);font-weight:800}
-  /* sıradaki interval satırı */
-  #player .pnextline{flex:0 0 auto;text-align:center;font-size:clamp(14px,4.2vw,26px);font-weight:600;opacity:.92;padding:0 4px;margin-top:clamp(14px,4vh,44px)}
   /* orta: ad + sayaç + hayvan */
   #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
   #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
@@ -134,46 +136,46 @@
   #player .phr .unit{font-size:.45em;font-weight:700;opacity:.85;align-self:flex-end;padding-bottom:.15em}
   #player .phr.stale{opacity:.5}
   @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
-  /* dairesel nabız göstergesi: bölge halkası, anlık nokta, ortalama oku, ortada sayılar */
-  #player .pgauge{width:min(46vw,25vh);max-width:250px;margin-top:2px}
+  /* dairesel nabız göstergesi: dış halka bölgeler (ağırlıklı yaylar), iç halka birikimli yağ/KH,
+     beyaz nokta anlık, kırmızı nokta tepe, yumurta sarısı üçgen ortalama; nabız bandı bağlıyken
+     kalan tüm yüksekliği doldurur */
+  #player .pgauge{flex:1 1 0;min-height:0;align-self:stretch;position:relative;margin:0}
   #player .pgauge:empty,#player .pzones:empty{display:none}
-  #player .pgauge svg{width:100%;height:auto;display:block;overflow:visible}
+  #player .pgauge svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.35);stroke-width:22}
-  #player .pgauge .zarc{fill:none;stroke-width:16}
-  #player .pgauge .gcur,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:100px 100px}
+  #player .pgauge .zarc{fill:none;stroke-width:16;transition:opacity .35s}
+  #player .pgauge .fuel{fill:none;stroke-width:7}
+  #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28)}
+  #player .pgauge .fuel.fat{stroke:#fde68a}
+  #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:100px 100px}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  #player .pgauge .gavgmk{transition:transform .8s ease}
+  #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
+  #player .pgauge .gavgmk polygon{fill:#ffb300;stroke:rgba(0,0,0,.6);stroke-width:1.5}
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
-                       filter:drop-shadow(0 1px 3px rgba(0,0,0,.4))}
-  #player .pgauge .gbpm{font-size:46px}
-  #player .pgauge .gavg{font-size:13px;font-weight:700;opacity:.9}
-  #player .pgauge .gzone{font-size:13px;font-weight:700}
-  #player .pgauge .ghint{font-size:12px;font-weight:800;fill:#fde68a}
-  #player .pgauge .zarc{transition:opacity .35s}
+                       filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
+  #player .pgauge .gbpm{font-size:48px}
+  #player .pgauge .gbpm.up{fill:#fde68a} #player .pgauge .gbpm.down{fill:#bae6fd}
+  #player .pgauge .gdir{font-size:20px;stroke:rgba(0,0,0,.45);stroke-width:1.2;paint-order:stroke}
+  #player .pgauge .gdir.up{fill:#fde68a} #player .pgauge .gdir.down{fill:#bae6fd}
+  #player .pgauge .gavg{font-size:12px;font-weight:700;opacity:.95}
+  #player .pgauge .gavg .a{fill:#ffb300} #player .pgauge .gavg .p{fill:#fecaca}
+  #player .pgauge .gzone{font-size:14px;font-weight:800;fill:#fde68a}
+  #player .pgauge .gfuel{font-size:11.5px;font-weight:700}
+  #player .pgauge .gfuel .f{fill:#fde68a}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
-  #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur{opacity:.45}
+  #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px}
   #player .pzones .zc{background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc)}
   #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px)}
   #player .pzones .zc span{font-size:clamp(12px,3.6vw,16px)}
   #player .pzones .zc.cur{background:rgba(255,255,255,.28);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
-  /* birikimli yakıt çubuğu: sol yağ, sağ karbonhidrat (antrenman boyunca pay) */
-  #player .pfuel{width:min(94vw,420px);margin-top:6px;background:rgba(0,0,0,.22);border-radius:10px;padding:5px 9px 6px;display:flex;flex-direction:column;gap:5px}
-  #player .pfuel:empty{display:none}
-  #player .pfuel .fh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:clamp(10px,2.9vw,12px);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #player .pfuel .fh .fl{color:#fde68a;font-weight:800} #player .pfuel .fh .fr{color:#fecaca;font-weight:800}
-  #player .pfuel .fh .fm{opacity:.92;overflow:hidden;text-overflow:ellipsis}
-  #player .pfuel .fb{position:relative;height:14px;border-radius:7px;background:rgba(0,0,0,.35)}
-  #player .pfuel .ff{position:absolute;top:0;bottom:0;transition:width .6s ease}
-  #player .pfuel .ff.l{right:50%;background:linear-gradient(to left,#fcd34d,#fbbf24);border-radius:7px 0 0 7px}
-  #player .pfuel .ff.r{left:50%;background:linear-gradient(to right,#fca5a5,#f87171);border-radius:0 7px 7px 0}
-  #player .pfuel .fc{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#fff;transform:translateX(-50%)}
-  #player .pfuel .fn{position:absolute;top:-8px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #fff;transform:translateX(-50%);transition:left .6s ease}
-  /* nabız göstergesi açıkken dikey yer aç: sayaç biraz küçülür, boşluklar daralır */
-  #player.hr .pclock{font-size:min(24vw,13vh)}
-  #player.hr .pnextline{margin-top:clamp(4px,1vh,16px)}
-  #player.hr .pprofile{height:clamp(64px,10vh,160px)}
-  #player.hr .pgauge{width:min(44vw,23vh)}
+  /* nabız göstergesi açıkken dikey yeri göstergeye ver: sayaç, ad, profil ve alt satır küçülür */
+  #player.hr .pname{font-size:clamp(16px,4.8vw,28px);line-height:1.1}
+  #player.hr .pclock{font-size:min(17vw,9vh);line-height:.9}
+  #player.hr .pprofile{height:clamp(34px,6vh,80px);padding:5px 8px}
+  #player.hr .goalmsg{display:none}
+  #player.hr .binfo .val{font-size:clamp(18px,5.5vw,32px)}
+  #player.hr .pbtns button{padding:10px}
   /* alt 3'lü istatistik */
   #player .binfo{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;text-align:center}
   #player .binfo .stat{flex:1 1 0;min-width:0}
@@ -187,7 +189,7 @@
   #player .pbtns button{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);color:#fff;padding:14px 10px;font-size:18px;border-radius:14px}
   #player .pbtns button.big{flex:2;font-size:20px}
   /* bitiş + durumlar */
-  #player.done .ptop,#player.done .binfo,#player.done .pprofile,#player.done .pnextline,
+  #player.done .ptop,#player.done .binfo,#player.done .pprofile,
   #player.done #prevBtn,#player.done #nextBtn{display:none}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
@@ -459,7 +461,7 @@
     </div>
     <div class="hint" id="hrHint" style="margin-bottom:12px"></div>
 
-    <label class="lbl">Nabız bölgeleri ve enerji — kişisel (5 bölge, Polar düzeni)</label>
+    <label class="lbl">Nabız bölgeleri ve enerji — kişisel (Polar düzeni + Z0)</label>
     <div class="grid3" style="margin-bottom:8px">
       <div><label class="lbl">Doğum tarihi</label><input type="date" id="hrBirth" min="1920-01-01" max="2020-12-31"></div>
       <div><label class="lbl">Dinlenik nabız</label><input type="number" id="hrRest" min="30" max="120" step="1" inputmode="numeric" placeholder="ör. 60"></div>
@@ -474,8 +476,8 @@
 
     <label class="lbl">Hedef bölge (antrenmanla birlikte kaydedilir; göstergede hedef yay parlak, ortada yönlendirme)</label>
     <div class="grid2" style="margin-bottom:12px">
-      <div><label class="lbl">Gevşe</label><select id="tgtSlow"><option value="1">Z1 Çok hafif</option><option value="2" selected>Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4">Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
-      <div><label class="lbl">Yüklen</label><select id="tgtFast"><option value="1">Z1 Çok hafif</option><option value="2">Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4" selected>Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
+      <div><label class="lbl">Gevşe</label><select id="tgtSlow"><option value="0">Z0 Toparlanma</option><option value="1">Z1 Çok hafif</option><option value="2" selected>Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4">Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
+      <div><label class="lbl">Yüklen</label><select id="tgtFast"><option value="0">Z0 Toparlanma</option><option value="1">Z1 Çok hafif</option><option value="2">Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4" selected>Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
     </div>
 
     <label class="lbl">Antrenman adı</label>
@@ -492,19 +494,18 @@
 <div id="player" class="hidden">
   <div class="ptop">
     <div class="stat"><div class="cap">Interval</div><div class="val" id="pIndex">1/1</div></div>
+    <div class="pnext" id="pNext"></div>
     <div class="ptr">
       <div class="stat right"><div class="cap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
       <button class="x" id="exitBtn">✕</button>
     </div>
   </div>
-  <div class="pnextline" id="pNext"></div>
   <div class="pmid">
     <div class="pname" id="pName">—</div>
     <div class="pclock" id="pClock">0:00</div>
     <div class="phr" id="pHR"></div>
     <div class="pgauge" id="pGauge"></div>
     <div class="pzones" id="pZones"></div>
-    <div class="pfuel" id="pFuel"></div>
   </div>
   <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
   <div class="binfo">
@@ -846,7 +847,8 @@ function cleanWorkout(w){
     return { name: typeof x.name==="string" && x.name.trim() ? x.name : d.name,
              color: /^#[0-9a-f]{6}$/i.test(x.color) ? x.color : d.color };
   });
-  const z=(n,d)=>{ n=Math.round(+n); return n>=1 && n<=5 ? n : d; };
+  // hedef bölge 0..5; yalnız sayı kabul edilir (+null / +"" sessizce Z0'a dönüşmesin)
+  const z=(n,d)=>{ if(typeof n!=="number" || !Number.isFinite(n)) return d; n=Math.round(n); return n>=0 && n<=5 ? n : d; };
   const tgt=Array.isArray(w.tgt) && w.tgt.length===2 ? [z(w.tgt[0],2), z(w.tgt[1],4)] : [2,4];
   const prep=Math.round(+w.prepSec);
   const out={ variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt };
@@ -904,7 +906,7 @@ async function startPlayer(){
   P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
-  HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0}; $("pGauge").innerHTML="";
+  HRS=newHRS(); $("pGauge").innerHTML="";
   $("player").classList.remove("hidden","done");
   $("builder").style.display="none";
   requestWake().then(ok=>{ if(!ok && P && P.running) toast("Ekran açık tutulamıyor: bu tarayıcı izin vermedi. Antrenman boyunca iPhone'da Ayarlar › Ekran ve Parlaklık › Otomatik Kilit'i 'Asla' yap; ekran kilitlenince sayaç ve nabız bağlantısı durabilir.", 9000); });
@@ -974,9 +976,9 @@ function renderPlayer(){
     : (cur.sec%60===0 ? `${cur.sec/60} dakika ${cur.name}` : `${fmt(cur.sec)} ${cur.name}`);
   $("pClock").textContent=fmt(P.segLeft);
   const nx=P.timeline[P.idx+1];
-  $("pNext").textContent = nx
-    ? "Bir sonraki interval: " + (nx.sec%60===0 ? `${nx.sec/60} dakika ${nx.name}` : `${fmt(nx.sec)} ${nx.name}`)
-    : "Son interval";
+  $("pNext").innerHTML = nx
+    ? "<small>Sonra</small>" + esc(nx.sec%60===0 ? `${nx.sec/60} dk ${nx.name}` : `${fmt(nx.sec)} ${nx.name}`)
+    : "<small>Son</small>interval";
   $("playBtn").textContent=P.running?"⏸":"▶︎";
 
   // köşe istatistikleri
@@ -1009,7 +1011,6 @@ function finish(){
   P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
   const pl=$("player"); pl.classList.add("done"); pl.style.background="#16a34a";
   $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
-  $("pNext").textContent="Aferin.";
   $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
   beep(523,.15); setTimeout(()=>beep(784,.25),160);
   releaseWake();
@@ -1019,7 +1020,7 @@ function loop(){
   const now=performance.now();
   const dt=(now-P.last)/1000; P.last=now;
   if(!P.running) return;
-  hrAccumulate(dt);
+  hrAccumulate(Math.min(dt,2));   // kilit/arka plan sonrası büyük sıçrama tek nabız değerine yazılmasın
   P.segLeft-=dt;
   const whole=Math.ceil(P.segLeft);
   if(whole!==P.lastWhole){
@@ -1159,8 +1160,9 @@ function hrDisconnect(){
 /* --- Kişisel nabız bölgeleri (Polar düzeni: maks. nabzın %50-60-70-80-90-100'ü) --- */
 const HRP_KEY="intervalHRProfile";
 const ZONE_PCT=[.5,.6,.7,.8,.9,1];
-const ZONE_COLOR=["#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];
-const ZONE_NAME=["Çok hafif","Hafif","Orta","Zor","Maksimum"];
+const Z0_PCT=.4;                                   // Z0 alt sınırı (rezervin / maks. nabzın %40'ı)
+const ZONE_COLOR=["#e2e8f0","#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];   // Z0..Z5
+const ZONE_NAME=["Toparlanma","Çok hafif","Hafif","Orta","Zor","Maksimum"];
 const HRP_DEFAULT={birth:"", rest:0, max:0, weight:0, sex:"m"};
 function loadHRProf(){
   const p={...HRP_DEFAULT};
@@ -1181,25 +1183,29 @@ function hrZones(){
   const age=ageFromBirth(hrProf.birth), rest=+hrProf.rest||0;
   const max=+hrProf.max||(age?220-age:0);
   if(!max || rest>=max) return null;
-  const bounds=ZONE_PCT.map(p=>Math.round(rest ? rest+p*(max-rest) : p*max));
-  return {max, rest, age, bounds, karvonen:rest>0};
+  const pc=p=>Math.round(rest ? rest+p*(max-rest) : p*max);
+  const bounds=ZONE_PCT.map(pc);                   // Z1..Z5 alt sınırları + maks.
+  const edges=[pc(Z0_PCT), ...bounds];             // Z0..Z5 alt sınırları + maks. (7 değer)
+  return {max, rest, age, bounds, edges, karvonen:rest>0};
 }
+// 0 = Z0 (Z1'in altındaki her şey), 1..5 = Z1..Z5
 function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
 function zoneChipsHTML(vals,cur,tgt){
-  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i+1?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i+1}${tgt===i+1?" hedef":""}</b><span>${vals[i]}</span></div>`).join("");
+  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?" hedef":""}</b><span>${vals[i]}</span></div>`).join("");
 }
 function renderZoneSetup(){
   const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
   if(!z){ box.innerHTML=""; h.textContent="Doğum tarihi (ya da bilinen maks. nabız) girince bölgeler hesaplanır ve sayaç ekranında dairesel gösterge açılır."; return; }
-  box.innerHTML=zoneChipsHTML(ZONE_NAME.map((n,i)=>`${z.bounds[i]}–${z.bounds[i+1]}`), -1);
+  box.innerHTML=zoneChipsHTML(ZONE_NAME.map((n,i)=>`${z.edges[i]}–${z.edges[i+1]}`), -1);
   h.textContent=`Maks. nabız ${z.max}${hrProf.max?" (girilen)":` (220 − ${z.age} yaş)`} · `+
     (z.karvonen ? `Karvonen: dinlenik ${z.rest} üstü rezervin yüzdesi` : "maks. nabız yüzdesi")+
-    " · Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir."+
-    (+hrProf.weight>0 ? " Kilo girildi: kcal (Keytel, ±%20-30) ve yağ/KH payı (nüfus ortalaması eğrisi) sayaç ekranında birikimli gösterilir." : " Kilo girersen kcal ve yağ/KH çubuğu açılır.");
+    ` · Z0 Toparlanma (${z.edges[0]} altı da Z0 sayılır), Z1 Çok hafif, Z2 Hafif, Z3 Orta, Z4 Zor, Z5 Maksimum. Ölçülmüş maks. nabzın varsa onu gir; formül kaba bir tahmindir.`+
+    (+hrProf.weight>0 ? " Kilo girildi: kcal (Keytel, ±%20-30) ve yağ/KH payı (nüfus ortalaması eğrisi) sayaç ekranındaki göstergenin iç halkasında birikimli gösterilir." : " Kilo girersen kcal ve yağ/KH halkası açılır.");
 }
 
 /* --- Oturum istatistiği: zaman ağırlıklı ortalama + bölgede geçen süre (hazırlık hariç) --- */
-let HRS={sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0};
+const newHRS=()=>({sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0,max:0,min:0});   // zone: Z0..Z5 saniye
+let HRS=newHRS();
 /* Enerji: Keytel 2005 (cinsiyet, yaş, kilo, nabız) → kcal/dk; yağ payı maks. nabız yüzdesine göre parçalı doğrusal eğri.
    Kaba tahminlerdir: kcal ±%20-30, yağ payı ±20 puan; 90 bpm altında formül geçersizdir (taban 1 kcal/dk). */
 function kcalPerMin(hr){
@@ -1224,6 +1230,8 @@ function hrAccumulate(dt){
   // (bpm − ort) farkı ~10 sn zaman sabitiyle yumuşatılır; ±3 bpm ölü bant "sabit" sayılır.
   if(HRS.t>0){ const diff=HR.bpm-HRS.sum/HRS.t; HRS.trend+=(diff-HRS.trend)*Math.min(1,dt/TREND_TAU); }
   HRS.sum+=HR.bpm*dt; HRS.t+=dt;
+  if(HR.bpm>HRS.max) HRS.max=HR.bpm;
+  if(!HRS.min || HR.bpm<HRS.min) HRS.min=HR.bpm;
   const z=hrZones();
   if(z){
     HRS.zone[zoneOf(HR.bpm,z)]+=dt;
@@ -1231,75 +1239,94 @@ function hrAccumulate(dt){
     if(k>0){ const f=fatFrac(HR.bpm,z); HRS.kcal+=k*dt/60; HRS.fat+=k*f*dt/60/9.4; HRS.carb+=k*(1-f)*dt/60/4.1; }
   }
 }
-// Şu anki segmentin hedef bölgesi (hazırlıkta ve bitişte yok)
+// Şu anki segmentin hedef bölgesi 0..5 (Z0 geçerli bir hedef); hazırlıkta ve bitişte hedef yok: −1
 function currentTarget(){
-  if(!P || $("player").classList.contains("done")) return 0;
+  if(!P || $("player").classList.contains("done")) return -1;
   const realIdx=P.idx-(settings.prepSec>0?1:0);
-  if(realIdx<0 || realIdx>=state.segments.length) return 0;
-  return settings.tgt[state.segments[realIdx].v]||0;
+  if(realIdx<0 || realIdx>=state.segments.length) return -1;
+  const t=settings.tgt[state.segments[realIdx].v];
+  return Number.isInteger(t) && t>=0 && t<=5 ? t : -1;
 }
 const tr1=n=>n.toLocaleString("tr-TR",{maximumFractionDigits:1,minimumFractionDigits:1});
 function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
 function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND_BAND ? "↗" : HRS.trend<-TREND_BAND ? "↘" : "→"; }
 
-/* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = halka üstünde nokta, ortalama = dışta ok --- */
-const G={cx:100,cy:100,r:76,a0:-120,a1:120};
+/* --- Dairesel gösterge: 240° yay, bölge renkleri; anlık = beyaz nokta, tepe = kırmızı nokta, ortalama = dışta sarı ok;
+       iç halka = birikimli enerjinin yağ payı --- */
+const G={cx:100,cy:100,r:76,a0:-120,a1:120}, FUEL_R=56;
+// Z0..Z5 yay genişlikleri (derece, toplam 240): en çok kullanılan Z1–Z2 geniş, nadir çıkılan Z4–Z5 dar.
+// Bölge içinde nabız doğrusal; Z0 altı sol uca, maks. üstü sağ uca sabitlenir.
+const ZONE_ARC=[45,55,50,35,30,25];
+function zoneArc(i){ let a=G.a0; for(let k=0;k<i;k++) a+=ZONE_ARC[k]; return [a, a+ZONE_ARC[i]]; }
 function gPt(ang,r){ const t=ang*Math.PI/180; return [G.cx+r*Math.sin(t), G.cy-r*Math.cos(t)]; }
 function gArc(aA,aB,r){
   const [x1,y1]=gPt(aA,r),[x2,y2]=gPt(aB,r); const lg=(aB-aA)>180?1:0;
   return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${lg} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
-function gAng(bpm,z){ const lo=z.bounds[0], hi=z.bounds[5]; const f=Math.max(0,Math.min(1,(bpm-lo)/(hi-lo))); return G.a0+(G.a1-G.a0)*f; }
+function gAng(bpm,z){
+  const e=z.edges; let a=G.a0;
+  if(!(bpm>e[0])) return G.a0;
+  for(let i=0;i<6;i++){
+    if(bpm<e[i+1]) return a+ZONE_ARC[i]*(bpm-e[i])/(e[i+1]-e[i]);
+    a+=ZONE_ARC[i];
+  }
+  return G.a1;
+}
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; return; }
   let arcs=`<path class="track" d="${gArc(G.a0,G.a1,G.r)}"/>`;
-  for(let i=0;i<5;i++) arcs+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gArc(gAng(z.bounds[i],z),gAng(z.bounds[i+1],z),G.r)}"/>`;
+  for(let i=0;i<6;i++){ const [a,b]=zoneArc(i); arcs+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_COLOR[i]}" d="${gArc(a,b,G.r)}"/>`; }
   arcs+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
+  arcs+=`<path class="fuel bg" id="gFuelBg" d="${gArc(G.a0,G.a1,FUEL_R)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   const top=G.cy-G.r;
-  g.innerHTML=`<svg viewBox="0 -14 200 190">${arcs}
+  g.innerHTML=`<svg viewBox="0 -16 200 200">${arcs}
     <g class="gavgmk" id="gAvgMk" style="display:none">
-      <polygon points="100,${top-12} 93,${top-23} 107,${top-23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
-      <polygon points="100,${top+12} 93,${top+23} 107,${top+23}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
-      <polygon id="gTrendR" style="display:none" points="93,${top-37} 108,${top-31} 93,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
-      <polygon id="gTrendL" style="display:none" points="107,${top-37} 92,${top-31} 107,${top-25}" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+      <polygon points="100,${top-12} 93,${top-23} 107,${top-23}"/>
+      <polygon id="gTrendR" style="display:none" points="93,${top-37} 108,${top-31} 93,${top-25}"/>
+      <polygon id="gTrendL" style="display:none" points="107,${top-37} 92,${top-31} 107,${top-25}"/>
     </g>
+    <g class="gpk" id="gPeak" style="display:none"><circle cx="100" cy="${top}" r="6" fill="#ef4444" stroke="#fff" stroke-width="2"/></g>
     <g class="gcur" id="gCur" style="display:none"><circle cx="100" cy="${top}" r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
-    <text class="gbpm" x="100" y="106" id="gBpm">—</text>
-    <text class="gavg" x="100" y="128" id="gAvg"></text>
-    <text class="gzone" x="100" y="150" id="gZone"></text>
-    <text class="ghint" x="100" y="167" id="gHint"></text>
+    <text class="gdir" x="100" y="64" id="gDir"></text>
+    <text class="gbpm" x="100" y="112" id="gBpm">—</text>
+    <text class="gavg" x="100" y="146" id="gAvg"></text>
+    <text class="gzone" x="100" y="163" id="gZone"></text>
+    <text class="gfuel" x="100" y="180" id="gFuel"></text>
   </svg>`;
 }
 function updateGauge(){
   const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild) return;
   const bpm=HR.bpm, fresh = bpm!=null && (performance.now()-HR.at)<HR_STALE_MS;
   g.classList.toggle("stale", !fresh);
-  $("gBpm").textContent = bpm!=null ? bpm : "—";
-  const cur=$("gCur");
-  if(bpm!=null){ cur.style.display=""; cur.style.transform=`rotate(${gAng(bpm,z).toFixed(1)}deg)`; } else cur.style.display="none";
-  const zi = bpm!=null ? zoneOf(bpm,z) : -1;
-  $("gZone").textContent = zi>0 ? `Z${zi} · ${ZONE_NAME[zi-1]}` : (zi===0 ? "Bölge altı" : "");
-  const avg=hrAvg(), mk=$("gAvgMk");
-  $("gAvg").textContent = avg!=null ? `ort ${avg}` : "";
-  if(avg!=null){ mk.style.display=""; mk.style.transform=`rotate(${gAng(avg,z).toFixed(1)}deg)`; } else mk.style.display="none";
+  const rot=(el,b)=>{ if(b!=null && b>0){ el.style.display=""; el.style.transform=`rotate(${gAng(b,z).toFixed(1)}deg)`; } else el.style.display="none"; };
+  rot($("gCur"), bpm);
+  rot($("gPeak"), HRS.max);                      // oturumun tepe nabzı: kırmızı nokta kalır
+  const avg=hrAvg();
+  rot($("gAvgMk"), avg);
+  $("gAvg").innerHTML = (avg!=null ? `<tspan class="a">ort ${avg}</tspan>` : "") +
+                        (HRS.max>0 ? (avg!=null?" · ":"")+`<tspan class="p">tepe ${HRS.max}</tspan>` : "");
   const tr=hrTrendArrow();                       // ortalama yükseliyor → sağa (saat yönü), düşüyor → sola
   $("gTrendR").style.display = tr==="↗" ? "" : "none";
   $("gTrendL").style.display = tr==="↘" ? "" : "none";
-  // hedef bölge: hedef yay parlak, diğerleri sönük, dışta beyaz parantez, ortada yönlendirme
-  const tgt=currentTarget();
-  for(let i=0;i<5;i++){ const a=$("gArc"+i); if(a) a.style.opacity = (!tgt || i+1===tgt) ? "1" : ".35"; }
+  // hedef bölge: hedef yay parlak, diğerleri sönük, dışta beyaz parantez; nabız rakamı ve ok yönü gösterir
+  const zi = bpm!=null ? zoneOf(bpm,z) : -1, tgt=currentTarget();
+  for(let i=0;i<6;i++){ const a=$("gArc"+i); if(a) a.style.opacity = (tgt<0 || i===tgt) ? "1" : ".35"; }
   const tp=$("gTgt");
-  if(tp){ if(tgt){ tp.style.display=""; tp.setAttribute("d", gArc(gAng(z.bounds[tgt-1],z), gAng(z.bounds[tgt],z), G.r+14)); } else tp.style.display="none"; }
-  $("gHint").textContent = (!tgt || bpm==null) ? "" : (zi===tgt ? "hedefte ✓" : (zi<tgt ? `hedef Z${tgt} · yüklen ↑` : `hedef Z${tgt} · gevşe ↓`));
-  $("pZones").innerHTML=zoneChipsHTML(HRS.zone.slice(1).map(fmt), zi, tgt);
-  // birikimli yakıt çubuğu (kilo girildiyse)
-  const pf=$("pFuel");
-  if(kcalPerMin(100)>0){
-    const fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs = (fk+ck)>0 ? fk/(fk+ck) : 0.5;
-    pf.innerHTML=`<div class="fh"><span class="fl">Yağ ${tr1(HRS.fat)} g</span><span class="fm">%${Math.round(fs*100)} yağ · ${Math.round(HRS.kcal)} kcal · %${Math.round((1-fs)*100)} KH</span><span class="fr">KH ${tr1(HRS.carb)} g</span></div>
-      <div class="fb"><div class="ff l" style="width:${(fs*50).toFixed(1)}%"></div><div class="ff r" style="width:${((1-fs)*50).toFixed(1)}%"></div><div class="fc"></div><div class="fn" style="left:${((1-fs)*100).toFixed(1)}%"></div></div>`;
-  } else pf.innerHTML="";
+  if(tgt>=0){ const [a,b]=zoneArc(tgt); tp.style.display=""; tp.setAttribute("d", gArc(a,b,G.r+14)); } else tp.style.display="none";
+  const dir = (tgt<0 || zi<0) ? "" : zi===tgt ? "ok" : zi<tgt ? "up" : "down";
+  const bp=$("gBpm"); bp.textContent = bpm!=null ? bpm : "—";
+  bp.setAttribute("class", "gbpm"+(dir==="up"||dir==="down" ? " "+dir : ""));
+  const gd=$("gDir"); gd.textContent = ({ok:"✓", up:"▲", down:"▼"})[dir]||""; gd.setAttribute("class", "gdir "+dir);
+  $("gZone").textContent = zi<0 ? "" : tgt<0 ? `Z${zi} · ${ZONE_NAME[zi]}`
+    : dir==="ok" ? `Z${zi} · hedefte ✓` : `Z${zi} → hedef Z${tgt} ${dir==="up" ? "↑" : "↓"}`;
+  $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt), zi, tgt);
+  // iç halka: birikimli enerjinin yağ payı (sarı, soldan); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
+  const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
+  $("gFuelBg").style.display = has ? "" : "none";
+  const fat=$("gFat");
+  if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gArc(G.a0, G.a0+(G.a1-G.a0)*fs, FUEL_R)); } else fat.style.display="none";
+  $("gFuel").innerHTML = has ? `<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · KH ${tr1(HRS.carb)} g · ${Math.round(HRS.kcal)} kcal` : "";
 }
 
 function renderHR(){
@@ -1314,7 +1341,7 @@ function renderHR(){
     p.classList.toggle("stale", stale);
   } else p.innerHTML="";
   if(on && z){ if(!$("pGauge").firstChild) buildGauge(); updateGauge(); }
-  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
+  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
@@ -1391,9 +1418,11 @@ syncHRProfUI();
 });
 renderZoneSetup();
 // hedef bölge (antrenmanla kaydedilir)
-function syncTgtUI(){ $("tgtSlow").value=String(settings.tgt[0]||2); $("tgtFast").value=String(settings.tgt[1]||4); }
-$("tgtSlow").onchange=()=>{ settings.tgt[0]=+$("tgtSlow").value||2; };
-$("tgtFast").onchange=()=>{ settings.tgt[1]=+$("tgtFast").value||4; };
+// hedefler 0..5 (Z0 geçerli; "||" ile varsayılana düşürme 0'ı yutardı)
+const tgtOk=(n,d)=>Number.isInteger(n) && n>=0 && n<=5 ? n : d;
+function syncTgtUI(){ $("tgtSlow").value=String(tgtOk(settings.tgt[0],2)); $("tgtFast").value=String(tgtOk(settings.tgt[1],4)); }
+$("tgtSlow").onchange=()=>{ settings.tgt[0]=tgtOk(parseInt($("tgtSlow").value,10),2); };
+$("tgtFast").onchange=()=>{ settings.tgt[1]=tgtOk(parseInt($("tgtFast").value,10),4); };
 syncTgtUI();
 
 $("saveBtn").onclick=()=>{
