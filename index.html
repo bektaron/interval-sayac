@@ -14,7 +14,7 @@
   :root{
     --bg:#0b1120; --panel:#131c2e; --panel2:#1b2740; --line:#26334d;
     --txt:#e7eefc; --muted:#8aa0c7; --accent:#38bdf8;
-    --slow:#059669; --fast:#ea580c; --prep:#7c3aed;
+    --slow:#334155; --fast:#ea580c; --prep:#7c3aed;
     --ok:#22c55e;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -57,7 +57,7 @@
   .chips{display:flex;gap:8px;flex-wrap:wrap}
   .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
   .legend .lgi{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600}
-  .legend .lgi i{width:14px;height:14px;border-radius:4px;display:inline-block;flex:0 0 auto}
+  .legend .lgi i{width:14px;height:14px;border-radius:4px;display:inline-block;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
   .geninfo{display:flex;gap:10px;margin-bottom:10px}
   .geninfo>div{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
                padding:10px 14px;display:flex;flex-direction:column;gap:2px}
@@ -81,11 +81,11 @@
   .patgrid:not(.cross) .g-cross{display:none}
   .patgrid.flip .pat svg{transform:scaleX(-1)}   /* ters çevir: ikonlar da aynalanır */
   /* lider/eş renkleri; "önce" anahtarıyla takas */
-  .pat .ln.lead{stroke:var(--slow)}
+  .pat .ln.lead{stroke:#94a3b8}   /* Gevşe (antrasit) koyu panelde seçilsin diye açık gri */
   .pat .ln.partner{stroke:var(--fast)}
   .seg{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
        border-radius:12px;padding:8px;margin-bottom:8px}
-  .seg .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+  .seg .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
   .seg .name{flex:1 1 auto;font-weight:600;min-width:60px}
   .seg .time{font-variant-numeric:tabular-nums;color:var(--muted);min-width:54px;text-align:right}
   .seg .acts{display:flex;gap:4px}
@@ -240,14 +240,14 @@
   .srow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
   .srow:first-of-type{border-top:0}
   .srow .l{display:flex;align-items:center;gap:7px;min-width:0}
-  .srow .l i{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .srow .l i{width:11px;height:11px;border-radius:3px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
   .srow .r{color:var(--muted);white-space:nowrap}
   .srow .r b{color:var(--txt)}
   table.itab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
   table.itab th{color:var(--muted);font-weight:600;text-align:right;padding:4px 3px;font-size:12px}
   table.itab td{text-align:right;padding:6px 3px;border-top:1px solid var(--line)}
   table.itab th:first-child,table.itab td:first-child,table.itab th:nth-child(2),table.itab td:nth-child(2){text-align:left}
-  table.itab .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  table.itab .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
   /* Geçmiş listesi */
   .hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);
         border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
@@ -606,7 +606,7 @@ const A = 0, B = 1; // Gevşe, Yüklen
 let state = {
   name: "",
   variations: [
-    { name: "Gevşe", color: "#059669" },
+    { name: "Gevşe", color: "#334155" },
     { name: "Yüklen", color: "#ea580c" },
   ],
   segments: [], // {v:0|1, sec:Number}
@@ -912,7 +912,9 @@ function saveAll(o){
   catch(e){ toast("Kaydedilemedi: tarayıcı hafızası dolu ya da kapalı (gizli sekme?)."); return false; }
 }
 // Kayıtlı/içe aktarılan antrenmanı doğrular ve sadeleştirir; kullanılamazsa null.
-const DEF_VARS=[{ name:"Gevşe", color:"#059669" },{ name:"Yüklen", color:"#ea580c" }];
+const DEF_VARS=[{ name:"Gevşe", color:"#334155" },{ name:"Yüklen", color:"#ea580c" }];
+const OLD_SLOW="#059669";   // eski varsayılan Gevşe yeşili; yüklenirken antrasite çevrilir
+const varColor=(c,i)=> /^#[0-9a-f]{6}$/i.test(c) && !(i===0 && c.toLowerCase()===OLD_SLOW) ? c : DEF_VARS[i].color;
 function cleanWorkout(w){
   if(!w || !Array.isArray(w.segments)) return null;
   const segments=w.segments.filter(x=>x && (x.v===A||x.v===B) && +x.sec>0).map(x=>({ v:x.v, sec:Math.round(+x.sec) }));
@@ -920,7 +922,7 @@ function cleanWorkout(w){
   const variations=DEF_VARS.map((d,i)=>{
     const x=(Array.isArray(w.variations) && w.variations[i]) || {};
     return { name: typeof x.name==="string" && x.name.trim() ? x.name : d.name,
-             color: /^#[0-9a-f]{6}$/i.test(x.color) ? x.color : d.color };
+             color: varColor(x.color,i) };
   });
   // hedef bölge 0..5; yalnız sayı kabul edilir (+null / +"" sessizce Z0'a dönüşmesin)
   const z=(n,d)=>{ if(typeof n!=="number" || !Number.isFinite(n)) return d; n=Math.round(n); return n>=0 && n<=5 ? n : d; };
@@ -1151,7 +1153,7 @@ function finish(){
   const s=recordSession(true);
   if(s){ hidePlayer(); openSummary(s,true); return; }
   // 1 dk'dan kısa (kaydedilmeyen) antrenman: sade bitiş ekranı
-  const pl=$("player"); pl.classList.remove("cool"); pl.classList.add("done"); pl.style.background="#16a34a";
+  const pl=$("player"); pl.classList.remove("cool"); pl.classList.add("done"); pl.style.background="#334155";
   $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
   $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
 }
@@ -1634,7 +1636,7 @@ function cleanSession(x){
     return { t:num(o.t,0), avg:num(o.avg), max:num(o.max), min:num(o.min), zone, kcal:num(o.kcal,0), fat:num(o.fat,0), carb:num(o.carb,0) }; };
   const pl=x.plan && typeof x.plan==="object" ? x.plan : {};
   const vars=DEF_VARS.map((d,i)=>{ const v=Array.isArray(pl.vars) && pl.vars[i] || {};
-    return { name: typeof v.name==="string" && v.name.trim() ? v.name.slice(0,40) : d.name, color: /^#[0-9a-f]{6}$/i.test(v.color) ? v.color : d.color }; });
+    return { name: typeof v.name==="string" && v.name.trim() ? v.name.slice(0,40) : d.name, color: varColor(v.color,i) }; });
   const ze=x.zones && Array.isArray(x.zones.edges) && x.zones.edges.length===7 ? x.zones.edges.map(v=>num(v,0)) : null;
   return {
     id:x.id.slice(0,40), at:+x.at, end:num(x.end,+x.at), done:!!x.done, rec:!!x.rec,
