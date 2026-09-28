@@ -1065,10 +1065,13 @@ function onHR(e){
 }
 // Sayısal UUID: bazı iOS Web Bluetooth tarayıcıları "heart_rate" gibi takma adları çözmeyebilir.
 const HR_SVC=0x180D, HR_CHR=0x2A37;
-const HR_STEP={ list:"liste", connect:"bağlantı", service:"servis", chr:"özellik", notify:"bildirim" };
+const HR_STEP={ list:"liste", listAll:"tüm cihazlar listesi", connect:"bağlantı", service:"servis", chr:"özellik", notify:"bildirim" };
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 // Hata metni: bazı tarayıcılar yalnızca çıplak bir kod döndürür (ör. "2"); adı da ekle ki ayırt edilebilsin.
 const hrErrText=err=>{ if(err==null) return "bilinmeyen hata"; const t=[err.name, err.message].filter(Boolean).join(" "); return t || String(err); };
+// Bluefy liste açılmadan çıplak bir sayı döndürüyor (ör. "2"): tarayıcı Bluetooth'a hiç erişemiyor demek.
+const hrBareCode=err=>{ const raw = err!=null && typeof err==="object" ? (err.name && err.name!=="Error" ? "" : String(err.message||"")) : String(err??"");
+                        return /^\d+$/.test(raw.trim()) ? raw.trim() : null; };
 async function hrSubscribe(){
   HR.step=HR_STEP.connect;  const server=await HR.dev.gatt.connect();
   HR.step=HR_STEP.service;  const svc=await server.getPrimaryService(HR_SVC);
@@ -1086,15 +1089,16 @@ async function hrConnect(all){
   const gen=++HR.gen; HR.want=false;
   let dev;
   try{
-    HR.step=HR_STEP.list; hrSetStatus("Aranıyor…");
+    HR.step = all ? HR_STEP.listAll : HR_STEP.list; hrSetStatus("Aranıyor…");
     dev=await navigator.bluetooth.requestDevice(all
       ? { acceptAllDevices:true, optionalServices:[HR_SVC] }
       : { filters:[{ services:[HR_SVC] }, { namePrefix:"Polar" }], optionalServices:[HR_SVC] });
   }catch(err){
     if(gen!==HR.gen) return;
-    const cancelled = err && err.name==="NotFoundError";
+    const cancelled = err && err.name==="NotFoundError", code=hrBareCode(err);
     hrSetStatus(cancelled ? (all ? "Cihaz seçilmedi." : "Cihaz seçilmedi. Bant listede yoksa 🔍 Tüm cihazlar'ı dene.")
-                          : `Bağlanamadı (${HR.step}): ${hrErrText(err)}`);
+      : code ? `Bağlanamadı (${HR.step}, kod ${code}): tarayıcı Bluetooth'a erişemiyor, liste açılmadı. iPhone Ayarlar › Bluefy › Bluetooth iznini aç ve Bluetooth'un açık olduğundan emin ol; sonra Bluefy'yi tamamen kapatıp yeniden aç.`
+      : `Bağlanamadı (${HR.step}): ${hrErrText(err)}`);
     renderHR(); return;
   }
   if(gen!==HR.gen) return;
