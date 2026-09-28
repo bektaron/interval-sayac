@@ -191,6 +191,9 @@
   /* bitiş + durumlar */
   #player.done .ptop,#player.done .binfo,#player.done .pprofile,
   #player.done #prevBtn,#player.done #nextBtn{display:none}
+  /* soğuma: ileri sayar; ⏮ yok, ⏭ yerine büyük ■ Bitir; alt istatistik satırı gizli */
+  #player.cool #prevBtn,#player.cool .binfo{display:none}
+  #player.cool #nextBtn{flex:2;font-size:20px}
   #player.pulse .pclock{animation:pulse .5s ease}
   @keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
   #player.done .pclock{font-size:22vw}
@@ -204,6 +207,46 @@
          padding:11px 15px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.45);
          z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
   .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ---- Antrenman özeti (bitişte ve Geçmiş'ten) ---- */
+  #summary{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;
+           padding:calc(env(safe-area-inset-top) + 12px) 0 calc(env(safe-area-inset-bottom) + 16px)}
+  #summary .swrap{max-width:680px;margin:0 auto;padding:0 14px}
+  .sum-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:2px 0 12px}
+  .sum-h h1{font-size:24px}
+  .sum-sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+  .tile b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile span{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
+  .tile small{font-size:12px;color:var(--muted);font-weight:600}
+  .schart svg{width:100%;height:auto;display:block}
+  .schart text{font:600 9px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;fill:var(--muted)}
+  .schart .zl{font-weight:800}
+  .slegend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+  .slegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .zbar{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:4px 0 10px;background:var(--panel2)}
+  .zbar>div{height:100%}
+  .srow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;padding:6px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .srow:first-of-type{border-top:0}
+  .srow .l{display:flex;align-items:center;gap:7px;min-width:0}
+  .srow .l i{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .srow .r{color:var(--muted);white-space:nowrap}
+  .srow .r b{color:var(--txt)}
+  table.itab{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+  table.itab th{color:var(--muted);font-weight:600;text-align:right;padding:4px 3px;font-size:12px}
+  table.itab td{text-align:right;padding:6px 3px;border-top:1px solid var(--line)}
+  table.itab th:first-child,table.itab td:first-child,table.itab th:nth-child(2),table.itab td:nth-child(2){text-align:left}
+  table.itab .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  /* Geçmiş listesi */
+  .hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);
+        border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
+  .hrow:active{transform:scale(.99)}
+  .hrow .hl{min-width:0}
+  .hrow .hl b{display:block;font-size:14px}
+  .hrow .hl span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hrow .hr-r{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .hrow .hr-r b{color:var(--txt);font-size:15px}
 </style>
 </head>
 <body>
@@ -451,6 +494,8 @@
         <div class="chips"><div class="pill on" id="soundPill">🔊 Açık</div></div>
       </div>
     </div>
+    <label class="lbl">Soğuma — son intervalden sonra ileri sayar, ■ Bitir'e basınca biter (unutulursa 60 dk'da kendisi biter)</label>
+    <div class="chips" style="margin-bottom:12px"><div class="pill on" id="coolPill">❄︎ Açık</div></div>
     <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
     <div class="row tight" style="margin-bottom:6px">
       <button id="hrBtn" class="ghost">💓 Bağlan</button>
@@ -488,6 +533,13 @@
   </div>
 
   <button id="startBtn" class="primary block" style="padding:18px;font-size:18px">▶︎ BAŞLAT</button>
+
+  <!-- Geçmiş: tamamlanan / yarıda bırakılan antrenmanlar (otomatik) -->
+  <div class="card" style="margin-top:14px">
+    <h2>Geçmiş <span id="histCount" style="letter-spacing:0"></span></h2>
+    <div id="histBox"></div>
+    <div class="hint">Antrenmanlar otomatik kaydedilir: tamamlananlar ve 1 dk'dan sonra ✕ ile bırakılanlar. Kayıtlar bu tarayıcıya özeldir; yedek ya da taşıma için üstteki ⇅.</div>
+  </div>
 </div>
 
 <!-- ===================== PLAYER ===================== -->
@@ -496,7 +548,7 @@
     <div class="stat"><div class="cap">Interval</div><div class="val" id="pIndex">1/1</div></div>
     <div class="pnext" id="pNext"></div>
     <div class="ptr">
-      <div class="stat right"><div class="cap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
+      <div class="stat right"><div class="cap" id="pSegCap">Bu interval</div><div class="val" id="pSegLen">0:00</div></div>
       <button class="x" id="exitBtn">✕</button>
     </div>
   </div>
@@ -520,6 +572,9 @@
   </div>
 </div>
 
+<!-- ===================== ÖZET ===================== -->
+<div id="summary" class="hidden" role="dialog" aria-label="Antrenman özeti"><div class="swrap" id="sumBody"></div></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -537,7 +592,7 @@ let state = {
   segments: [], // {v:0|1, sec:Number}
 };
 let gen = { src: "longest", pattern: "azalan", cross: false, firstFast: false, step: 1, flip: false };
-let settings = { prepSec: 5, sound: true, tgt: [2, 4] };   // tgt: Gevşe/Yüklen hedef bölgesi
+let settings = { prepSec: 5, sound: true, tgt: [2, 4], cool: true };   // tgt: Gevşe/Yüklen hedef bölgesi; cool: son intervalden sonra soğuma
 
 const $ = (id) => document.getElementById(id);
 
@@ -851,7 +906,7 @@ function cleanWorkout(w){
   const z=(n,d)=>{ if(typeof n!=="number" || !Number.isFinite(n)) return d; n=Math.round(n); return n>=0 && n<=5 ? n : d; };
   const tgt=Array.isArray(w.tgt) && w.tgt.length===2 ? [z(w.tgt[0],2), z(w.tgt[1],4)] : [2,4];
   const prep=Math.round(+w.prepSec);
-  const out={ variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt };
+  const out={ variations, segments, prepSec: prep>=0 && prep<=600 ? prep : 5, sound: w.sound!==false, tgt, cool: w.cool!==false };
   const g=cleanGen(w.gen); if(g) out.gen=g;
   return out;
 }
@@ -893,39 +948,82 @@ function beep(freq=880,dur=0.12,vol=0.25){
 /* ------------------------------------------------------------------ */
 /* Player                                                              */
 /* ------------------------------------------------------------------ */
-let P = null; // {timeline, idx, segLeft, running, raf, lastWhole, wakeLock}
+let P = null; // oynatıcı durumu: zaman çizelgesi, sayaç, ziyaretler, nabız örnekleri (bkz. startPlayer)
+const COOL_COLOR="#0e7490", COOL_MAX=3600;      // soğuma zemini; unutulursa 60 dk'da biter
+// Zaman çizelgesi: [hazırlık] + segmentler + [soğuma]; kind: prep | seg | cool
 function buildTimeline(){
   const t=[];
-  if(settings.prepSec>0) t.push({name:"Hazırlık",color:"#f59e0b",sec:settings.prepSec});
-  state.segments.forEach(s=>t.push({name:state.variations[s.v].name,color:state.variations[s.v].color,sec:s.sec}));
+  if(settings.prepSec>0) t.push({kind:"prep",name:"Hazırlık",color:"#f59e0b",sec:settings.prepSec});
+  state.segments.forEach((s,i)=>t.push({kind:"seg",seg:i,v:s.v,name:state.variations[s.v].name,color:state.variations[s.v].color,sec:s.sec}));
+  if(settings.cool) t.push({kind:"cool",name:"Soğuma",color:COOL_COLOR,sec:COOL_MAX});
   return t;
 }
+const curKind=()=>P && P.timeline[P.idx] ? P.timeline[P.idx].kind : "";
 async function startPlayer(){
   if(!state.segments.length){ toast("Önce segment ekle ya da üret."); return; }
   audioUnlock();
-  P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1 };
+  P={ timeline:buildTimeline(), idx:0, segLeft:0, running:true, last:performance.now(), lastWhole:-1,
+      // kayıt: aktif süre (hazırlık hariç, duraklatma hariç), 5 sn'lik nabız örnekleri, interval ziyaretleri, soğuma
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), startedAt:Date.now(),
+      act:0, nextS:0, nextDraft:60, samples:[], visits:[], cool0:null, hr0:null, hrr:null, saved:false, savedSession:null };
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
-  HRS=newHRS(); $("pGauge").innerHTML="";
-  $("player").classList.remove("hidden","done");
+  HRS=newHRS(); HRW=newHRS(); HRC=newHRS(); $("pGauge").innerHTML="";
+  enterIdx();
+  $("player").classList.remove("hidden","done","cool");
   $("builder").style.display="none";
   requestWake().then(ok=>{ if(!ok && P && P.running) toast("Ekran açık tutulamıyor: bu tarayıcı izin vermedi. Antrenman boyunca iPhone'da Ayarlar › Ekran ve Parlaklık › Otomatik Kilit'i 'Asla' yap; ekran kilitlenince sayaç ve nabız bağlantısı durabilir.", 9000); });
   try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){}
   buildProfile(); renderPlayer(); loop();
 }
-function exitPlayer(){
-  P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
+// Oynatıcıyı kapatır (kayıt yapmaz)
+function hidePlayer(){
+  if(P){ P.running=false; if(P.raf) cancelAnimationFrame(P.raf); }
   releaseWake();
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   $("player").classList.add("hidden");
   $("builder").style.display="";
 }
+// ✕ ya da bitişteki "✓ Kapat": 1 dk'dan uzun sürdüyse yarıda bırakılan antrenman da kaydedilir ve özeti açılır
+function exitPlayer(){
+  if(!P) return;
+  P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
+  closeVisit();
+  const s = P.saved ? null : recordSession(false);
+  hidePlayer();
+  if(s) openSummary(s,true);
+}
 function remainingTotal(){
-  // hazırlık süresi toplama dahil değil
-  const prepIdx = settings.prepSec>0 ? 0 : -1;
-  let r = (P.idx!==prepIdx) ? P.segLeft : 0;
-  for(let i=P.idx+1;i<P.timeline.length;i++) r+=P.timeline[i].sec;
+  // hazırlık ve soğuma toplama dahil değil
+  const e=P.timeline[P.idx];
+  let r = e.kind==="seg" ? P.segLeft : 0;
+  for(let i=P.idx+1;i<P.timeline.length;i++) if(P.timeline[i].kind==="seg") r+=P.timeline[i].sec;
   return r;
+}
+// Aktif interval değişince: önceki ziyareti kapat, yenisini aç (⏮ ile tekrar edilen interval ayrı satır olur)
+function enterIdx(){
+  closeVisit();
+  const e=P.timeline[P.idx];
+  if(!e || e.kind==="prep") return;
+  if(e.kind==="cool" && P.cool0==null){ P.cool0=P.act; P.hr0=hrFresh() ? HR.bpm : null; }
+  P.visits.push({ kind:e.kind, seg:e.kind==="seg" ? e.seg : -1, v:e.kind==="seg" ? e.v : -1,
+                  tgt:e.kind==="seg" ? tgtOk(settings.tgt[e.v],-1) : -1, t0:P.act, d:0, open:true, st:newHRS(), inTgt:0 });
+}
+function closeVisit(){ const v=P && P.visits[P.visits.length-1]; if(v && v.open){ v.open=false; v.d=P.act-v.t0; } }
+// Her karede: istatistik, 5 sn'lik nabız örneği, 1. dk toparlanma, dakikalık taslak kayıt (hazırlıkta yok)
+function sessTick(dt){
+  if(curKind()==="prep") return;
+  hrAccumulate(Math.min(dt,2));   // kilit/arka plan sonrası büyük sıçrama tek nabız değerine yazılmasın
+  P.act+=dt;
+  const fresh=hrFresh();
+  while(P.act>=P.nextS+5){ const gap=(P.act-(P.nextS+5))>2; P.samples.push(!gap && fresh ? HR.bpm : null); P.nextS+=5; }
+  if(P.cool0!=null && !P.hrr && P.act-P.cool0>=60) P.hrr={ hr0:P.hr0, hr60: fresh ? HR.bpm : null };
+  if(P.act>=P.nextDraft){ P.nextDraft+=60; saveDraft(); }
+}
+const clockText=()=>curKind()==="cool" ? "+"+fmt(P.timeline[P.idx].sec-P.segLeft) : fmt(P.segLeft);
+function hrrText(el){
+  if(P.hrr && P.hrr.hr0!=null && P.hrr.hr60!=null){ const d=P.hrr.hr0-P.hrr.hr60; return (d>=0?"−":"+")+Math.abs(d); }
+  return el<60 ? `${Math.ceil(60-el)} sn` : "—";
 }
 // Antrenman profilini giriş ekranındaki gibi çizgi-desen olarak çizer
 // (her varyasyon kendi renginde bir çizgi).
@@ -956,7 +1054,8 @@ function updateCursor(){
   const n=state.segments.length||1;
   const realIdx=P.idx-(settings.prepSec>0?1:0);
   let x=0;
-  if(realIdx>=0){
+  if(curKind()==="cool") x=100;
+  else if(realIdx>=0){
     const cur=P.timeline[P.idx];
     const frac=cur.sec>0?(cur.sec-P.segLeft)/cur.sec:0;
     x=Math.min(100,(realIdx+frac)/n*100);
@@ -969,12 +1068,27 @@ function updateCursor(){
 }
 
 function renderPlayer(){
-  const cur=P.timeline[P.idx];
-  $("player").style.background=cur.color;
-  const isPrep = settings.prepSec>0 && P.idx===0;
+  const cur=P.timeline[P.idx], pl=$("player");
+  pl.style.background=cur.color;
+  pl.classList.toggle("cool", cur.kind==="cool");
+  $("playBtn").textContent=P.running?"⏸":"▶︎";
+  if(cur.kind==="cool"){                       // soğuma: ileri sayar, sağ üstte 1. dk toparlanma
+    const el=cur.sec-P.segLeft;
+    $("pName").textContent="Soğuma";
+    $("pClock").textContent=clockText();
+    $("pNext").innerHTML="<small>Sonra</small>■ Bitir";
+    $("pIndex").textContent="Soğuma";
+    $("pSegCap").textContent="Toparlanma 1 dk";
+    $("pSegLen").textContent=hrrText(el);
+    $("nextBtn").textContent="■ Bitir";
+    updateCursor(); renderHR(); return;
+  }
+  $("pSegCap").textContent="Bu interval";
+  $("nextBtn").textContent="⏭";
+  const isPrep = cur.kind==="prep";
   $("pName").textContent = isPrep ? "Hazırlık"
     : (cur.sec%60===0 ? `${cur.sec/60} dakika ${cur.name}` : `${fmt(cur.sec)} ${cur.name}`);
-  $("pClock").textContent=fmt(P.segLeft);
+  $("pClock").textContent=clockText();
   const nx=P.timeline[P.idx+1];
   $("pNext").innerHTML = nx
     ? "<small>Sonra</small>" + esc(nx.sec%60===0 ? `${nx.sec/60} dk ${nx.name}` : `${fmt(nx.sec)} ${nx.name}`)
@@ -1005,37 +1119,43 @@ function renderPlayer(){
 }
 function gotoSeg(i){
   if(i<0||i>=P.timeline.length) return;
-  P.idx=i; P.segLeft=P.timeline[i].sec; P.lastWhole=-1; beep(660,.12); renderPlayer();
+  P.idx=i; P.segLeft=P.timeline[i].sec; P.lastWhole=-1; enterIdx(); beep(660,.12); renderPlayer();
 }
+// Bitiş (■ Bitir, son interval ya da 60 dk soğuma): kaydet ve özeti aç
 function finish(){
+  if(!P) return;
   P.running=false; if(P.raf) cancelAnimationFrame(P.raf);
-  const pl=$("player"); pl.classList.add("done"); pl.style.background="#16a34a";
-  $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
-  $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
+  closeVisit();
   beep(523,.15); setTimeout(()=>beep(784,.25),160);
   releaseWake();
+  const s=recordSession(true);
+  if(s){ hidePlayer(); openSummary(s,true); return; }
+  // 1 dk'dan kısa (kaydedilmeyen) antrenman: sade bitiş ekranı
+  const pl=$("player"); pl.classList.remove("cool"); pl.classList.add("done"); pl.style.background="#16a34a";
+  $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
+  $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
 }
 function loop(){
   P.raf=requestAnimationFrame(loop);
   const now=performance.now();
   const dt=(now-P.last)/1000; P.last=now;
   if(!P.running) return;
-  hrAccumulate(Math.min(dt,2));   // kilit/arka plan sonrası büyük sıçrama tek nabız değerine yazılmasın
+  sessTick(dt);
   P.segLeft-=dt;
   const whole=Math.ceil(P.segLeft);
   if(whole!==P.lastWhole){
     P.lastWhole=whole;
-    if(whole<=3 && whole>0) { beep(880,.1); $("player").classList.add("pulse"); setTimeout(()=>$("player").classList.remove("pulse"),300); }
+    if(whole<=3 && whole>0 && curKind()!=="cool") { beep(880,.1); $("player").classList.add("pulse"); setTimeout(()=>$("player").classList.remove("pulse"),300); }
     renderPlayer();
   } else {
-    $("pClock").textContent=fmt(P.segLeft);
+    $("pClock").textContent=clockText();
     updateCursor();
   }
   if(P.segLeft<=0){
     // Taşan süre sonraki segmentten düşülür: ekran kilidi/arka plan sonrası sayaç gerçek zamandan geri kalmaz.
     while(P.segLeft<=0 && P.idx+1<P.timeline.length){ P.idx++; P.segLeft+=P.timeline[P.idx].sec; }
     if(P.segLeft<=0) finish();
-    else { P.lastWhole=-1; beep(1046,.18); renderPlayer(); }
+    else { P.lastWhole=-1; enterIdx(); beep(1046,.18); renderPlayer(); }
   }
 }
 
@@ -1205,7 +1325,8 @@ function renderZoneSetup(){
 
 /* --- Oturum istatistiği: zaman ağırlıklı ortalama + bölgede geçen süre (hazırlık hariç) --- */
 const newHRS=()=>({sum:0,t:0,zone:[0,0,0,0,0,0],trend:0,kcal:0,fat:0,carb:0,max:0,min:0});   // zone: Z0..Z5 saniye
-let HRS=newHRS();
+// HRS: göstergedeki toplam (hazırlık sonrası her şey) · HRW: yalnız intervaller · HRC: yalnız soğuma (özet için)
+let HRS=newHRS(), HRW=newHRS(), HRC=newHRS();
 /* Enerji: Keytel 2005 (cinsiyet, yaş, kilo, nabız) → kcal/dk; yağ payı maks. nabız yüzdesine göre parçalı doğrusal eğri.
    Kaba tahminlerdir: kcal ±%20-30, yağ payı ±20 puan; 90 bpm altında formül geçersizdir (taban 1 kcal/dk). */
 function kcalPerMin(hr){
@@ -1223,21 +1344,29 @@ function fatFrac(hr,z){
   return 0;
 }
 const TREND_TAU=10, TREND_BAND=3, TREND_MIN_T=10;   // sn, bpm, sn
+const hrFresh=()=>hrConnected() && HR.bpm!=null && (performance.now()-HR.at)<=HR_STALE_MS;
+// Bir birikimciye nabız ekler: ortalama, tepe/en düşük; bölge verildiyse bölge süresi ve enerji
+function acc(o,bpm,dt,z){
+  o.sum+=bpm*dt; o.t+=dt;
+  if(bpm>o.max) o.max=bpm;
+  if(!o.min || bpm<o.min) o.min=bpm;
+  if(!z) return;
+  o.zone[zoneOf(bpm,z)]+=dt;
+  const k=kcalPerMin(bpm);
+  if(k>0){ const f=fatFrac(bpm,z); o.kcal+=k*dt/60; o.fat+=k*f*dt/60/9.4; o.carb+=k*(1-f)*dt/60/4.1; }
+}
 function hrAccumulate(dt){
-  if(!hrConnected() || HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS) return;
-  if(settings.prepSec>0 && P.idx===0) return;
+  if(!P || !hrFresh()) return;
+  const e=P.timeline[P.idx];
+  if(!e || e.kind==="prep") return;
+  const bpm=HR.bpm, z=hrZones();
   // ortalamanın anlık eğilimi: anlık nabız ortalamanın üstündeyse ortalama yükselir, altındaysa düşer.
   // (bpm − ort) farkı ~10 sn zaman sabitiyle yumuşatılır; ±3 bpm ölü bant "sabit" sayılır.
-  if(HRS.t>0){ const diff=HR.bpm-HRS.sum/HRS.t; HRS.trend+=(diff-HRS.trend)*Math.min(1,dt/TREND_TAU); }
-  HRS.sum+=HR.bpm*dt; HRS.t+=dt;
-  if(HR.bpm>HRS.max) HRS.max=HR.bpm;
-  if(!HRS.min || HR.bpm<HRS.min) HRS.min=HR.bpm;
-  const z=hrZones();
-  if(z){
-    HRS.zone[zoneOf(HR.bpm,z)]+=dt;
-    const k=kcalPerMin(HR.bpm);
-    if(k>0){ const f=fatFrac(HR.bpm,z); HRS.kcal+=k*dt/60; HRS.fat+=k*f*dt/60/9.4; HRS.carb+=k*(1-f)*dt/60/4.1; }
-  }
+  if(HRS.t>0){ const diff=bpm-HRS.sum/HRS.t; HRS.trend+=(diff-HRS.trend)*Math.min(1,dt/TREND_TAU); }
+  acc(HRS,bpm,dt,z);
+  acc(e.kind==="cool" ? HRC : HRW, bpm, dt, z);
+  const v=P.visits[P.visits.length-1];             // interval satırı: ortalama, tepe, hedefte geçen süre
+  if(v && v.open){ acc(v.st,bpm,dt,null); if(z && v.tgt>=0 && zoneOf(bpm,z)===v.tgt) v.inTgt+=dt; }
 }
 // Şu anki segmentin hedef bölgesi 0..5 (Z0 geçerli bir hedef); hazırlıkta ve bitişte hedef yok: −1
 function currentTarget(){
@@ -1348,6 +1477,211 @@ function renderHR(){
   $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
+/* ------------------------------------------------------------------ */
+/* Antrenman kaydı (Geçmiş) ve özet ekranı                             */
+/* Kayıt kendi kendine yeter: bölge sınırları, plan, adlar ve renkler  */
+/* kopyalanır; sonradan profil ya da antrenman değişse de özet aynıdır. */
+/* ------------------------------------------------------------------ */
+const SS_KEY="intervalSessions", SD_KEY="intervalSessionDraft", SS_MAX=100, SS_MIN_SEC=60;
+const r1=x=>Math.round(x*10)/10;
+function statsOut(o){
+  return { t:Math.round(o.t), avg:o.t>0 ? Math.round(o.sum/o.t) : null, max:o.max||null, min:o.min||null,
+           zone:o.zone.map(Math.round), kcal:Math.round(o.kcal), fat:r1(o.fat), carb:r1(o.carb) };
+}
+function buildSession(done){
+  const z=hrZones();
+  const work = P.cool0!=null ? P.cool0 : P.act;
+  return {
+    id:P.id, at:P.startedAt, end:Date.now(), done:!!done,
+    name: state.name || ($("inName").value||"").trim(),
+    plan:{ segs:state.segments.map(s=>[s.v,s.sec]), vars:state.variations.map(x=>({name:x.name,color:x.color})),
+           prep:settings.prepSec, tgt:[...settings.tgt] },
+    zones: z ? { edges:[...z.edges], max:z.max, rest:z.rest } : null,
+    act:Math.round(P.act), work:Math.round(work), cool:Math.round(P.act-work),
+    W:statsOut(HRW), C:statsOut(HRC),
+    hrr: P.hrr ? { ...P.hrr } : (P.cool0!=null ? { hr0:P.hr0, hr60:null } : null),
+    visits:P.visits.map(v=>({ k:v.kind==="cool" ? "c" : "s", s:v.seg, v:v.v, tgt:v.tgt, t0:Math.round(v.t0),
+      d:Math.round(v.open ? P.act-v.t0 : v.d), t:Math.round(v.st.t), avg:v.st.t>0 ? Math.round(v.st.sum/v.st.t) : null,
+      max:v.st.max||null, in:Math.round(v.inTgt) })),
+    si:5, hr:P.samples.slice()
+  };
+}
+function loadSessions(){
+  try{ const a=JSON.parse(localStorage.getItem(SS_KEY)); return Array.isArray(a) ? a.filter(s=>s && typeof s.id==="string") : []; }
+  catch(e){ return []; }
+}
+// Hafıza dolarsa en eski kayıtlardan başlayarak siler ve yeniden dener
+function saveSessions(a){
+  a=[...a].sort((x,y)=>y.at-x.at).slice(0,SS_MAX);
+  for(;;){
+    try{ localStorage.setItem(SS_KEY, JSON.stringify(a)); return true; }
+    catch(e){ if(a.length<=1){ toast("Antrenman kaydı hafızaya sığmadı."); return false; } a=a.slice(0,-1); }
+  }
+}
+function addSession(s){ return saveSessions([s, ...loadSessions().filter(x=>x.id!==s.id)]); }
+function saveDraft(){ try{ localStorage.setItem(SD_KEY, JSON.stringify(buildSession(false))); }catch(e){} }
+function clearDraft(){ try{ localStorage.removeItem(SD_KEY); }catch(e){} }
+// Bitişte / çıkışta bir kez: 1 dk'dan kısa antrenman kaydedilmez
+function recordSession(done){
+  if(!P) return null;
+  if(P.saved) return P.savedSession;
+  clearDraft();
+  if(P.act<SS_MIN_SEC) return null;
+  const s=buildSession(done);
+  P.saved=true; P.savedSession=s;
+  if(!addSession(s)) toast("Antrenman kaydedilemedi (hafıza dolu).");
+  renderHistory();
+  return s;
+}
+// Sekme kapanmış / sayfa yenilenmişse yarıda kalan antrenmanı taslaktan kayda geçir
+function recoverDraft(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(SD_KEY)); }catch(e){}
+  if(!d) return;
+  clearDraft();
+  const s=cleanSession({ ...d, rec:true });
+  if(s && s.act>=SS_MIN_SEC && !loadSessions().some(x=>x.id===s.id)){ addSession(s); toast("Yarıda kalan antrenman Geçmiş'e kaydedildi."); }
+}
+// İçe aktarılan / kurtarılan kaydı doğrular; sayılar sayı, adlar metin olur (özet innerHTML'e yazar)
+function cleanSession(x){
+  if(!x || typeof x!=="object" || typeof x.id!=="string" || !x.id || !Number.isFinite(+x.at)) return null;
+  const num=(v,d=null)=>(v===null || v===undefined || v==="" || !Number.isFinite(+v)) ? d : +v;
+  const st=o=>{ o=o && typeof o==="object" ? o : {};
+    const zone=Array.isArray(o.zone) ? o.zone.slice(0,6).map(v=>num(v,0)) : [];
+    while(zone.length<6) zone.push(0);
+    return { t:num(o.t,0), avg:num(o.avg), max:num(o.max), min:num(o.min), zone, kcal:num(o.kcal,0), fat:num(o.fat,0), carb:num(o.carb,0) }; };
+  const pl=x.plan && typeof x.plan==="object" ? x.plan : {};
+  const vars=DEF_VARS.map((d,i)=>{ const v=Array.isArray(pl.vars) && pl.vars[i] || {};
+    return { name: typeof v.name==="string" && v.name.trim() ? v.name.slice(0,40) : d.name, color: /^#[0-9a-f]{6}$/i.test(v.color) ? v.color : d.color }; });
+  const ze=x.zones && Array.isArray(x.zones.edges) && x.zones.edges.length===7 ? x.zones.edges.map(v=>num(v,0)) : null;
+  return {
+    id:x.id.slice(0,40), at:+x.at, end:num(x.end,+x.at), done:!!x.done, rec:!!x.rec,
+    name: typeof x.name==="string" ? x.name.slice(0,80) : "",
+    plan:{ segs:Array.isArray(pl.segs) ? pl.segs.filter(Array.isArray).map(a=>[a[0]===1?1:0, num(a[1],0)]) : [], vars,
+           prep:num(pl.prep,0), tgt:Array.isArray(pl.tgt) ? [tgtOk(pl.tgt[0],-1), tgtOk(pl.tgt[1],-1)] : [-1,-1] },
+    zones: ze ? { edges:ze, max:num(x.zones.max,0), rest:num(x.zones.rest,0) } : null,
+    act:num(x.act,0), work:num(x.work,0), cool:num(x.cool,0), W:st(x.W), C:st(x.C),
+    hrr: x.hrr && typeof x.hrr==="object" ? { hr0:num(x.hrr.hr0), hr60:num(x.hrr.hr60) } : null,
+    visits:Array.isArray(x.visits) ? x.visits.filter(v=>v && typeof v==="object").map(v=>({ k:v.k==="c" ? "c" : "s", s:num(v.s,-1),
+      v:v.v===1 ? 1 : v.v===0 ? 0 : -1, tgt:tgtOk(v.tgt,-1), t0:num(v.t0,0), d:num(v.d,0), t:num(v.t,0), avg:num(v.avg), max:num(v.max), in:num(v.in,0) })) : [],
+    si:num(x.si,5)||5, hr:Array.isArray(x.hr) ? x.hr.map(v=>num(v,null)) : []
+  };
+}
+function dateStr(t,withDay){
+  try{ return new Date(t).toLocaleString("tr-TR", withDay===false ? {hour:"2-digit",minute:"2-digit"}
+                                                   : {weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }
+  catch(e){ return ""; }
+}
+const pctOf=(a,b)=>b>0 ? Math.round(a/b*100) : null;
+// Nabız–zaman grafiği: bölge bantları, Yüklen/soğuma gölgeleri, veri boşluklarında kesilen çizgi, tepe noktası
+function chartSVG(s){
+  const hr=s.hr||[], si=s.si||5, vals=hr.filter(v=>v!=null);
+  const T=Math.max(hr.length*si, s.act||0);
+  if(!vals.length || !T) return "";
+  const z=s.zones, W=340, H=170, L=26, R=22, TP=6, B=16, iw=W-L-R, ih=H-TP-B;
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  if(z){ lo=Math.min(lo, z.edges[1]); hi=Math.max(hi, z.edges[2]); }   // en az Z1 görünsün
+  lo=Math.floor(lo-4); hi=Math.ceil(hi+4);
+  const X=t=>L+t/T*iw, Y=b=>TP+(hi-b)/(hi-lo)*ih, f=n=>n.toFixed(1);
+  let g="";
+  if(z) for(let i=0;i<6;i++){
+    const a=Math.max(lo, i===0 ? lo : z.edges[i]), b=Math.min(hi, z.edges[i+1]);
+    if(b>a) g+=`<rect x="${L}" y="${f(Y(b))}" width="${iw}" height="${f(Y(a)-Y(b))}" fill="${ZONE_COLOR[i]}" opacity=".13"/>`+
+               `<text class="zl" x="${W-R+3}" y="${f((Y(a)+Y(b))/2+3)}" style="fill:${ZONE_COLOR[i]}">Z${i}</text>`+
+               (i>0 && z.edges[i]>lo ? `<text x="${L-3}" y="${f(Y(z.edges[i])+3)}" text-anchor="end">${z.edges[i]}</text>` : "");
+  }
+  (s.visits||[]).forEach(v=>{
+    if(!(v.d>0) || (v.k==="s" && v.v!==1)) return;               // yalnız Yüklen ve soğuma gölgelenir
+    const c = v.k==="c" ? COOL_COLOR : s.plan.vars[1].color;
+    g+=`<rect x="${f(X(v.t0))}" y="${TP}" width="${f(Math.max(.6, X(v.t0+v.d)-X(v.t0)))}" height="${ih}" fill="${c}" opacity=".28"/>`;
+  });
+  const step = T>3600 ? 900 : T>1500 ? 300 : T>600 ? 120 : 60;
+  for(let t=step;t<T;t+=step) g+=`<line x1="${f(X(t))}" x2="${f(X(t))}" y1="${TP}" y2="${TP+ih}" stroke="rgba(255,255,255,.08)"/><text x="${f(X(t))}" y="${H-4}" text-anchor="middle">${Math.round(t/60)}</text>`;
+  g+=`<text x="${W-R+3}" y="${H-4}">dk</text>`;
+  let pts=[], line="";
+  const flush=()=>{ if(pts.length>1) line+=`<polyline points="${pts.join(" ")}" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`; pts=[]; };
+  hr.forEach((v,i)=>{ if(v==null){ flush(); return; } pts.push(`${f(X((i+.5)*si))},${f(Y(v))}`); }); flush();
+  const mx=Math.max(...vals), mi=hr.indexOf(mx);
+  line+=`<circle cx="${f(X((mi+.5)*si))}" cy="${f(Y(mx))}" r="3.5" fill="#ef4444" stroke="#fff" stroke-width="1.2"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}">${g}${line}</svg>`;
+}
+function summaryHTML(s,fresh){
+  const Wk=s.W, C=s.C, z=s.zones, vars=s.plan.vars;
+  const title = fresh ? (s.done ? "Bitti ✓" : "Kaydedildi") : "Antrenman";
+  const sub = `${esc(s.name||"Adsız antrenman")} · ${esc(dateStr(s.at))}${s.end ? "–"+esc(dateStr(s.end,false)) : ""}`+
+              (s.done ? "" : " · yarıda bırakıldı")+(s.rec ? " · kurtarıldı" : "");
+  const peak=Math.max(Wk.max||0, C.max||0)||null;
+  const hrr=s.hrr, drop = hrr && hrr.hr0!=null && hrr.hr60!=null ? hrr.hr0-hrr.hr60 : null;
+  const kcal=(Wk.kcal||0)+(C.kcal||0), fat=r1((Wk.fat||0)+(C.fat||0)), carb=r1((Wk.carb||0)+(C.carb||0));
+  const tile=(cap,val,small)=>`<div class="tile"><b>${cap}</b><span>${val}${small ? ` <small>${small}</small>` : ""}</span></div>`;
+  let h=`<div class="sum-h"><div><h1>${title}</h1><div class="sum-sub">${sub}</div></div><button id="sumClose" class="ghost">Kapat</button></div>`;
+  h+=`<div class="tiles">`+tile("Süre", fmt(s.work))+(s.cool ? tile("Soğuma", fmt(s.cool)) : "")+
+     (Wk.avg!=null ? tile("Ort. nabız", Wk.avg) : "")+(peak ? tile("Tepe", peak) : "")+(Wk.min ? tile("En düşük", Wk.min) : "")+
+     (drop!=null ? tile("Toparlanma", (drop>=0?"−":"+")+Math.abs(drop), `1 dk · ${hrr.hr0}→${hrr.hr60}`) : "")+
+     (kcal ? tile("Enerji", kcal, "kcal") : "")+`</div>`;
+  const ch=chartSVG(s);
+  if(ch) h+=`<div class="card"><h2>Nabız</h2><div class="schart">${ch}</div><div class="slegend">`+
+     `<span><i style="background:${vars[1].color};opacity:.7"></i>${esc(vars[1].name)}</span>`+(s.cool ? `<span><i style="background:${COOL_COLOR}"></i>Soğuma</span>` : "")+
+     `<span><i style="background:#ef4444;border-radius:50%"></i>Tepe</span>${z ? "<span>Zemin bantları: bölgeler</span>" : ""}</div></div>`;
+  if(z && Wk.t>0){                                           // bölge dağılımı (intervaller)
+    h+=`<div class="card"><h2>Bölgeler (intervaller)</h2><div class="zbar">`+
+       Wk.zone.map((t,i)=>t>0 ? `<div style="flex:${t};background:${ZONE_COLOR[i]}"></div>` : "").join("")+`</div>`+
+       Wk.zone.map((t,i)=>`<div class="srow"><span class="l"><i style="background:${ZONE_COLOR[i]}"></i>Z${i} ${ZONE_NAME[i]} <span class="r">${z.edges[i]}–${z.edges[i+1]}</span></span>`+
+         `<span class="r"><b>${fmt(t)}</b> · %${pctOf(t,Wk.t)}</span></div>`).join("")+`</div>`;
+  }
+  const byV=[0,1].map(v=>{ const vs=(s.visits||[]).filter(x=>x.k==="s" && x.v===v);
+    const t=vs.reduce((a,x)=>a+x.t,0), inT=vs.reduce((a,x)=>a+x.in,0), sum=vs.reduce((a,x)=>a+(x.avg||0)*x.t,0);
+    return { t, inT, avg: t>0 ? Math.round(sum/t) : null, tgt: vs.length ? vs[0].tgt : -1 }; });
+  if(z && byV.some(b=>b.t>0 && b.tgt>=0)){                   // hedefte kalma
+    h+=`<div class="card"><h2>Hedefte kalma</h2>`+byV.map((b,v)=>b.t>0 && b.tgt>=0 ?
+       `<div class="srow"><span class="l"><i style="background:${vars[v].color}"></i>${esc(vars[v].name)} · hedef Z${b.tgt}</span>`+
+       `<span class="r"><b>%${pctOf(b.inT,b.t)}</b> hedefte · ort ${b.avg}</span></div>` : "").join("")+`</div>`;
+  }
+  if(kcal){
+    const fk=fat*9.4, ck=carb*4.1, fs=pctOf(fk,fk+ck);
+    h+=`<div class="card"><h2>Enerji (tahmini)</h2>`+
+       `<div class="srow"><span class="l">Toplam</span><span class="r"><b>${kcal} kcal</b>${s.cool && C.kcal ? ` · soğuma ${C.kcal}` : ""}</span></div>`+
+       `<div class="srow"><span class="l"><i style="background:#fde68a"></i>Yağ</span><span class="r"><b>${tr1(fat)} g</b> · enerjinin %${fs}'i</span></div>`+
+       `<div class="srow"><span class="l"><i style="background:rgba(255,255,255,.35)"></i>Karbonhidrat</span><span class="r"><b>${tr1(carb)} g</b> · %${100-fs}</span></div>`+
+       `<div class="hint">Nabızdan tahmin: kcal ±%20–30, yağ payı ±20 puan.</div></div>`;
+  }
+  const rows=(s.visits||[]).filter(v=>v.d>0);
+  if(rows.length){                                           // interval tablosu
+    h+=`<div class="card"><h2>Intervaller</h2><table class="itab"><tr><th>#</th><th>Tür</th><th>Süre</th><th>Ort</th><th>Maks</th><th>Hedefte</th></tr>`+
+       rows.map(v=>{ const c = v.k==="c" ? COOL_COLOR : vars[v.v===1?1:0].color, n = v.k==="c" ? "Soğuma" : vars[v.v===1?1:0].name;
+         return `<tr><td>${v.k==="c" ? "❄︎" : v.s+1}</td><td><span class="dot" style="background:${c}"></span>${esc(n)}</td><td>${fmt(v.d)}</td>`+
+                `<td>${v.avg ?? "—"}</td><td>${v.max ?? "—"}</td><td>${v.k==="s" && v.tgt>=0 && v.t>0 ? "%"+pctOf(v.in,v.t) : "—"}</td></tr>`; }).join("")+
+       `</table></div>`;
+  }
+  h+=`<div class="row" style="margin:6px 0 24px"><button id="sumClose2" class="primary" style="flex:2;padding:14px">Kapat</button>`+
+     `<button id="sumDel" class="ghost danger" style="flex:1;padding:14px">Sil</button></div>`;
+  return h;
+}
+function openSummary(s,fresh){
+  const el=$("summary");
+  $("sumBody").innerHTML=summaryHTML(s,fresh);
+  el.classList.remove("hidden"); el.scrollTop=0;
+  $("sumClose").onclick=closeSummary; $("sumClose2").onclick=closeSummary;
+  const del=$("sumDel"); let armed=false, tm=0;
+  del.onclick=()=>{                                          // iki dokunuşla sil (confirm() bazı iOS tarayıcılarında çalışmayabilir)
+    if(!armed){ armed=true; del.textContent="Emin misin? Tekrar dokun"; clearTimeout(tm); tm=setTimeout(()=>{ armed=false; del.textContent="Sil"; },4000); return; }
+    saveSessions(loadSessions().filter(x=>x.id!==s.id)); renderHistory(); closeSummary(); toast("Kayıt silindi.");
+  };
+}
+function closeSummary(){ $("summary").classList.add("hidden"); }
+function renderHistory(){
+  const box=$("histBox"); if(!box) return;
+  const a=loadSessions();
+  $("histCount").textContent = a.length ? `(${a.length})` : "";
+  box.innerHTML = a.length ? a.map(s=>{
+      const kc=((s.W&&s.W.kcal)||0)+((s.C&&s.C.kcal)||0);
+      return `<div class="hrow" data-sid="${esc(s.id)}"><div class="hl"><b>${esc(dateStr(s.at))}</b><span>${esc(s.name||"Adsız antrenman")}${s.done ? "" : " · yarıda"}</span></div>`+
+             `<div class="hr-r"><b>${fmt(s.work||0)}</b>${s.cool ? ` +${fmt(s.cool)}` : ""}<br>${s.W && s.W.avg ? `ort ${s.W.avg}` : ""}${kc ? ` · ${kc} kcal` : ""}</div></div>`; }).join("")
+    : `<div class="hint" style="margin:0 0 4px">Henüz kayıt yok.</div>`;
+  box.querySelectorAll("[data-sid]").forEach(el=>el.onclick=()=>{
+    const s=loadSessions().find(x=>x.id===el.dataset.sid); const c=s && cleanSession(s); if(c) openSummary(c,false);
+  });
+}
+
 /* Wake lock */
 let wakeLock=null;
 async function requestWake(){ try{ if("wakeLock" in navigator){ wakeLock=await navigator.wakeLock.request("screen"); return true; } }catch(e){} return false; }
@@ -1405,6 +1739,8 @@ $("soundPill").onclick=()=>{
   if(settings.sound) beep(880,.08);
 };
 $("inPrep").onchange=e=>settings.prepSec=Math.max(0,parseInt(e.target.value)||0);
+function syncCoolUI(){ $("coolPill").classList.toggle("on",settings.cool); $("coolPill").textContent=settings.cool?"❄︎ Açık":"Kapalı"; }
+$("coolPill").onclick=()=>{ settings.cool=!settings.cool; syncCoolUI(); };
 
 // nabız profili (kişiye ait; antrenman kaydından bağımsız saklanır)
 function syncHRProfUI(){
@@ -1430,7 +1766,7 @@ $("saveBtn").onclick=()=>{
   if(!name){ toast("Kaydetmek için bir ad gir."); $("inName").focus(); return; }
   if(!state.segments.length){ toast("Boş antrenman kaydedilmez."); return; }
   const all=loadAll();
-  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt], gen:readGen() };
+  all[name]={ variations:state.variations, segments:state.segments, prepSec:settings.prepSec, sound:settings.sound, tgt:[...settings.tgt], cool:settings.cool, gen:readGen() };
   if(!saveAll(all)) return;
   state.name=name; refreshSaved();
   $("savedList").value=name; toast("Kaydedildi: "+name);
@@ -1446,6 +1782,7 @@ $("loadBtn").onclick=()=>{
   state.variations=w.variations; state.segments=w.segments;
   settings.prepSec=w.prepSec; settings.sound=w.sound; state.name=n;
   settings.tgt=w.tgt; syncTgtUI();
+  settings.cool=w.cool; syncCoolUI();
   $("inName").value=n; $("inPrep").value=settings.prepSec;
   $("soundPill").classList.toggle("on",settings.sound);
   $("soundPill").textContent=settings.sound?"🔊 Açık":"🔇 Kapalı";
@@ -1479,13 +1816,14 @@ const hrProfEmpty=h=>!(h.birth || h.rest || h.max || h.weight);
 $("expBtn").onclick=async()=>{
   const workouts={};
   for(const [k,w] of Object.entries(loadAll())){ const c=cleanWorkout(w); if(c) workouts[k]=c; }
-  const n=Object.keys(workouts).length;
-  if(!n && hrProfEmpty(hrProf)){ toast("Bu tarayıcıda dışa aktarılacak kayıt yok."); return; }
-  const t=$("xferText"); t.value=JSON.stringify({ app:"interval-sayac", ver:1, workouts, hrProfile:hrProf });
+  const n=Object.keys(workouts).length, sessions=loadSessions();
+  if(!n && hrProfEmpty(hrProf) && !sessions.length){ toast("Bu tarayıcıda dışa aktarılacak kayıt yok."); return; }
+  // ver 2: + sessions (Geçmiş). Eski sürümler yalnız workouts/hrProfile okur, uyumlu kalır.
+  const t=$("xferText"); t.value=JSON.stringify({ app:"interval-sayac", ver:2, workouts, hrProfile:hrProf, sessions });
   let copied=false;
   try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(t.value); copied=true; } }catch(e){}
   if(!copied){ t.focus(); t.setSelectionRange(0,t.value.length); }
-  toast(`${n} antrenman`+(hrProfEmpty(hrProf)?"":" + nabız profili")+(copied ? " panoya kopyalandı. Öbür tarayıcıda kutuya yapıştır." : " kutuya yazıldı; tümünü seçip kopyala."), 7000);
+  toast(`${n} antrenman`+(sessions.length?` + ${sessions.length} geçmiş kaydı`:"")+(hrProfEmpty(hrProf)?"":" + nabız profili")+(copied ? " panoya kopyalandı. Öbür tarayıcıda kutuya yapıştır." : " kutuya yazıldı; tümünü seçip kopyala."), 7000);
 };
 $("impBtn").onclick=()=>{
   const raw=($("xferText").value||"").trim();
@@ -1509,10 +1847,18 @@ $("impBtn").onclick=()=>{
       } else if(JSON.stringify(hp)!==JSON.stringify(hrProf)) hrMsg=" Nabız profili burada zaten dolu olduğu için değiştirilmedi.";
     }
   }
-  if(!added && !replaced){ toast(hrMsg ? hrMsg.trim() : "Metinde içe aktarılacak antrenman bulunamadı."); return; }
+  // Geçmiş kayıtları: id'ye göre birleştir (var olan korunur)
+  let sAdded=0, sDup=0;
+  if(Array.isArray(d.sessions)){
+    const cur=loadSessions(), ids=new Set(cur.map(x=>x.id));
+    for(const x of d.sessions){ const c=cleanSession(x); if(!c) continue; if(ids.has(c.id)){ sDup++; continue; } cur.push(c); ids.add(c.id); sAdded++; }
+    if(sAdded){ saveSessions(cur); renderHistory(); }
+  }
+  const sMsg = (sAdded ? ` ${sAdded} geçmiş kaydı eklendi.` : "") + (sDup ? ` ${sDup} geçmiş kaydı zaten vardı.` : "");
+  if(!added && !replaced){ toast((hrMsg+sMsg).trim() || "Metinde içe aktarılacak antrenman bulunamadı."); return; }
   if(!saveAll(all)) return;
   refreshSaved();
-  toast(`İçe aktarıldı: ${added} yeni`+(replaced?`, ${replaced} güncellenen`:"")+` antrenman. Listeden seçip Yükle'ye bas.`+hrMsg, 8000);
+  toast(`İçe aktarıldı: ${added} yeni`+(replaced?`, ${replaced} güncellenen`:"")+` antrenman. Listeden seçip Yükle'ye bas.`+sMsg+hrMsg, 8000);
 };
 
 // nabız bandı
@@ -1530,8 +1876,9 @@ if(!hrSupported){
 $("startBtn").onclick=startPlayer;
 $("exitBtn").onclick=exitPlayer;
 $("playBtn").onclick=()=>{ if($("player").classList.contains("done")){ exitPlayer(); return; } audioUnlock(); P.running=!P.running; P.last=performance.now(); renderPlayer(); };
-$("prevBtn").onclick=()=>{ if(!$("player").classList.contains("done")) gotoSeg(P.idx-1); };
-$("nextBtn").onclick=()=>{ if(!$("player").classList.contains("done")) gotoSeg(P.idx+1); };
+$("prevBtn").onclick=()=>{ if(!$("player").classList.contains("done") && curKind()!=="cool") gotoSeg(P.idx-1); };
+// soğumada ⏭ "■ Bitir" olur; son intervalde ⏭ soğumaya geçirir
+$("nextBtn").onclick=()=>{ if($("player").classList.contains("done")) return; if(curKind()==="cool") finish(); else gotoSeg(P.idx+1); };
 
 /* çevrimdışı PWA */
 if ('serviceWorker' in navigator) {
@@ -1540,6 +1887,7 @@ if ('serviceWorker' in navigator) {
 
 /* init */
 renderVars(); renderSegments(); refreshSaved(); generate();
+syncCoolUI(); recoverDraft(); renderHistory();
 </script>
 </body>
 </html>
