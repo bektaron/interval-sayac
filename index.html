@@ -1063,13 +1063,14 @@ function onHR(e){
   const p=$("pHR");
   if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
 }
-// Sayısal UUID: bazı iOS Web Bluetooth tarayıcıları "heart_rate" gibi takma adları çözmeyebilir.
-const HR_SVC=0x180D, HR_CHR=0x2A37;
+// Tam 128-bit UUID metni: Bluefy (iOS) istekteki 16-bit sayısal UUID'leri (0x180D) ve "heart_rate" gibi
+// takma adları çözemiyor, isteği liste açmadan çıplak bir kodla ("2") reddediyor. Tam metni her tarayıcı kabul eder.
+const HR_SVC="0000180d-0000-1000-8000-00805f9b34fb", HR_CHR="00002a37-0000-1000-8000-00805f9b34fb";
 const HR_STEP={ list:"liste", listAll:"tüm cihazlar listesi", connect:"bağlantı", service:"servis", chr:"özellik", notify:"bildirim" };
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 // Hata metni: bazı tarayıcılar yalnızca çıplak bir kod döndürür (ör. "2"); adı da ekle ki ayırt edilebilsin.
 const hrErrText=err=>{ if(err==null) return "bilinmeyen hata"; const t=[err.name, err.message].filter(Boolean).join(" "); return t || String(err); };
-// Bluefy liste açılmadan çıplak bir sayı döndürüyor (ör. "2"): tarayıcı Bluetooth'a hiç erişemiyor demek.
+// Bluefy isteği reddedince liste açılmadan çıplak bir sayı döndürüyor (ör. "2").
 const hrBareCode=err=>{ const raw = err!=null && typeof err==="object" ? (err.name && err.name!=="Error" ? "" : String(err.message||"")) : String(err??"");
                         return /^\d+$/.test(raw.trim()) ? raw.trim() : null; };
 async function hrSubscribe(){
@@ -1090,14 +1091,19 @@ async function hrConnect(all){
   let dev;
   try{
     HR.step = all ? HR_STEP.listAll : HR_STEP.list; hrSetStatus("Aranıyor…");
-    dev=await navigator.bluetooth.requestDevice(all
-      ? { acceptAllDevices:true, optionalServices:[HR_SVC] }
-      : { filters:[{ services:[HR_SVC] }, { namePrefix:"Polar" }], optionalServices:[HR_SVC] });
+    const opts = all ? { acceptAllDevices:true, optionalServices:[HR_SVC] }
+                     : { filters:[{ services:[HR_SVC] }, { namePrefix:"Polar" }], optionalServices:[HR_SVC] };
+    try{ dev=await navigator.bluetooth.requestDevice(opts); }
+    catch(err){
+      if(all || (err && err.name==="NotFoundError")) throw err;
+      // tarayıcı isteği çözemediyse en sade biçimle bir kez daha dene
+      dev=await navigator.bluetooth.requestDevice({ filters:[{ services:[HR_SVC] }] });
+    }
   }catch(err){
     if(gen!==HR.gen) return;
     const cancelled = err && err.name==="NotFoundError", code=hrBareCode(err);
     hrSetStatus(cancelled ? (all ? "Cihaz seçilmedi." : "Cihaz seçilmedi. Bant listede yoksa 🔍 Tüm cihazlar'ı dene.")
-      : code ? `Bağlanamadı (${HR.step}, kod ${code}): tarayıcı Bluetooth'a erişemiyor, liste açılmadı. iPhone Ayarlar › Bluefy › Bluetooth iznini aç ve Bluetooth'un açık olduğundan emin ol; sonra Bluefy'yi tamamen kapatıp yeniden aç.`
+      : code ? `Bağlanamadı (${HR.step}, kod ${code}): tarayıcı isteği reddetti, liste açılmadı. Bluefy'yi App Store'dan güncelle ve iPhone Ayarlar › Bluefy › Bluetooth izninin açık olduğunu kontrol et.`
       : `Bağlanamadı (${HR.step}): ${hrErrText(err)}`);
     renderHR(); return;
   }
