@@ -107,6 +107,25 @@
   .zmgrid label{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:2px}
   .zmgrid input{padding:8px 8px;text-align:center}
   .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  /* planlama ekranı sekmeleri */
+  .tabs{display:flex;gap:6px;margin-bottom:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:5px}
+  .tabs button{flex:1;background:transparent;border:0;border-radius:10px;padding:10px 6px;color:var(--muted);font-weight:700}
+  .tabs button.on{background:var(--panel2);color:var(--txt);box-shadow:0 1px 0 var(--line)}
+  .tabs button span{font-weight:600;opacity:.8}
+  /* akordeon kartlar: başlık satırı kartın tamamı, sağda özet; kapalı başlar */
+  details.card>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:-16px;padding:16px}
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card>summary h2{margin:0}
+  details.card>summary h2::before{content:"▸ ";color:var(--accent)}
+  details.card[open]>summary{margin-bottom:12px}
+  details.card[open]>summary h2::before{content:"▾ "}
+  details.card>summary .sum{font-size:13px;color:var(--muted);font-weight:600;margin-left:auto;text-align:right}
+  /* nabız bandı şeridi (BAŞLAT'ın üstünde); uzun ipucu açılır-kapanır */
+  .hrstrip .hrlbl{font-weight:700}
+  .hrstrip details summary{list-style:none;cursor:pointer;display:inline-block}
+  .hrstrip details summary::-webkit-details-marker{display:none}
+  .hrstrip details summary::after{content:" ▸"}
+  .hrstrip details[open] summary::after{content:" ▾"}
 
   /* ---- Player (big screen) — akışkan dikey düzen, çakışmasız ---- */
   #player{position:fixed;inset:0;background:var(--slow);display:flex;flex-direction:column;gap:4px;
@@ -292,16 +311,17 @@
     </div>
   </div>
 
-  <!-- Varyasyonlar -->
-  <div class="card">
-    <h2>Varyasyonlar</h2>
-    <div id="varBox"></div>
-    <div class="hint">Sporun iki modu. İsim ve rengi değiştirebilirsin.</div>
-  </div>
+  <!-- Sekmeler: Antrenman (üret · segmentler · ad/kaydet · nabız bandı · başlat) · Geçmiş · Ayarlar -->
+  <nav class="tabs" id="tabs">
+    <button class="on" data-tab="tabPlan">Antrenman</button>
+    <button data-tab="tabHist">Geçmiş <span id="histCount"></span></button>
+    <button data-tab="tabSet">Ayarlar</button>
+  </nav>
 
-  <!-- Üretici -->
-  <div class="card">
-    <h2>Antrenman Üret</h2>
+  <section id="tabPlan">
+  <!-- Üretici (akordeon: kapalı başlar, başlıkta özet) -->
+  <details class="card" id="genCard">
+    <summary><h2>Antrenman Üret</h2><span class="sum" id="genSum"></span></summary>
 
     <label class="lbl">Süre kaynağı</label>
     <div class="chips" style="margin-bottom:12px">
@@ -475,14 +495,12 @@
     </div>
     <button id="genBtn" class="primary block">↻ Üret (mevcut listeyi değiştirir)</button>
     <div class="hint" id="genHint"></div>
-  </div>
+  </details>
 
-  <!-- Segmentler -->
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <h2 style="margin:0">Segmentler</h2>
-      <div class="legend" id="legend"></div>
-    </div>
+  <!-- Segmentler (akordeon: kapalı başlar, başlıkta özet) -->
+  <details class="card" id="segCard">
+    <summary><h2>Segmentler</h2><span class="sum" id="segSum"></span></summary>
+    <div class="legend" id="legend"></div>
     <div style="margin:12px 0">
       <div class="timeline" id="timeline"></div>
       <div class="totals">
@@ -496,9 +514,53 @@
       <button id="addFast" class="ghost">+ Yüklen</button>
       <button id="clearBtn" class="ghost danger" style="margin-left:auto">Temizle</button>
     </div>
+  </details>
+
+  <!-- Ad + kaydet -->
+  <div class="card">
+    <label class="lbl">Antrenman adı</label>
+    <div class="row tight">
+      <input type="text" id="inName" class="seg-grow" placeholder="ör. Salı koşusu — çapraz">
+      <button id="saveBtn" class="ghost">💾 Kaydet</button>
+    </div>
   </div>
 
-  <!-- Ayarlar + kaydet -->
+  <!-- Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar): BAŞLAT'ın hemen üstünde -->
+  <div class="card hrstrip">
+    <div class="row tight">
+      <span class="hrlbl">💓 Nabız bandı</span>
+      <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
+      <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
+    </div>
+    <div class="row tight" style="margin-top:8px">
+      <button id="hrBtn" class="ghost">Bağlan</button>
+      <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
+      <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
+    </div>
+    <details id="hrHelp"><summary class="hint">Bant bağlanmıyor mu?</summary><div class="hint" id="hrHint"></div></details>
+  </div>
+
+  <button id="startBtn" class="primary block" style="padding:18px;font-size:18px">▶︎ BAŞLAT</button>
+  </section>
+
+  <!-- Geçmiş: tamamlanan / yarıda bırakılan antrenmanlar (otomatik) -->
+  <section id="tabHist" class="hidden">
+  <div class="card">
+    <h2>Geçmiş</h2>
+    <div id="histBox"></div>
+    <div class="hint">Antrenmanlar otomatik kaydedilir: tamamlananlar ve 1 dk'dan sonra ✕ ile bırakılanlar. Kayıtlar bu tarayıcıya özeldir; yedek ya da taşıma için üstteki ⇅.</div>
+  </div>
+  </section>
+
+  <section id="tabSet" class="hidden">
+  <!-- Varyasyonlar -->
+  <div class="card">
+    <h2>Varyasyonlar</h2>
+    <div id="varBox"></div>
+    <div class="hint">Sporun iki modu. İsim ve rengi değiştirebilirsin.</div>
+  </div>
+
+  <!-- Ayarlar -->
   <div class="card">
     <h2>Ayarlar</h2>
     <div class="grid2" style="margin-bottom:12px">
@@ -513,16 +575,6 @@
     </div>
     <label class="lbl">Soğuma — son intervalden sonra ileri sayar, ■ Bitir'e basınca biter (unutulursa 60 dk'da kendisi biter)</label>
     <div class="chips" style="margin-bottom:12px"><div class="pill on" id="coolPill">❄︎ Açık</div></div>
-    <label class="lbl">Nabız bandı (Bluetooth — Polar H10 ve standart nabız servisi olan bantlar)</label>
-    <div class="row tight" style="margin-bottom:6px">
-      <button id="hrBtn" class="ghost">💓 Bağlan</button>
-      <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
-      <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
-      <span id="hrStatus" style="font-size:13px;color:var(--muted)">Bağlı değil</span>
-      <span id="hrBpm" style="margin-left:auto;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums"></span>
-    </div>
-    <div class="hint" id="hrHint" style="margin-bottom:12px"></div>
-
     <label class="lbl">Nabız bölgeleri ve enerji — kişisel (Polar düzeni + Z0)</label>
     <div class="grid3" style="margin-bottom:8px">
       <div><label class="lbl">Doğum tarihi</label><input type="date" id="hrBirth" min="1920-01-01" max="2020-12-31"></div>
@@ -551,21 +603,8 @@
       <div><label class="lbl">Yüklen</label><select id="tgtFast"><option value="0">Z0 Toparlanma</option><option value="1">Z1 Çok hafif</option><option value="2">Z2 Hafif</option><option value="3">Z3 Orta</option><option value="4" selected>Z4 Zor</option><option value="5">Z5 Maksimum</option></select></div>
     </div>
 
-    <label class="lbl">Antrenman adı</label>
-    <div class="row tight">
-      <input type="text" id="inName" class="seg-grow" placeholder="ör. Salı koşusu — çapraz">
-      <button id="saveBtn" class="ghost">💾 Kaydet</button>
-    </div>
   </div>
-
-  <button id="startBtn" class="primary block" style="padding:18px;font-size:18px">▶︎ BAŞLAT</button>
-
-  <!-- Geçmiş: tamamlanan / yarıda bırakılan antrenmanlar (otomatik) -->
-  <div class="card" style="margin-top:14px">
-    <h2>Geçmiş <span id="histCount" style="letter-spacing:0"></span></h2>
-    <div id="histBox"></div>
-    <div class="hint">Antrenmanlar otomatik kaydedilir: tamamlananlar ve 1 dk'dan sonra ✕ ile bırakılanlar. Kayıtlar bu tarayıcıya özeldir; yedek ya da taşıma için üstteki ⇅.</div>
-  </div>
+  </section>
 </div>
 
 <!-- ===================== PLAYER ===================== -->
@@ -763,6 +802,7 @@ function applyGen(g){
   radio("step", String(gen.step)); radio("cross", gen.cross?"on":"off");
   radio("first", gen.firstFast?"hizli":"yavas"); radio("flip", gen.flip?"on":"off");
   $("patGrid").classList.toggle("cross", gen.cross); $("patGrid").classList.toggle("flip", gen.flip);
+  updateSums();
 }
 // Ayarı saklanmamış (eski) kayıtlar için: aynı segmentleri birebir üreten ayarı arar; bulamazsa null
 // (elle düzenlenmiş liste). Birden çok ayar aynı sonucu veriyorsa varsayılana en yakını seçilir.
@@ -902,6 +942,7 @@ function renderSegments(){
   $("giTot").textContent = fmt(tot===1&&state.segments.length===0?0:tot);
   const lg=$("legend");
   if(lg) lg.innerHTML = state.variations.map(v=>`<span class="lgi"><i style="background:${v.color}"></i>${esc(v.name)}</span>`).join("");
+  updateSums();
 }
 function move(i,dir){
   const j=i+dir; if(j<0||j>=state.segments.length) return;
@@ -1817,6 +1858,20 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 /* ------------------------------------------------------------------ */
 /* Wiring                                                              */
 /* ------------------------------------------------------------------ */
+// planlama ekranı sekmeleri (Antrenman · Geçmiş · Ayarlar): açılış her zaman Antrenman
+document.querySelectorAll("#tabs [data-tab]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#tabs [data-tab]").forEach(x=>x.classList.toggle("on", x===b));
+  ["tabPlan","tabHist","tabSet"].forEach(id=>$(id).classList.toggle("hidden", id!==b.dataset.tab));
+});
+// akordeon başlıklarındaki özetler (kapalıyken de içerik görünsün): desen · süre kaynağı · en kısa · anahtarlar / segment · toplam
+const PAT_NAME=Object.fromEntries([...document.querySelectorAll("[data-pat]")].map(p=>[p.dataset.pat, p.querySelector("span").textContent]));
+function updateSums(){
+  const n=state.segments.length;
+  $("segSum").textContent = n ? `${n} segment · ${fmt(totalSec())}` : "boş";
+  const g=readGen();
+  $("genSum").textContent = `${PAT_NAME[g.pattern]||g.pattern} · ${g.src==="total" ? `hedef ${g.total} dk` : `en uzun ${g.longest} dk`} · en kısa ${g.floor} dk`+
+    (g.step===0.5 ? " · 30 sn" : "")+(g.cross ? " · çapraz" : "")+(g.flip ? " · ters" : "")+(g.firstFast ? " · Yüklen önce" : "");
+}
 // source pills
 document.querySelectorAll("[data-src]").forEach(p=>p.onclick=()=>{
   document.querySelectorAll("[data-src]").forEach(x=>x.classList.remove("on"));
@@ -2012,7 +2067,7 @@ $("hrBtn").onclick=()=>hrConnect(false);
 $("hrAllBtn").onclick=()=>hrConnect(true);
 $("hrOffBtn").onclick=hrDisconnect;
 if(!hrSupported){
-  $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden");
+  $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden"); $("hrHelp").open=true;   // Bluefy yönlendirmesi görünür kalsın
   $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
 } else {
   $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener. "+
