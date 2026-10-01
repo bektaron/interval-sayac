@@ -535,6 +535,7 @@
     <div class="row tight" style="margin-top:8px">
       <button id="hrBtn" class="ghost">Bağlan</button>
       <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
+      <button id="hrSimBtn" class="ghost" title="Bluetooth olmadan dene: 30 sn yükselen nabız serisi (Geçmiş'e yazılmaz)">🧪 Deneme</button>
       <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
     </div>
     <details id="hrHelp"><summary class="hint">Bant bağlanmıyor mu?</summary><div class="hint" id="hrHint"></div></details>
@@ -1090,7 +1091,8 @@ function sessTick(dt){
   const fresh=hrFresh();
   while(P.act>=P.nextS+5){ const gap=(P.act-(P.nextS+5))>2; P.samples.push(!gap && fresh ? HR.bpm : null); P.nextS+=5; }
   if(P.cool0!=null && !P.hrr && P.act-P.cool0>=60) P.hrr={ hr0:P.hr0, hr60: fresh ? HR.bpm : null };
-  if(P.act>=P.nextDraft){ P.nextDraft+=60; saveDraft(); }
+  if(HR.sim) P.sim=true;                           // deneme bandı: bu antrenman Geçmiş'e yazılmaz, taslak da tutulmaz
+  if(P.act>=P.nextDraft){ P.nextDraft+=60; if(!P.sim) saveDraft(); }
 }
 const clockText=()=>curKind()==="cool" ? "+"+fmt(P.timeline[P.idx].sec-P.segLeft) : fmt(P.segLeft);
 function hrrText(el){
@@ -1235,7 +1237,7 @@ function loop(){
 /* Nabız — Web Bluetooth, standart Heart Rate servisi (0x180D/0x2A37)  */
 /* Polar H10 dahil çoğu göğüs bandı bu servisi yayınlar.               */
 /* ------------------------------------------------------------------ */
-const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0, step:"", connecting:false };
+const HR = { dev:null, chr:null, bpm:null, at:0, want:false, gen:0, step:"", connecting:false, sim:0 };   // sim: deneme bandı zamanlayıcısı
 const HR_STALE_MS = 5000;
 const hrSupported = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 
@@ -1281,6 +1283,7 @@ async function hrConnect(all){
   if(!hrSupported){ toast("Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari desteklemez; Bluefy tarayıcısıyla açın. Android ve masaüstünde Chrome/Edge kullanın."); return; }
   all = all===true;
   const gen=++HR.gen; HR.want=false;
+  simStop(); if(HR.chr && HR.chr.sim) HR.chr=null;   // deneme bandı açıksa gerçek bağlantı onu kapatır
   let dev;
   try{
     HR.step = all ? HR_STEP.listAll : HR_STEP.list; hrSetStatus("Aranıyor…");
@@ -1344,11 +1347,34 @@ async function hrOnDisconnect(gen){
   HR.want=false; hrSetStatus("Yeniden bağlanamadı. Bağlan'a tekrar bas."); renderHR();
 }
 function hrDisconnect(){
-  HR.gen++; HR.want=false; HR.connecting=false;
+  HR.gen++; HR.want=false; HR.connecting=false; simStop();
   try{ if(HR.dev && HR.dev.gatt.connected) HR.dev.gatt.disconnect(); }catch(e){}
   HR.chr=null; HR.bpm=null; HR.at=0;
   hrSetStatus("Bağlı değil"); renderHR();
 }
+/* --- Deneme bandı: Bluetooth olmadan gösterge/kulakçık denemesi. Sabit tohumlu 30 sn'lik yükselen seri
+   (Z0 altından maks.'a, S-eğrisi + küçük titreşim), sonra aynı yoldan iniş, döngü. Saniyede bir örnek,
+   gerçek banttaki gibi HR.bpm/HR.at üstünden akar. Deneme bandıyla koşan antrenman Geçmiş'e yazılmaz. --- */
+const SIM_SEC=30;
+function simSeries(){
+  const z=hrZones(), lo = z ? z.edges[0]-8 : 90, hi = z ? z.max-2 : 170;
+  let seed=7; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };   // sabit tohum: her seferinde aynı seri
+  const out=[];
+  for(let i=0;i<=SIM_SEC;i++){ const t=i/SIM_SEC, s=t*t*(3-2*t); out.push(Math.round(lo+(hi-lo)*s+(rnd()-.5)*4)); }
+  return out;
+}
+function simStart(){
+  hrDisconnect();                                     // gerçek bant varsa kopar; eski deneme zamanlayıcısı temizlenir
+  const series=simSeries(); let i=0, dir=1;
+  HR.dev={ name:"Deneme bandı", gatt:{ connected:true, disconnect(){ this.connected=false; } }, addEventListener(){} };
+  HR.chr={ sim:true };
+  const tick=()=>{ HR.bpm=series[i]; HR.at=performance.now(); renderHR();
+    i+=dir; if(i>=series.length){ i=series.length-2; dir=-1; } else if(i<0){ i=1; dir=1; } };
+  tick(); HR.sim=setInterval(tick,1000);
+  hrSetStatus(`Deneme bandı: ${series[0]}→${series[series.length-1]} bpm, ${SIM_SEC} sn çıkış, sonra iniş (döngü)`);
+  renderHR();
+}
+function simStop(){ if(HR.sim){ clearInterval(HR.sim); HR.sim=0; } }
 /* --- Kişisel nabız bölgeleri (Polar düzeni: maks. nabzın %50-60-70-80-90-100'ü) --- */
 const HRP_KEY="intervalHRProfile";
 const ZONE_PCT=[.5,.6,.7,.8,.9,1];
@@ -1638,6 +1664,7 @@ function renderHR(){
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
+  $("hrSimBtn").classList.toggle("hidden", on);
   $("hrOffBtn").classList.toggle("hidden", !on);
 }
 
@@ -1693,6 +1720,7 @@ function recordSession(done){
   if(P.act<SS_MIN_SEC) return null;
   const s=buildSession(done);
   P.saved=true; P.savedSession=s;
+  if(P.sim){ toast("Deneme bandıyla koşan antrenman Geçmiş'e yazılmadı."); return s; }   // özet açılır, kayıt tutulmaz
   if(!addSession(s)) toast("Antrenman kaydedilemedi (hafıza dolu).");
   renderHistory();
   return s;
@@ -2069,9 +2097,10 @@ $("impBtn").onclick=()=>{
 $("hrBtn").onclick=()=>hrConnect(false);
 $("hrAllBtn").onclick=()=>hrConnect(true);
 $("hrOffBtn").onclick=hrDisconnect;
+$("hrSimBtn").onclick=simStart;
 if(!hrSupported){
   $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden"); $("hrHelp").open=true;   // Bluefy yönlendirmesi görünür kalsın
-  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
+  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı. Bluetooth olmadan göstergeyi denemek için 🧪 Deneme.";
 } else {
   $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener. "+
     "Listede görünmüyorsa: iPhone Ayarlar › Bluetooth'ta bant bağlı görünüyorsa 'Bu Aygıtı Unut', Polar Flow/Beat gibi uygulamaları kapat; yine yoksa 🔍 Tüm cihazlar ile bak.";
