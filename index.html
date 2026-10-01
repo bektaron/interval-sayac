@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0b1120">
+<meta name="theme-color" content="#0a0f1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Interval">
@@ -12,9 +12,9 @@
 <title>Interval Sayaç</title>
 <style>
   :root{
-    --bg:#0b1120; --panel:#131c2e; --panel2:#1b2740; --line:#26334d;
-    --txt:#e7eefc; --muted:#8aa0c7; --accent:#38bdf8;
-    --slow:#334155; --fast:#ea580c; --prep:#7c3aed;
+    --bg:#0a0f1e; --panel:#111a2e; --panel2:#182440; --line:#27345a;
+    --txt:#e7eefc; --muted:#8aa0c7; --accent:#22d3ee; --accent2:#3d9cff; --accent-bg:#0b2b36;
+    --slow:#1e3a8a; --fast:#f04e23; --prep:#7c3aed;
     --ok:#22c55e;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -47,13 +47,13 @@
   }
   button:active{transform:scale(.97)}
   button:disabled{opacity:.45;cursor:not-allowed}
-  button.primary{background:var(--accent);color:#04243a;border-color:var(--accent)}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#06212b;border-color:transparent}
   button.ghost{background:transparent}
   button.danger{color:#fda4af;border-color:#7f1d2d}
   button.block{width:100%;justify-content:center}
   .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;
         border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:14px}
-  .pill.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .pill.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
   .legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
   .legend .lgi{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);font-weight:600}
@@ -67,7 +67,7 @@
   .radiorow label{display:flex;align-items:center;gap:8px;flex:1 1 150px;padding:11px 13px;border:1px solid var(--line);
                   border-radius:10px;background:var(--panel2);cursor:pointer;font-size:14px;font-weight:600}
   .radiorow input{accent-color:var(--accent);width:19px;height:19px;margin:0;flex:0 0 auto}
-  .radiorow label:has(input:checked){border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .radiorow label:has(input:checked){border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
   /* desen kartları (mini grafik) */
   .patgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .pat{display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 6px;
@@ -76,12 +76,12 @@
   .pat:active{transform:scale(.97)}
   .pat svg{width:100%;height:30px;display:block}
   .pat .ln{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-  .pat.on{border-color:var(--accent);background:#0e2a3d;color:var(--accent)}
+  .pat.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
   .patgrid.cross .g-normal{display:none}
   .patgrid:not(.cross) .g-cross{display:none}
   .patgrid.flip .pat svg{transform:scaleX(-1)}   /* ters çevir: ikonlar da aynalanır */
   /* lider/eş renkleri; "önce" anahtarıyla takas */
-  .pat .ln.lead{stroke:#94a3b8}   /* Gevşe (antrasit) koyu panelde seçilsin diye açık gri */
+  .pat .ln.lead{stroke:#8fb3ff}   /* Gevşe (lacivert) koyu panelde seçilsin diye açık mavi tonu */
   .pat .ln.partner{stroke:var(--fast)}
   .seg{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
        border-radius:12px;padding:8px;margin-bottom:8px}
@@ -171,7 +171,7 @@
   #player .pgauge .gedge{font-size:10px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}
   #player .pgauge .fuel{fill:none;stroke-width:6}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28)}
-  #player .pgauge .fuel.fat{stroke:#fde68a}
+  #player .pgauge .fuel.fat{stroke:#ffd54a}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -187,12 +187,12 @@
   #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
   #player .pgauge .gpeak{font-size:18px;font-weight:800;fill:#fecaca}
   #player .pgauge .gf{font-size:16px;font-weight:700}
-  #player .pgauge .gf.f{fill:#fde68a}
+  #player .pgauge .gf.f{fill:#ffd54a}
   /* yağ/KH/kcal: ∩'ün dar iç alanına sığmadığı için göstergenin altında tam genişlik */
   #player .pfuel{flex:0 0 auto;font-size:clamp(13px,3.8vw,18px);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;
                  text-shadow:0 1px 6px rgba(0,0,0,.35);margin-top:2px}
   #player .pfuel:empty{display:none}
-  #player .pfuel .f{color:#fde68a}
+  #player .pfuel .f{color:#ffd54a}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px;perspective:500px}
@@ -239,7 +239,7 @@
   textarea:focus{border-color:var(--accent)}
   /* kısa bildirim (alert yerine; bazı iOS tarayıcıları alert/confirm'ü göstermeyebilir) */
   .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);transform:translate(-50%,16px);
-         width:max-content;max-width:min(92vw,520px);background:#0e2a3d;border:1px solid var(--accent);color:var(--txt);
+         width:max-content;max-width:min(92vw,520px);background:var(--accent-bg);border:1px solid var(--accent);color:var(--txt);
          padding:11px 15px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.45);
          z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
   .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -652,8 +652,8 @@ const A = 0, B = 1; // Gevşe, Yüklen
 let state = {
   name: "",
   variations: [
-    { name: "Gevşe", color: "#334155" },
-    { name: "Yüklen", color: "#ea580c" },
+    { name: "Gevşe", color: "#1e3a8a" },
+    { name: "Yüklen", color: "#f04e23" },
   ],
   segments: [], // {v:0|1, sec:Number}
 };
@@ -960,9 +960,11 @@ function saveAll(o){
   catch(e){ toast("Kaydedilemedi: tarayıcı hafızası dolu ya da kapalı (gizli sekme?)."); return false; }
 }
 // Kayıtlı/içe aktarılan antrenmanı doğrular ve sadeleştirir; kullanılamazsa null.
-const DEF_VARS=[{ name:"Gevşe", color:"#334155" },{ name:"Yüklen", color:"#ea580c" }];
-const OLD_SLOW="#059669";   // eski varsayılan Gevşe yeşili; yüklenirken antrasite çevrilir
-const varColor=(c,i)=> /^#[0-9a-f]{6}$/i.test(c) && !(i===0 && c.toLowerCase()===OLD_SLOW) ? c : DEF_VARS[i].color;
+const DEF_VARS=[{ name:"Gevşe", color:"#1e3a8a" },{ name:"Yüklen", color:"#f04e23" }];
+// önceki sürümlerin varsayılan zeminleri (Gevşe yeşil → antrasit → lacivert; Yüklen turuncu): kayıt yüklenirken
+// yeni varsayılana çevrilir; kullanıcının kendi seçtiği başka bir renk korunur
+const OLD_DEFAULTS=[["#059669","#334155"],["#ea580c"]];
+const varColor=(c,i)=> /^#[0-9a-f]{6}$/i.test(c) && !OLD_DEFAULTS[i].includes(c.toLowerCase()) ? c : DEF_VARS[i].color;
 function cleanWorkout(w){
   if(!w || !Array.isArray(w.segments)) return null;
   const segments=w.segments.filter(x=>x && (x.v===A||x.v===B) && +x.sec>0).map(x=>({ v:x.v, sec:Math.round(+x.sec) }));
@@ -1019,7 +1021,7 @@ function beep(freq=880,dur=0.12,vol=0.25){
 /* Player                                                              */
 /* ------------------------------------------------------------------ */
 let P = null; // oynatıcı durumu: zaman çizelgesi, sayaç, ziyaretler, nabız örnekleri (bkz. startPlayer)
-const COOL_COLOR="#0e7490", COOL_MAX=3600;      // soğuma zemini; unutulursa 60 dk'da biter
+const COOL_COLOR="#0891b2", COOL_MAX=3600;      // soğuma zemini; unutulursa 60 dk'da biter
 // Zaman çizelgesi: [hazırlık] + segmentler + [soğuma]; kind: prep | seg | cool
 function buildTimeline(){
   const t=[];
@@ -1201,7 +1203,7 @@ function finish(){
   const s=recordSession(true);
   if(s){ hidePlayer(); openSummary(s,true); return; }
   // 1 dk'dan kısa (kaydedilmeyen) antrenman: sade bitiş ekranı
-  const pl=$("player"); pl.classList.remove("cool"); pl.classList.add("done"); pl.style.background="#334155";
+  const pl=$("player"); pl.classList.remove("cool"); pl.classList.add("done"); pl.style.background="#1e293b";
   $("pName").textContent="Bitti! 🎉"; $("pClock").textContent="✓";
   $("playBtn").textContent="✓ Kapat";            // bitişte ✕ gizli; büyük düğme çıkış olur
 }
@@ -1351,7 +1353,8 @@ function hrDisconnect(){
 const HRP_KEY="intervalHRProfile";
 const ZONE_PCT=[.5,.6,.7,.8,.9,1];
 const Z0_PCT=.4;                                   // Z0 alt sınırı (rezervin / maks. nabzın %40'ı)
-const ZONE_COLOR=["#e2e8f0","#94a3b8","#38bdf8","#4ade80","#fb923c","#f87171"];   // Z0..Z5
+// Z0..Z5: buz · camgöbeği · elektrik mavi · neon yeşil · kehribar · mercan — hepsinde koyu yazı okunur (kulakçık dolgusu)
+const ZONE_COLOR=["#dbe4ee","#22d3ee","#3d9cff","#2ee06a","#ffb020","#ff3d5a"];
 // iki hex rengi karıştırır (t: 0 → a, 1 → b)
 const hexMix=(a,b,t)=>{ const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)), A=p(a), B=p(b);
                         return "#"+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,"0")).join(""); };
@@ -1801,7 +1804,7 @@ function summaryHTML(s,fresh){
     const fk=fat*9.4, ck=carb*4.1, fs=pctOf(fk,fk+ck);
     h+=`<div class="card"><h2>Enerji (tahmini)</h2>`+
        `<div class="srow"><span class="l">Toplam</span><span class="r"><b>${kcal} kcal</b>${s.cool && C.kcal ? ` · soğuma ${C.kcal}` : ""}</span></div>`+
-       `<div class="srow"><span class="l"><i style="background:#fde68a"></i>Yağ</span><span class="r"><b>${tr1(fat)} g</b> · enerjinin %${fs}'i</span></div>`+
+       `<div class="srow"><span class="l"><i style="background:#ffd54a"></i>Yağ</span><span class="r"><b>${tr1(fat)} g</b> · enerjinin %${fs}'i</span></div>`+
        `<div class="srow"><span class="l"><i style="background:rgba(255,255,255,.35)"></i>Karbonhidrat</span><span class="r"><b>${tr1(carb)} g</b> · %${100-fs}</span></div>`+
        `<div class="hint">Nabızdan tahmin: kcal ±%20–30, yağ payı ±20 puan.</div></div>`;
   }

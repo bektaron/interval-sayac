@@ -1,5 +1,5 @@
 // Interval Sayaç - çevrimdışı önbellek
-const CACHE = 'interval-v14';
+const CACHE = 'interval-v15';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
