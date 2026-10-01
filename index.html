@@ -179,7 +179,11 @@
   #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+  /* anlık nabız işareti: halka rengi nabzın bölgesi (updateGauge), halka + kalp gerçek nabız hızında atar (--beat = 60/bpm sn) */
+  #player .pgauge .gcur circle{stroke-width:3;transition:stroke .5s;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+  #player .pgauge .gcur .beat{transform-box:fill-box;transform-origin:center;animation:gbeat var(--beat,.8s) ease-in-out infinite}
+  #player .pgauge.stale .gcur .beat{animation-play-state:paused}
+  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.18)}}
   /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
   #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -204,12 +208,13 @@
   #player .pgauge .gf .c{fill:#b388ff}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
-  #player .pzones{display:flex;gap:5px;width:min(96vw,440px);margin-top:6px;perspective:500px}
-  #player .pzones .zc{position:relative;padding:8px 2px 7px;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
+  #player .pzones{display:flex;gap:5px;width:min(92vw,440px);margin-top:6px;perspective:500px}   /* kenar payı: öne çıkan uç çip ekrandan taşmasın */
+  #player .pzones .zc{position:relative;padding:10px 2px 9px;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
                       transform-style:preserve-3d;
                       transition:transform .8s cubic-bezier(.2,.8,.3,1),background-color 2.5s ease,color 2.5s ease,box-shadow .8s ease}
-  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(14px,4vw,18px);transition:color 2.5s ease}
-  #player .pzones .zc span{font-size:clamp(18px,5.2vw,24px)}
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(17px,4.8vw,22px);transition:color 2.5s ease}
+  #player .pzones .zc span{font-size:clamp(22px,6.2vw,29px)}
+  #player .pzones .zc.tgt{flex-grow:1.45}                     /* "hedef" eki sığsın diye hedef çipi biraz geniş */
   /* nabız bölgeye girince: çip 3D öne gelir ve büyür (.8 sn), zemini kendi rengine geçer (2,5 sn); çıkınca aynı yoldan döner */
   #player .pzones .zc.cur{z-index:1;transform:translateZ(28px) scale(1.06);background:var(--zc);color:#0b1120;
                           box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
@@ -217,7 +222,7 @@
   /* nabız göstergesi açıkken dikey yeri göstergeye ver: sayaç, ad, profil ve alt satır küçülür */
   #player.hr .pname{font-size:clamp(16px,4.8vw,28px);line-height:1.1}
   #player.hr .pclock{font-size:min(17vw,9vh);line-height:.9}
-  #player.hr .pprofile{height:clamp(34px,6vh,80px);padding:5px 8px}
+  #player.hr .pprofile{height:clamp(50px,8vh,100px);padding:5px 8px}
   #player.hr .goalmsg{display:none}
   #player.hr .binfo .val{font-size:clamp(18px,5.5vw,32px)}
   #player.hr .pbtns button{padding:10px}
@@ -1448,14 +1453,14 @@ function hrZones(){
 // 0 = Z0 (Z1'in altındaki her şey), 1..5 = Z1..Z5
 function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
 function zoneChipsHTML(vals,cur,tgt){
-  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?"<small> hedef</small>":""}</b><span>${vals[i]}</span></div>`).join("");
+  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}${tgt===i?" tgt":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?"<small> hedef</small>":""}</b><span>${vals[i]}</span></div>`).join("");
 }
 // Oynatıcıdaki bölge çipleri yerinde güncellenir: her nabız bildiriminde innerHTML yeniden kurulsaydı
 // çipin 3D öne çıkma ve renk geçişleri hiç oynayamazdı
 function renderZoneChips(vals,cur,tgt){
   const box=$("pZones");
   if(box.children.length!==6) box.innerHTML=zoneChipsHTML(vals,cur,tgt);
-  [...box.children].forEach((el,i)=>{ el.classList.toggle("cur", cur===i); el.firstChild.innerHTML=`Z${i}${tgt===i?"<small> hedef</small>":""}`; el.lastChild.textContent=vals[i]; });
+  [...box.children].forEach((el,i)=>{ el.classList.toggle("cur", cur===i); el.classList.toggle("tgt", tgt===i); el.firstChild.innerHTML=`Z${i}${tgt===i?"<small> hedef</small>":""}`; el.lastChild.textContent=vals[i]; });
 }
 function renderZoneSetup(){
   const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
@@ -1613,8 +1618,8 @@ function buildGauge(){
       <g class="upright"><text class="gavgn" id="gAvgN" y="25.5"></text></g></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="8.5" fill="#991b1b" stroke="#000" stroke-width="2"/>
       <g class="upright"><text class="gpeakn" id="gPeakN" y="2.6"></text></g></g>
-    <g class="gcur" id="gCur" style="display:none"><circle r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
-      <g class="upright"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" transform="translate(-7.2,-7.3) scale(.6)" fill="#ff2d3a" stroke="rgba(0,0,0,.4)" stroke-width="1"/></g></g>
+    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="9" fill="none" stroke="#fff"/>
+      <g class="upright"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" transform="translate(-7.2,-7.3) scale(.6)" fill="#ff2d3a" stroke="rgba(0,0,0,.4)" stroke-width="1"/></g></g></g>
     ${texts}
   </svg>`;
   $("gBpm").textContent="—";
@@ -1648,6 +1653,9 @@ function updateGauge(){
   for(let i=0;i<6;i++){ const a=$("gArc"+i); if(!a) continue; const on=i===zi;
     a.setAttribute("stroke", on ? ZONE_COLOR[i] : ZONE_PALE[i]);
     a.style.filter = on ? `drop-shadow(0 0 4px ${ZONE_COLOR[i]})` : "drop-shadow(0 0 0 rgba(0,0,0,0))"; }
+  // anlık nabız işareti: halka nabzın bölgesinin renginde, kalp gerçek nabız hızında atar
+  const cur=$("gCur"); cur.querySelector("circle").setAttribute("stroke", zi>=0 ? ZONE_COLOR[zi] : "#fff");
+  cur.style.setProperty("--beat", (bpm>0 ? 60/bpm : .8).toFixed(3)+"s");
   const tp=$("gTgt");
   if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
   const dir = (tgt<0 || zi<0) ? "" : zi===tgt ? "ok" : zi<tgt ? "up" : "down";
@@ -1668,7 +1676,12 @@ function updateGauge(){
     const a=gP(GU.S*fs, FUEL_D-7), b=gP(GU.S*fs, FUEL_D+7); mk.style.display="";
     mk.querySelectorAll("line").forEach(l=>{ l.setAttribute("x1",a.x.toFixed(1)); l.setAttribute("y1",a.y.toFixed(1)); l.setAttribute("x2",b.x.toFixed(1)); l.setAttribute("y2",b.y.toFixed(1)); });
   } else mk.style.display="none";
-  if(GU.fin){ $("gF1").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · <tspan class="c">KH ${tr1(HRS.carb)} g</tspan>`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`; }
+  if(GU.fin){
+    const f1=$("gF1"); f1.innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · <tspan class="c">KH ${tr1(HRS.carb)} g</tspan>`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`;
+    // satır iki bacağın arasına sığmıyorsa yatayda sıkıştırılır (yazı tipi/haneler değişse de taşmaz)
+    const maxW=2*(GU.R-G_IN+1.5)-6; f1.removeAttribute("textLength");
+    if(f1.getBBox().width>maxW){ f1.setAttribute("textLength", maxW.toFixed(1)); f1.setAttribute("lengthAdjust","spacingAndGlyphs"); }
+  }
 }
 
 function renderHR(){
