@@ -176,11 +176,16 @@
   #player .pfuel .f{color:#fde68a}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
-  #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px}
-  #player .pzones .zc{background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc)}
-  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px)}
+  #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px;perspective:500px}
+  #player .pzones .zc{position:relative;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
+                      transform-style:preserve-3d;
+                      transition:transform .8s cubic-bezier(.2,.8,.3,1),background-color 2.5s ease,color 2.5s ease,box-shadow .8s ease}
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px);transition:color 2.5s ease}
   #player .pzones .zc span{font-size:clamp(12px,3.6vw,16px)}
-  #player .pzones .zc.cur{background:rgba(255,255,255,.28);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+  /* nabız bölgeye girince: çip 3D öne gelir ve büyür (.8 sn), zemini kendi rengine geçer (2,5 sn); çıkınca aynı yoldan döner */
+  #player .pzones .zc.cur{z-index:1;transform:translateZ(28px) scale(1.06);background:var(--zc);color:#0b1120;
+                          box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
+  #player .pzones .zc.cur b{color:rgba(0,0,0,.65)}
   /* nabız göstergesi açıkken dikey yeri göstergeye ver: sayaç, ad, profil ve alt satır küçülür */
   #player.hr .pname{font-size:clamp(16px,4.8vw,28px);line-height:1.1}
   #player.hr .pclock{font-size:min(17vw,9vh);line-height:.9}
@@ -1357,6 +1362,13 @@ function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bp
 function zoneChipsHTML(vals,cur,tgt){
   return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?" hedef":""}</b><span>${vals[i]}</span></div>`).join("");
 }
+// Oynatıcıdaki bölge çipleri yerinde güncellenir: her nabız bildiriminde innerHTML yeniden kurulsaydı
+// çipin 3D öne çıkma ve renk geçişleri hiç oynayamazdı
+function renderZoneChips(vals,cur,tgt){
+  const box=$("pZones");
+  if(box.children.length!==6) box.innerHTML=zoneChipsHTML(vals,cur,tgt);
+  [...box.children].forEach((el,i)=>{ el.classList.toggle("cur", cur===i); el.firstChild.textContent=`Z${i}${tgt===i?" hedef":""}`; el.lastChild.textContent=vals[i]; });
+}
 function renderZoneSetup(){
   const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
   if(!z){ box.innerHTML=""; h.textContent="Doğum tarihi (ya da bilinen maks. nabız) girince bölgeler hesaplanır ve sayaç ekranında dairesel gösterge açılır."; return; }
@@ -1552,7 +1564,7 @@ function updateGauge(){
   const gz=$("gZone");
   gz.textContent = zi<0 ? "" : tgt<0 ? `Z${zi}` : dir==="ok" ? `Z${zi} ✓` : `Z${zi} ${dir==="up" ? "▲" : "▼"} Z${tgt}`;
   gz.setAttribute("class", "gzone "+dir);
-  $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt), zi, tgt);
+  renderZoneChips(HRS.zone.map(fmt), zi, tgt);
   // iç halka: birikimli enerjinin yağ payı (sarı, sol dipten başlar); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
   const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
   $("gFuelBg").style.display = has ? "" : "none";
@@ -1575,7 +1587,7 @@ function renderHR(){
   } else p.innerHTML="";
   if(on && z){
     // gösterge kutusu ölçülerek kurulur: önce bölge çipleri yerleşsin ki kalan yükseklik doğru ölçülsün
-    if(!$("pGauge").firstChild){ $("pZones").innerHTML=zoneChipsHTML(HRS.zone.map(fmt),-1,-1); buildGauge(); }
+    if(!$("pGauge").firstChild){ renderZoneChips(HRS.zone.map(fmt),-1,-1); buildGauge(); }
     updateGauge();
   }
   else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
