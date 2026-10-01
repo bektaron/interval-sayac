@@ -170,11 +170,18 @@
   #player .pgauge .zarc{fill:none;stroke-width:16;transition:stroke .5s ease,filter .5s ease}
   #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}
   #player .pgauge .gedge{font-size:10px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}
-  #player .pgauge .fuel{fill:none;stroke-width:6}
-  #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28)}
+  /* yağ/KH halkası: yağ altın sarısı, karbonhidrat mor (JS: FAT_COLOR / CARB_COLOR ile aynı); enerji yokken nötr soluk beyaz */
+  #player .pgauge .fuel{fill:none;stroke-width:9}
+  #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28);transition:stroke .5s}
+  #player .pgauge .fuel.bg.on{stroke:#b388ff}
   #player .pgauge .fuel.fat{stroke:#ffd54a}
+  #player .pgauge .gfuelmk .mkd{stroke:rgba(0,0,0,.6);stroke-width:4;stroke-linecap:round}   /* yağ|KH sınırı: koyu haleli beyaz çentik */
+  #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+  #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+  /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
+  #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
   #player .pgauge .gavgmk polygon{fill:#ffb300;stroke:rgba(0,0,0,.6);stroke-width:1.5;transition:fill .5s}   /* dolgu: ortalamanın bölgesi */
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
@@ -189,6 +196,7 @@
   #player .pgauge .gpeak{font-size:18px;font-weight:800;fill:#fecaca}
   #player .pgauge .gf{font-weight:700;opacity:.95}             /* yağ/KH/kcal: ∩'ün dibinde, çok küçük */
   #player .pgauge .gf .f{fill:#ffd54a}
+  #player .pgauge .gf .c{fill:#b388ff}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(96vw,440px);margin-top:6px;perspective:500px}
@@ -1524,8 +1532,8 @@ function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND
    viewBox kutunun oranından hesaplanır; ∩ kutuya en dar kenarından sığar (dikey telefonda ekran genişliğinde,
    bacaklar kenarlarda). */
 let GU=null;                                       // geometri + bölge yerleşimi (buildGauge kurar)
-const FUEL_D=-27, TGT_D=12.5;                      // yağ halkası üçgenin ardında (iç), hedef çizgisi bandın dış kenarında (yola paralel)
-const G_RIM=14, G_PAD=3, G_IN=31;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + halka)
+const FUEL_D=-29, TGT_D=12.5;                      // yağ/KH halkası (kalınlık 9) üçgenin ardında (iç), hedef çizgisi bandın dış kenarında (yola paralel)
+const G_RIM=14, G_PAD=3, G_IN=35;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + halka)
 // s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
 function gP(s,d){
   const g=GU, r=g.R+(d||0);
@@ -1581,6 +1589,7 @@ function buildGauge(){
   for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d="${gSeg(GU.e[i],GU.e[i+1],0)}"/>`;
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
+  p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
   // bölge sınırları: bant boyunca koyu çentik + geçiş nabzı bandın üstünde (komşu dilim darsa yazı gizlenir)
   for(let i=1;i<6;i++){
     const s=GU.e[i], a=gP(s,-11), b=gP(s,11), c=gP(s,0);
@@ -1596,7 +1605,8 @@ function buildGauge(){
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,12 -6,22 6,22"/></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="6" fill="#991b1b" stroke="#000" stroke-width="2"/></g>
-    <g class="gcur" id="gCur" style="display:none"><circle r="9" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="2.5"/></g>
+    <g class="gcur" id="gCur" style="display:none"><circle r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <g class="upright"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" transform="translate(-7.2,-7.3) scale(.6)" fill="#ff2d3a" stroke="rgba(0,0,0,.4)" stroke-width="1"/></g></g>
     ${texts}
   </svg>`;
   $("gBpm").textContent="—";
@@ -1605,8 +1615,10 @@ function buildGauge(){
 function gPlace(el,bpm,z){
   if(!(bpm>0)){ el.style.display="none"; return; }
   const q=gP(gS(bpm,z),0), tf=`translate(${q.x.toFixed(1)}px,${q.y.toFixed(1)}px) rotate(${q.a.toFixed(1)}deg)`;
-  if(el.style.display==="none"){ el.style.transition="none"; el.style.display=""; el.style.transform=tf; el.getBoundingClientRect(); el.style.transition=""; }
-  else el.style.transform=tf;
+  const u=el.querySelector(".upright"), ut=`rotate(${(-q.a).toFixed(1)}deg)`;   // içindeki simge (kalp) dik kalsın: ters yönde döner
+  if(el.style.display==="none"){ el.style.transition="none"; if(u) u.style.transition="none"; el.style.display=""; el.style.transform=tf; if(u) u.style.transform=ut;
+                                 el.getBoundingClientRect(); el.style.transition=""; if(u) u.style.transition=""; }
+  else { el.style.transform=tf; if(u) u.style.transform=ut; }
 }
 function updateGauge(){
   const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild || !GU) return;
@@ -1638,12 +1650,17 @@ function updateGauge(){
   gz.textContent = zi<0 ? "" : tgt<0 ? `Z${zi}` : dir==="ok" ? `Z${zi} ✓` : `Z${zi} ${dir==="up" ? "▲" : "▼"} Z${tgt}`;
   gz.setAttribute("class", "gzone "+dir);
   renderZoneChips(HRS.zone.map(fmt), zi, tgt);
-  // iç halka: birikimli enerjinin yağ payı (sarı, sol dipten başlar); kalan soluk kısım karbonhidrat. Kilo girilmediyse yok.
+  // iç halka: birikimli enerjinin yağ payı (altın sarısı, sol dipten başlar); kalanı karbonhidrat (mor); sınırda beyaz çentik.
+  // Henüz enerji yoksa halka nötr soluk beyaz. Kilo girilmediyse yok.
   const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
-  $("gFuelBg").style.display = has ? "" : "none";
-  const fat=$("gFat");
+  const bg=$("gFuelBg"); bg.style.display = has ? "" : "none"; bg.classList.toggle("on", has && (fk+ck)>0);
+  const fat=$("gFat"), mk=$("gFuelMk");
   if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gSeg(0, GU.S*fs, FUEL_D)); } else fat.style.display="none";
-  if(GU.fin){ $("gF1").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · KH ${tr1(HRS.carb)} g`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`; }
+  if(has && fs>0.002 && fs<0.998){
+    const a=gP(GU.S*fs, FUEL_D-7), b=gP(GU.S*fs, FUEL_D+7); mk.style.display="";
+    mk.querySelectorAll("line").forEach(l=>{ l.setAttribute("x1",a.x.toFixed(1)); l.setAttribute("y1",a.y.toFixed(1)); l.setAttribute("x2",b.x.toFixed(1)); l.setAttribute("y2",b.y.toFixed(1)); });
+  } else mk.style.display="none";
+  if(GU.fin){ $("gF1").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · <tspan class="c">KH ${tr1(HRS.carb)} g</tspan>`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`; }
 }
 
 function renderHR(){
@@ -1835,7 +1852,7 @@ function summaryHTML(s,fresh){
     h+=`<div class="card"><h2>Enerji (tahmini)</h2>`+
        `<div class="srow"><span class="l">Toplam</span><span class="r"><b>${kcal} kcal</b>${s.cool && C.kcal ? ` · soğuma ${C.kcal}` : ""}</span></div>`+
        `<div class="srow"><span class="l"><i style="background:#ffd54a"></i>Yağ</span><span class="r"><b>${tr1(fat)} g</b> · enerjinin %${fs}'i</span></div>`+
-       `<div class="srow"><span class="l"><i style="background:rgba(255,255,255,.35)"></i>Karbonhidrat</span><span class="r"><b>${tr1(carb)} g</b> · %${100-fs}</span></div>`+
+       `<div class="srow"><span class="l"><i style="background:#b388ff"></i>Karbonhidrat</span><span class="r"><b>${tr1(carb)} g</b> · %${100-fs}</span></div>`+
        `<div class="hint">Nabızdan tahmin: kcal ±%20–30, yağ payı ±20 puan.</div></div>`;
   }
   const rows=(s.visits||[]).filter(v=>v.d>0);
