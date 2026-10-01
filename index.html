@@ -100,7 +100,8 @@
   .zchips{display:flex;gap:5px}
   .zc{flex:1 1 0;min-width:0;border-radius:8px;padding:4px 2px 3px;background:var(--panel2);border:1px solid var(--line);
       border-top:4px solid var(--zc);text-align:center;font-variant-numeric:tabular-nums;line-height:1.15}
-  .zc b{display:block;font-size:11px;color:var(--muted)}
+  .zc b{display:block;font-size:11px;color:var(--muted);white-space:nowrap}
+  .zc b small{font-size:.72em}      /* "hedef" eki tek satırda kalsın */
   .zc span{display:block;font-size:12px;font-weight:800;white-space:nowrap}
   .hidden{display:none!important}
   .zmgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -175,32 +176,27 @@
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
-  #player .pgauge .gavgmk polygon{fill:#ffb300;stroke:rgba(0,0,0,.6);stroke-width:1.5}
+  #player .pgauge .gavgmk polygon{fill:#ffb300;stroke:rgba(0,0,0,.6);stroke-width:1.5;transition:fill .5s}   /* dolgu: ortalamanın bölgesi */
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
                        filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
   #player .pgauge .gbpm{font-size:56px}
   #player .pgauge .gbpm.up{fill:#fde68a} #player .pgauge .gbpm.down{fill:#bae6fd}
   #player .pgauge .gdir{font-size:20px;stroke:rgba(0,0,0,.45);stroke-width:1.2;paint-order:stroke}
   #player .pgauge .gdir.up{fill:#fde68a} #player .pgauge .gdir.down{fill:#bae6fd}
-  #player .pgauge .gavg{font-size:18px;font-weight:800;fill:#ffb300}
+  #player .pgauge .gavg{font-size:18px;font-weight:800;fill:#ffb300;transition:fill .5s}
   #player .pgauge .gzone{font-size:20px;font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
   #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
   #player .pgauge .gpeak{font-size:18px;font-weight:800;fill:#fecaca}
-  #player .pgauge .gf{font-size:16px;font-weight:700}
-  #player .pgauge .gf.f{fill:#ffd54a}
-  /* yağ/KH/kcal: ∩'ün dar iç alanına sığmadığı için göstergenin altında tam genişlik */
-  #player .pfuel{flex:0 0 auto;font-size:clamp(13px,3.8vw,18px);font-weight:700;text-align:center;font-variant-numeric:tabular-nums;
-                 text-shadow:0 1px 6px rgba(0,0,0,.35);margin-top:2px}
-  #player .pfuel:empty{display:none}
-  #player .pfuel .f{color:#ffd54a}
+  #player .pgauge .gf{font-weight:700;opacity:.95}             /* yağ/KH/kcal: ∩'ün dibinde, çok küçük */
+  #player .pgauge .gf .f{fill:#ffd54a}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
-  #player .pzones{display:flex;gap:5px;width:min(94vw,420px);margin-top:6px;perspective:500px}
-  #player .pzones .zc{position:relative;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
+  #player .pzones{display:flex;gap:5px;width:min(96vw,440px);margin-top:6px;perspective:500px}
+  #player .pzones .zc{position:relative;padding:6px 2px 5px;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
                       transform-style:preserve-3d;
                       transition:transform .8s cubic-bezier(.2,.8,.3,1),background-color 2.5s ease,color 2.5s ease,box-shadow .8s ease}
-  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(10px,2.8vw,13px);transition:color 2.5s ease}
-  #player .pzones .zc span{font-size:clamp(12px,3.6vw,16px)}
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(12px,3.4vw,15px);transition:color 2.5s ease}
+  #player .pzones .zc span{font-size:clamp(15px,4.4vw,20px)}
   /* nabız bölgeye girince: çip 3D öne gelir ve büyür (.8 sn), zemini kendi rengine geçer (2,5 sn); çıkınca aynı yoldan döner */
   #player .pzones .zc.cur{z-index:1;transform:translateZ(28px) scale(1.06);background:var(--zc);color:#0b1120;
                           box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
@@ -469,6 +465,13 @@
         </svg>
         <span>İkiz tepe</span>
       </div>
+      <div class="pat" data-pat="duz" title="Yüklenme/gevşeme yok: tek kesintisiz segment">
+        <svg viewBox="0 0 60 28">
+          <g class="g-normal"><polyline class="ln lead" points="4,14 56,14"/></g>
+          <g class="g-cross"><polyline class="ln lead" points="4,14 56,14"/></g>
+        </svg>
+        <span>Düz</span>
+      </div>
     </div>
 
     <label class="lbl">Zaman profilini çaprazla</label>
@@ -623,7 +626,6 @@
     <div class="pclock" id="pClock">0:00</div>
     <div class="phr" id="pHR"></div>
     <div class="pgauge" id="pGauge"></div>
-    <div class="pfuel" id="pFuel"></div>
     <div class="pzones" id="pZones"></div>
   </div>
   <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
@@ -751,6 +753,8 @@ function buildPrimary(pattern, L, F){
 // Çapraz: eş mod AYNA değeri alır -> biri yüksekken diğeri düşük.
 function buildSegments(pattern, L, F, cross, firstFast, step, flip){
   step = step || 1;
+  // düz: yüklenme/gevşeme yok — tek kesintisiz segment; modu "ilk interval" seçer, süresi en uzun interval (ya da hedef toplam)
+  if(pattern==="duz") return [{ v: firstFast ? B : A, sec: Math.round(Math.max(1,Math.round(L/step))*step*60) }];
   // desenler tamsayı "seviye" üzerinde çalışır; adım (1dk/30sn) ile dakikaya çevrilir
   const Lc = Math.max(1, Math.round(L/step));
   const Fc = Math.max(1, Math.round(F/step));
@@ -1431,14 +1435,14 @@ function hrZones(){
 // 0 = Z0 (Z1'in altındaki her şey), 1..5 = Z1..Z5
 function zoneOf(bpm,z){ if(bpm<z.bounds[0]) return 0; for(let i=1;i<5;i++) if(bpm<z.bounds[i]) return i; return 5; }
 function zoneChipsHTML(vals,cur,tgt){
-  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?" hedef":""}</b><span>${vals[i]}</span></div>`).join("");
+  return ZONE_NAME.map((n,i)=>`<div class="zc${cur===i?" cur":""}" style="--zc:${ZONE_COLOR[i]}" title="${n}"><b>Z${i}${tgt===i?"<small> hedef</small>":""}</b><span>${vals[i]}</span></div>`).join("");
 }
 // Oynatıcıdaki bölge çipleri yerinde güncellenir: her nabız bildiriminde innerHTML yeniden kurulsaydı
 // çipin 3D öne çıkma ve renk geçişleri hiç oynayamazdı
 function renderZoneChips(vals,cur,tgt){
   const box=$("pZones");
   if(box.children.length!==6) box.innerHTML=zoneChipsHTML(vals,cur,tgt);
-  [...box.children].forEach((el,i)=>{ el.classList.toggle("cur", cur===i); el.firstChild.textContent=`Z${i}${tgt===i?" hedef":""}`; el.lastChild.textContent=vals[i]; });
+  [...box.children].forEach((el,i)=>{ el.classList.toggle("cur", cur===i); el.firstChild.innerHTML=`Z${i}${tgt===i?"<small> hedef</small>":""}`; el.lastChild.textContent=vals[i]; });
 }
 function renderZoneSetup(){
   const z=hrZones(), box=$("hrZoneChips"), h=$("hrZoneHint");
@@ -1513,8 +1517,8 @@ function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND
 
 /* --- ∩ (ters U) nabız göstergesi ------------------------------------------------------------
    Yol: sol bacak (aşağıdan yukarı) → tepede yarım daire → sağ bacak (yukarıdan aşağı).
-   Tepede Yüklen hedefi ortalanır; hedefin altındaki bölgeler sol tarafa, üstündekiler sağ tarafa
-   yerleşir (hedefe yakın bölge daha geniş). Bölge içinde nabız doğrusal; Z0 altı sol dibe,
+   Dilimler nabız genişliğiyle orantılı; Yüklen hedefinin üstündeki bölgeler dar paya sıkıştırılır (gLayout).
+   Bölge içinde nabız doğrusal; Z0 altı sol dibe,
    maks. üstü sağ dibe sabitlenir. Dıştan içe: bant (beyaz nokta anlık, kırmızı nokta tepe) → bandın iç
    kenarına dayalı ortalama üçgeni → birikimli yağ payı halkası. Hedef, bandın dış kenarına yapışık beyaz çizgi.
    viewBox kutunun oranından hesaplanır; ∩ kutuya en dar kenarından sığar (dikey telefonda ekran genişliğinde,
@@ -1539,14 +1543,15 @@ function gSeg(s0,s1,d){
   if(s<s1) out+=" L"+p(s1);
   return out;
 }
-// Bölgelerin yol üzerindeki sınırları: e[i] = Zi'nin başladığı s, e[6] = S. Hedef (t) tepede 60°.
-function gLayout(t){
-  const g=GU, S=g.S, mid=S/2, wT=Math.min(g.arc/3, S/3), L=mid-wT/2, e=new Array(7);
-  const W=i=>{ const d=Math.abs(i-t); return d===1 ? 1.3 : d===2 ? 1 : 0.7; };
-  const spread=(ids,from,len)=>{ const tw=ids.reduce((a,i)=>a+W(i),0); let x=from; ids.forEach(i=>{ e[i]=x; x+=len*W(i)/tw; }); };
-  const below=[0,1,2,3,4,5].filter(i=>i<t), above=[0,1,2,3,4,5].filter(i=>i>t);
-  if(below.length){ spread(below,0,L); e[t]=L; } else e[t]=0;              // altında bölge yoksa hedef sol ucu da kaplar
-  if(above.length){ spread(above,mid+wT/2,L); } 
+// Bölgelerin yol üzerindeki sınırları: e[i] = Zi'nin başladığı s, e[6] = S. Dilimler nabız genişliğiyle orantılı
+// (bpm'e doğrusal ölçek); yalnız Yüklen hedefinin (t) ÜSTÜNDEKİ bölgeler sabit dar paya (her biri %12) sıkıştırılır —
+// asıl çalışılan Z0..hedef aralığı yolun büyük kısmını alır (hedef Z4 ise Z0–Z4 %88, Z5 sağ bacağın dibinde %12).
+function gLayout(t,z){
+  const S=GU.S, ids=[0,1,2,3,4,5], above=ids.filter(i=>i>t), main=ids.filter(i=>i<=t), wA=S*.12;
+  const tot=main.reduce((a,i)=>a+(z.edges[i+1]-z.edges[i]),0), L=S-wA*above.length, e=new Array(7);
+  let x=0;
+  main.forEach(i=>{ e[i]=x; x+=L*(z.edges[i+1]-z.edges[i])/tot; });
+  above.forEach(i=>{ e[i]=x; x+=wA; });
   e[6]=S;
   return e;
 }
@@ -1557,10 +1562,9 @@ function gS(bpm,z){                                 // nabız → yol konumu
   return GU.S;
 }
 // ∩ içindeki satırlar: [id, sınıf, önceki taban çizgisinden aralık, yazı boyu] — ikisi de iç boşluğa göre k ile ölçeklenir.
-// Bölge+yön en üstte, sonra nabız, ort (+eğilim), tepe.
-const GAUGE_ROWS=[["gZone","gzone",20,20],["gBpm","gbpm",60,56],["gAvg","gavg",24,18],["gPeakT","gpeak",22,18]];
-const GAUGE_FUEL_ROWS=[["gF1","gf f",26,16],["gF2","gf",20,16],["gF3","gf",20,16]];
-const GAUGE_ROWS_FUEL=[...GAUGE_ROWS,...GAUGE_FUEL_ROWS].reduce((a,r)=>a+r[2],0);
+// Bölge+yön en üstte, sonra nabız, ort (+eğilim), tepe; kilo girildiyse en altta çok küçük yazıyla yağ/KH ve kcal.
+const GAUGE_ROWS=[["gZone","gzone",18,18],["gBpm","gbpm",52,48],["gAvg","gavg",18,15],["gPeakT","gpeak",17,15]];
+const GAUGE_FUEL_ROWS=[["gF1","gf",13,10],["gF2","gf",12,10]];
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; GU=null; return; }
@@ -1569,14 +1573,10 @@ function buildGauge(){
   const measureH=()=>Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
   const geo=H=>{ const R=Math.min(100-G_PAD-G_RIM, H-6-G_RIM-G_PAD-10), cy=G_PAD+G_RIM+R, yb=H-6;
                  return { R, cy, yb, Lg:Math.max(0,yb-cy), Ri:R-G_IN, avail:yb-(cy-R+G_IN+4) }; };   // Ri: iç boş yarıçap; avail: iç yazı boyu
-  // yağ/KH/kcal üç satır olarak ∩'ün içine sığıyorsa (k ≥ .8) içeride; sığmıyorsa göstergenin altındaki satıra iner (yeniden ölçülür)
-  const hasFuel=kcalPerMin(100)>0;
-  $("pFuel").innerHTML="";
-  let H=measureH(), q=geo(H), fin = hasFuel && q.avail >= GAUGE_ROWS_FUEL*.8;
-  if(hasFuel && !fin){ $("pFuel").innerHTML=fuelHTML(); H=measureH(); q=geo(H); }
-  const {R,cy,yb,Lg,Ri,avail}=q, arc=Math.PI*R;
+  const fin=kcalPerMin(100)>0;                     // kilo girildiyse yağ/KH/kcal satırları ∩'ün içinde (en altta, küçük)
+  const H=measureH(), {R,cy,yb,Lg,Ri,avail}=geo(H), arc=Math.PI*R;
   GU={ cx, cy, R, H, yb, Lg, arc, S:2*Lg+arc, fin };
-  GU.e=gLayout(tgtOk(settings.tgt[1],4));          // tepede Yüklen hedefi
+  GU.e=gLayout(tgtOk(settings.tgt[1],4), z);      // Yüklen hedefinin üstündeki bölgeler sıkışık
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
   for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d="${gSeg(GU.e[i],GU.e[i+1],0)}"/>`;
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
@@ -1601,7 +1601,6 @@ function buildGauge(){
   </svg>`;
   $("gBpm").textContent="—";
 }
-const fuelHTML=()=>kcalPerMin(100)>0 ? `<span class="f">Yağ ${tr1(HRS.fat)} g</span> · KH ${tr1(HRS.carb)} g · ${Math.round(HRS.kcal)} kcal` : "";
 // İşareti nabzın yol üzerindeki yerine taşır ve dış yöne çevirir; ilk görünüşte uçarak gelmesin diye geçiş kapalı
 function gPlace(el,bpm,z){
   if(!(bpm>0)){ el.style.display="none"; return; }
@@ -1617,6 +1616,9 @@ function updateGauge(){
   gPlace($("gPeak"), HRS.max, z);                  // oturumun tepe nabzı: kırmızı nokta kalır
   const avg=hrAvg();
   gPlace($("gAvgMk"), avg, z);
+  // ortalama üçgeni ve "ort" yazısı, ortalamanın bulunduğu bölgenin asıl renginde
+  const ac = avg!=null ? ZONE_COLOR[zoneOf(avg,z)] : "#ffb300";
+  $("gAvgMk").firstElementChild.style.fill=ac; $("gAvg").style.fill=ac;
   // ortalama ve eğilimi (↗ yükseliyor, ↘ düşüyor, → sabit) aynı satırda; halkada yalnız ortalama üçgeni
   $("gAvg").textContent = avg!=null ? `ort ${avg} ${hrTrendArrow()}`.trim() : "";
   $("gPeakT").textContent = HRS.max>0 ? `tepe ${HRS.max}` : "";
@@ -1641,8 +1643,7 @@ function updateGauge(){
   $("gFuelBg").style.display = has ? "" : "none";
   const fat=$("gFat");
   if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gSeg(0, GU.S*fs, FUEL_D)); } else fat.style.display="none";
-  if(GU.fin){ $("gF1").textContent=`Yağ ${tr1(HRS.fat)} g`; $("gF2").textContent=`KH ${tr1(HRS.carb)} g`; $("gF3").textContent=`${Math.round(HRS.kcal)} kcal`; }
-  else $("pFuel").innerHTML = fuelHTML();
+  if(GU.fin){ $("gF1").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · KH ${tr1(HRS.carb)} g`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`; }
 }
 
 function renderHR(){
@@ -1661,7 +1662,7 @@ function renderHR(){
     if(!$("pGauge").firstChild){ renderZoneChips(HRS.zone.map(fmt),-1,-1); buildGauge(); }
     updateGauge();
   }
-  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; $("pFuel").innerHTML=""; }
+  else { $("pGauge").innerHTML=""; $("pZones").innerHTML=""; }
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
@@ -1901,7 +1902,8 @@ function updateSums(){
   const n=state.segments.length;
   $("segSum").textContent = n ? `${n} segment · ${fmt(totalSec())}` : "boş";
   const g=readGen();
-  $("genSum").textContent = `${PAT_NAME[g.pattern]||g.pattern} · ${g.src==="total" ? `hedef ${g.total} dk` : `en uzun ${g.longest} dk`} · en kısa ${g.floor} dk`+
+  $("genSum").textContent = `${PAT_NAME[g.pattern]||g.pattern} · ${g.src==="total" ? `hedef ${g.total} dk` : g.pattern==="duz" ? `${g.longest} dk` : `en uzun ${g.longest} dk`}`+
+    (g.pattern==="duz" ? "" : ` · en kısa ${g.floor} dk`)+
     (g.step===0.5 ? " · 30 sn" : "")+(g.cross ? " · çapraz" : "")+(g.flip ? " · ters" : "")+(g.firstFast ? " · Yüklen önce" : "");
 }
 // source pills
