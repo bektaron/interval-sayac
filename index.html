@@ -1046,7 +1046,8 @@ async function startPlayer(){
   $("player").classList.remove("hidden","done","cool");
   $("builder").style.display="none";
   requestWake().then(ok=>{ if(!ok && P && P.running) toast("Ekran açık tutulamıyor: bu tarayıcı izin vermedi. Antrenman boyunca iPhone'da Ayarlar › Ekran ve Parlaklık › Otomatik Kilit'i 'Asla' yap; ekran kilitlenince sayaç ve nabız bağlantısı durabilir.", 9000); });
-  try{ if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){}
+  // tam ekran isteği beklenmez: bazı ortamlarda söz hiç sonuçlanmıyor ve sayaç hiç başlamıyordu; boyut değişirse gösterge zaten yeniden kurulur
+  try{ if(document.documentElement.requestFullscreen){ const r=document.documentElement.requestFullscreen(); if(r && r.catch) r.catch(()=>{}); } }catch(e){}
   buildProfile(); renderPlayer(); loop();
 }
 // Oynatıcıyı kapatır (kayıt yapmaz)
