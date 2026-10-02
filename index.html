@@ -14,7 +14,7 @@
   :root{
     --bg:#0a0f1e; --panel:#111a2e; --panel2:#182440; --line:#27345a;
     --txt:#e7eefc; --muted:#8aa0c7; --accent:#22d3ee; --accent2:#3d9cff; --accent-bg:#0b2b36;
-    --slow:#1e3a8a; --fast:#f04e23; --prep:#7c3aed;
+    --slow:#334155; --fast:#f04e23; --prep:#7c3aed;   /* --slow: oynatıcı açılış zemini (antrasit) */
     --ok:#22c55e;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -145,11 +145,12 @@
   #player .stat.right{text-align:right}
   #player .stat .cap{font-size:clamp(11px,3.2vw,17px);letter-spacing:.03em;text-transform:uppercase;opacity:.9;font-weight:700}
   #player .stat .val{font-size:clamp(22px,7vw,42px);font-weight:800}
-  /* orta: ad + sayaç + hayvan */
+  /* orta: faz rozeti (ad) + sayaç + nabız. Zemin Gevşe/Yüklen'de sabit antrasit; fazı rozetin rengi söyler */
   #player .pmid{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;gap:2px}
-  #player .pname{font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+  #player .pname{display:inline-block;max-width:92vw;padding:4px 14px;border-radius:14px;background:rgba(0,0,0,.25);
+                 font-size:clamp(18px,5.5vw,42px);font-weight:800;letter-spacing:.02em;text-shadow:0 2px 18px rgba(0,0,0,.35)}
   #player .pclock{font-size:min(30vw,19vh);font-weight:800;line-height:.92;font-variant-numeric:tabular-nums;text-shadow:0 6px 40px rgba(0,0,0,.4)}
-  /* canlı nabız (Bluetooth bandı) */
+  /* canlı nabız (Bluetooth bandı): profil yoksa ortada büyük sayı; profil varsa üst sıranın sağında anlık nabız + ort */
   #player .phr{display:flex;align-items:center;gap:8px;margin-top:6px;
                font-size:clamp(22px,7vw,44px);font-weight:800;font-variant-numeric:tabular-nums;
                text-shadow:0 2px 14px rgba(0,0,0,.35);line-height:1}
@@ -158,9 +159,19 @@
   #player .phr.beat .hb{animation:hb .35s ease}
   #player .phr .unit{font-size:.45em;font-weight:700;opacity:.85;align-self:flex-end;padding-bottom:.15em}
   #player .phr.stale{opacity:.5}
+  /* nabız göstergesi açıkken: üç sütunlu üst sıra (rozet · sayaç · nabız+ort), altında yarım halka, altında çipler */
+  #player.hr .pmid{display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto minmax(0,1fr) auto;align-items:center;column-gap:6px;row-gap:2px}
+  #player.hr .pname{grid-column:1;grid-row:1;justify-self:start;max-width:100%;text-align:left;font-size:clamp(14px,3.9vw,18px);line-height:1.15;padding:5px 10px}
+  #player.hr .pclock{grid-column:2;grid-row:1;font-size:min(14vw,8vh);line-height:.9}
+  #player.hr .phr{grid-column:3;grid-row:1;justify-self:end;flex-direction:column;align-items:flex-end;gap:0;margin:0;font-size:clamp(36px,11.5vw,54px)}
+  #player.hr .phr .big.up{color:#fde68a} #player.hr .phr .big.down{color:#bae6fd}
+  #player.hr .phr .avg{font-size:clamp(14px,4vw,18px);font-weight:700;opacity:.9;margin-top:2px}
+  /* gösterge kutusu sabit oranlı (200×140 birim): yarım halka + çapın altında yağ/KH satırı; artan dikey yer kutunun üstüne/altına eşit dağılır */
+  #player.hr .pgauge{grid-column:1/4;grid-row:2;align-self:center;flex:none;height:auto;max-height:100%;aspect-ratio:200/140}
+  #player.hr .pzones{grid-column:1/4;grid-row:3;justify-self:center}
   @keyframes hb{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
-  /* ∩ nabız göstergesi: dış bant bölgeler (ağırlıklı yaylar; nabzın bulunduğu bölge asıl ton, diğerleri soluk),
-     bandın içinde ortalama üçgeni, daha içeride birikimli yağ/KH halkası; beyaz nokta anlık, kırmızı nokta tepe.
+  /* yarım halka nabız göstergesi: dış bant bölgeler (nabzın bölgesi tepede geniş ve asıl ton, diğerleri sıkışık ve soluk),
+     bandın içinde ortalama üçgeni, daha içeride birikimli yağ/KH halkası; kırmızı nokta anlık, koyu rozet tepe.
      Kutu ekran genişliğindedir (oynatıcı iç payının üstüne taşar) ve nabız bandı bağlıyken kalan tüm yüksekliği doldurur */
   #player .pgauge{flex:1 1 0;min-height:0;align-self:stretch;position:relative;margin:0 -12px}
   #player .pgauge:empty,#player .pzones:empty{display:none}
@@ -179,11 +190,11 @@
   #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  /* anlık nabız işareti: halka rengi nabzın bölgesi (updateGauge), halka + kalp gerçek nabız hızında atar (--beat = 60/bpm sn) */
-  #player .pgauge .gcur circle{stroke-width:3;transition:stroke .5s;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+  /* anlık nabız işareti: küçük kırmızı nokta, gerçek nabız hızında atar (--beat = 60/bpm sn) */
+  #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.5))}
   #player .pgauge .gcur .beat{transform-box:fill-box;transform-origin:center;animation:gbeat var(--beat,.8s) ease-in-out infinite}
   #player .pgauge.stale .gcur .beat{animation-play-state:paused}
-  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.18)}}
+  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.3)}}
   /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
   #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -197,32 +208,28 @@
   #player .pgauge .gpeakn{font-size:7px;fill:#fff}             /* tepe noktasının içindeki maks. nabız */
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
                        filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
-  #player .pgauge .gbpm{font-size:56px}
-  #player .pgauge .gbpm.up{fill:#fde68a} #player .pgauge .gbpm.down{fill:#bae6fd}
-  #player .pgauge .gdir{font-size:20px;stroke:rgba(0,0,0,.45);stroke-width:1.2;paint-order:stroke}
-  #player .pgauge .gdir.up{fill:#fde68a} #player .pgauge .gdir.down{fill:#bae6fd}
-  #player .pgauge .gzone{font-size:20px;font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
+  #player .pgauge .gzone{font-size:15px;font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
   #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
-  #player .pgauge .gf{font-weight:700;opacity:.95}             /* yağ/KH/kcal: ∩'ün dibinde, iki küçük satır */
-  #player .pgauge .gf .f{fill:#ffd54a}
-  #player .pgauge .gf .c{fill:#b388ff}
+  #player .pgauge .gkcal{font-size:18px}                       /* yarım diskin ortasında enerji */
+  #player .pgauge .gfuelt{font-size:9.5px;font-weight:700}     /* çapın altında yağ/KH dağılımı (gram + pay) */
+  #player .pgauge .gfuelt .f{fill:#ffd54a}
+  #player .pgauge .gfuelt .c{fill:#b388ff}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
-  #player .pgauge.stale .gbpm,#player .pgauge.stale .gcur,#player .pgauge.stale .gdir{opacity:.45}
-  #player .pzones{display:flex;gap:5px;width:min(92vw,440px);margin-top:6px;perspective:500px}   /* kenar payı: öne çıkan uç çip ekrandan taşmasın */
-  #player .pzones .zc{position:relative;padding:10px 2px 9px;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
+  #player .pgauge.stale .gcur{opacity:.45}
+  #player .pzones{display:flex;gap:5px;width:min(90vw,440px);margin-top:4px;perspective:500px}   /* kenar payı: öne çıkan uç çip ekrandan taşmasın */
+  #player .pzones .zc{position:relative;padding:7px 2px 6px;background:rgba(0,0,0,.25);border-color:transparent;border-top-color:var(--zc);
                       transform-style:preserve-3d;
                       transition:transform .8s cubic-bezier(.2,.8,.3,1),background-color 2.5s ease,color 2.5s ease,box-shadow .8s ease}
-  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(17px,4.8vw,22px);transition:color 2.5s ease}
-  #player .pzones .zc span{font-size:clamp(22px,6.2vw,29px)}
+  /* yazı boyları telefon genişliğine göre: iOS yazı tipi (SF) geniş, 62 px'lik çipe "15:07" sığmalı */
+  #player .pzones .zc b{color:#fff;opacity:.85;font-size:clamp(13px,3.6vw,15px);transition:color 2.5s ease}
+  #player .pzones .zc span{font-size:clamp(15px,4.4vw,19px);letter-spacing:-.02em}
   #player .pzones .zc.tgt{flex-grow:1.45}                     /* "hedef" eki sığsın diye hedef çipi biraz geniş */
   /* nabız bölgeye girince: çip 3D öne gelir ve büyür (.8 sn), zemini kendi rengine geçer (2,5 sn); çıkınca aynı yoldan döner */
   #player .pzones .zc.cur{z-index:1;transform:translateZ(16px) scale(1.3);background:var(--zc);color:#0b1120;   /* ~1,34 kat: komşularının üstüne taşar */
                           box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
   #player .pzones .zc.cur b{color:rgba(0,0,0,.65)}
-  /* nabız göstergesi açıkken dikey yeri göstergeye ver: sayaç, ad, profil ve alt satır küçülür */
-  #player.hr .pname{font-size:clamp(16px,4.8vw,28px);line-height:1.1}
-  #player.hr .pclock{font-size:min(17vw,9vh);line-height:.9}
-  #player.hr .pprofile{height:clamp(50px,8vh,100px);padding:5px 8px}
+  /* nabız göstergesi açıkken dikey yeri göstergeye ver: profil şeridi ve alt satır küçülür */
+  #player.hr .pprofile{height:22px;padding:3px 6px}
   #player.hr .goalmsg{display:none}
   #player.hr .binfo .val{font-size:clamp(18px,5.5vw,32px)}
   #player.hr .pbtns button{padding:10px}
@@ -231,7 +238,7 @@
   #player .binfo .stat{flex:1 1 0;min-width:0}
   #player .goalmsg{font-size:clamp(10px,2.6vw,14px);font-weight:700;opacity:.8;line-height:1.05;margin-top:2px}
   /* profil */
-  #player .pprofile{flex:0 0 auto;height:clamp(130px,20vh,220px);background:rgba(0,0,0,.22);border-radius:12px;padding:10px}
+  #player .pprofile{flex:0 0 auto;height:clamp(26px,4vh,40px);background:rgba(0,0,0,.22);border-radius:10px;padding:5px 8px}   /* yatay zaman şeridi */
   #player .pchart{position:relative;width:100%;height:100%}
   #player .pprofile svg{width:100%;height:100%;display:block;overflow:visible}
   /* butonlar */
@@ -646,7 +653,7 @@
     <div class="pgauge" id="pGauge"></div>
     <div class="pzones" id="pZones"></div>
   </div>
-  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 40" preserveAspectRatio="none"></svg></div></div>
+  <div class="pprofile"><div class="pchart"><svg id="pProfile" viewBox="0 0 100 10" preserveAspectRatio="none"></svg></div></div>
   <div class="binfo">
     <div class="stat"><div class="cap">Geçen</div><div class="val" id="pElapsed">0:00</div></div>
     <div class="stat"><div class="cap">Hedef</div><div class="val" id="pEndMin">0:00</div><div class="goalmsg" id="pGoalMsg"></div></div>
@@ -1045,6 +1052,7 @@ function beep(freq=880,dur=0.12,vol=0.25){
 /* ------------------------------------------------------------------ */
 let P = null; // oynatıcı durumu: zaman çizelgesi, sayaç, ziyaretler, nabız örnekleri (bkz. startPlayer)
 const COOL_COLOR="#0891b2", COOL_MAX=3600;      // soğuma zemini; unutulursa 60 dk'da biter
+const SEG_BG="#334155";                          // Gevşe ve Yüklen'de sabit antrasit zemin; fazı rozetin (ad) rengi söyler
 // Zaman çizelgesi: [hazırlık] + segmentler + [soğuma]; kind: prep | seg | cool
 function buildTimeline(){
   const t=[];
@@ -1122,40 +1130,35 @@ function hrrText(el){
   if(P.hrr && P.hrr.hr0!=null && P.hrr.hr60!=null){ const d=P.hrr.hr0-P.hrr.hr60; return (d>=0?"−":"+")+Math.abs(d); }
   return el<60 ? `${Math.ceil(60-el)} sn` : "—";
 }
-// Antrenman profilini giriş ekranındaki gibi çizgi-desen olarak çizer
-// (her varyasyon kendi renginde bir çizgi).
+// Antrenman profili: yatay zaman şeridi — her segment süresiyle orantılı genişlikte, kendi renginde;
+// geçen kısım tam renk, gelecek kısım soluk; imleç koyu kırmızı çizgi
 function buildProfile(){
   const segs=state.segments;
   if(!segs.length){ $("pProfile").innerHTML=""; return; }
-  const n=segs.length;
-  const vals=segs.map(s=>s.sec);
-  const mx=Math.max(...vals), mn=Math.min(...vals), flat=(mx===mn);
-  const hFor=v=> flat ? 24 : 8+((v-mn)/(mx-mn))*30;   // süre -> yükseklik (8..38)
-  // her parça EŞİT genişlikte (yükseklik = süre); peş peşe, boş çerçeve + soldan dolan
-  let outline="", fillBars="";
-  segs.forEach((s,i)=>{
-    const x0=i/n*100, w=100/n, h=hFor(s.sec), y=40-h, c=state.variations[s.v].color;
-    outline +=`<rect x="${x0.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="none" stroke="#fff" stroke-opacity="0.92" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`;
-    fillBars+=`<rect x="${x0.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="${c}"/>`;
+  const tot=segs.reduce((a,s)=>a+s.sec,0)||1;
+  let x=0, fill="", outline="";
+  segs.forEach(s=>{
+    const w=s.sec/tot*100, c=state.variations[s.v].color;
+    fill   +=`<rect x="${x.toFixed(2)}" y="0" width="${w.toFixed(2)}" height="10" fill="${c}"/>`;
+    outline+=`<rect x="${x.toFixed(2)}" y="0" width="${w.toFixed(2)}" height="10" fill="none" stroke="#fff" stroke-opacity="0.9" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    x+=w;
   });
   $("pProfile").innerHTML =
-    `<defs><clipPath id="pClip"><rect id="pClipRect" x="0" y="0" width="0" height="40"/></clipPath></defs>`+
-    `<g clip-path="url(#pClip)">${fillBars}</g>`+
-    outline +
-    `<line id="pCur" stroke="#7f1010" stroke-width="4" vector-effect="non-scaling-stroke" x1="0" y1="0" x2="0" y2="40"/>`;
+    `<defs><clipPath id="pClip"><rect id="pClipRect" x="0" y="0" width="0" height="10"/></clipPath></defs>`+
+    `<g opacity=".4">${fill}</g><g clip-path="url(#pClip)">${fill}</g>`+outline+
+    `<line id="pCur" stroke="#7f1010" stroke-width="4" vector-effect="non-scaling-stroke" x1="0" y1="0" x2="0" y2="10"/>`;
 }
-// İmleci antrenman zamanına göre kaydırır (hazırlık hariç).
+// İmleci antrenman zamanına göre kaydırır (hazırlık hariç): x = geçen süre / toplam
 function updateCursor(){
   if(!P||!P.totalSec) return;
   const c=document.getElementById("pCur"); if(!c) return;
-  const n=state.segments.length||1;
+  const segs=state.segments, tot=segs.reduce((a,s)=>a+s.sec,0)||1;
   const realIdx=P.idx-(settings.prepSec>0?1:0);
   let x=0;
   if(curKind()==="cool") x=100;
   else if(realIdx>=0){
-    const cur=P.timeline[P.idx];
-    const frac=cur.sec>0?(cur.sec-P.segLeft)/cur.sec:0;
-    x=Math.min(100,(realIdx+frac)/n*100);
+    const cur=P.timeline[P.idx]; let done=0; for(let i=0;i<realIdx && i<segs.length;i++) done+=segs[i].sec;
+    x=Math.min(100,(done+Math.max(0,cur.sec-P.segLeft))/tot*100);
   }
   x=Math.max(0,x);
   const xs=x.toFixed(2);
@@ -1166,7 +1169,8 @@ function updateCursor(){
 
 function renderPlayer(){
   const cur=P.timeline[P.idx], pl=$("player");
-  pl.style.background=cur.color;
+  pl.style.background = cur.kind==="seg" ? SEG_BG : cur.color;                    // zemin: segmentlerde antrasit, hazırlık/soğuma kendi rengi
+  $("pName").style.background = cur.kind==="seg" ? cur.color : "rgba(0,0,0,.25)";   // faz rozeti varyasyon renginde
   pl.classList.toggle("cool", cur.kind==="cool");
   $("playBtn").textContent=P.running?"⏸":"▶︎";
   if(cur.kind==="cool"){                       // soğuma: ileri sayar, sağ üstte 1. dk toparlanma
@@ -1533,17 +1537,19 @@ const tr1=n=>n.toLocaleString("tr-TR",{maximumFractionDigits:1,minimumFractionDi
 function hrAvg(){ return HRS.t>0 ? Math.round(HRS.sum/HRS.t) : null; }
 function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND_BAND ? "↗" : HRS.trend<-TREND_BAND ? "↘" : "→"; }
 
-/* --- ∩ (ters U) nabız göstergesi ------------------------------------------------------------
-   Yol: sol bacak (aşağıdan yukarı) → tepede yarım daire → sağ bacak (yukarıdan aşağı).
-   Dilimler nabız genişliğiyle orantılı; Yüklen hedefinin üstündeki bölgeler dar paya sıkıştırılır (gLayout).
-   Bölge içinde nabız doğrusal; Z0 altı sol dibe,
-   maks. üstü sağ dibe sabitlenir. Dıştan içe: bant (beyaz nokta anlık, kırmızı nokta tepe) → bandın iç
-   kenarına dayalı ortalama üçgeni → birikimli yağ payı halkası. Hedef, bandın dış kenarına yapışık beyaz çizgi.
-   viewBox kutunun oranından hesaplanır; ∩ kutuya en dar kenarından sığar (dikey telefonda ekran genişliğinde,
-   bacaklar kenarlarda). */
+/* --- Yarım halka nabız göstergesi ---------------------------------------------------------------
+   Yol: sol uç (çap çizgisi) → tepe → sağ uç; s yol uzunluğu, S = π·R (bacak yok: Lg = 0). Bölge dilimleri
+   ("A" düzeni, gLayout): nabzın bulunduğu bölge tepede 90°, altındakiler sol çeyreği, üstündekiler sağ çeyreği
+   eşit paylaşır (bir tarafta bölge yoksa o çeyrek de aktif bölgeye kalır); nabız yokken 6 × 30°. Bölge değişince
+   düzen histerezisle (sınırı LAY_MARGIN bpm geçince ya da LAY_HOLD ms kalınca) yeniden kurulur, yaylar ve
+   işaretler LAY_MORPH ms'de morflanır. Bölge içinde nabız doğrusal; Z0 altı sol uca, maks. üstü sağ uca sabitlenir.
+   Dıştan içe: bant (kırmızı nokta anlık, koyu rozet tepe) → bandın iç kenarına dayalı ortalama üçgeni →
+   birikimli yağ payı halkası. Hedef, bandın dış kenarına yapışık beyaz çizgi. Yarım diskin içinde bölge+yön ve
+   kcal; çapın altında yağ/KH dağılımı. Üst sıradaki anlık nabız + ort (.phr) updateGauge'dan yazılır. */
 let GU=null;                                       // geometri + bölge yerleşimi (buildGauge kurar)
 const FUEL_D=-33, TGT_D=12.5;                      // yağ/KH halkası (kalınlık 9) üçgen + ortalama sayısının ardında (iç), hedef çizgisi bandın dış kenarında
 const G_RIM=14, G_PAD=3, G_IN=39;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + sayı + halka)
+const LAY_MARGIN=2, LAY_HOLD=3000, LAY_MORPH=600;  // bölge düzeni histerezisi (bpm, ms) ve morf süresi (ms)
 // s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
 function gP(s,d){
   const g=GU, r=g.R+(d||0);
@@ -1561,17 +1567,42 @@ function gSeg(s0,s1,d){
   if(s<s1) out+=" L"+p(s1);
   return out;
 }
-// Bölgelerin yol üzerindeki sınırları: e[i] = Zi'nin başladığı s, e[6] = S. Dilimler nabız genişliğiyle orantılı
-// (bpm'e doğrusal ölçek); yalnız Yüklen hedefinin (t) ÜSTÜNDEKİ bölgeler sabit dar paya (her biri %12) sıkıştırılır —
-// asıl çalışılan Z0..hedef aralığı yolun büyük kısmını alır (hedef Z4 ise Z0–Z4 %88, Z5 sağ bacağın dibinde %12).
-function gLayout(t,z){
-  const S=GU.S, ids=[0,1,2,3,4,5], above=ids.filter(i=>i>t), main=ids.filter(i=>i<=t), wA=S*.12;
-  const tot=main.reduce((a,i)=>a+(z.edges[i+1]-z.edges[i]),0), L=S-wA*above.length, e=new Array(7);
+// Bölgelerin yol üzerindeki sınırları: e[i] = Zi'nin başladığı s, e[6] = S. zi: düzenin büyüttüğü bölge (−1: 6 × 30°)
+function gLayout(zi){
+  const S=GU.S, e=new Array(7);
+  if(zi<0){ for(let i=0;i<=6;i++) e[i]=S*i/6; return e; }
+  const below=zi, above=5-zi, L=below ? S/4 : 0, Rr=above ? S/4 : 0;   // sol çeyrek alttakilere, sağ çeyrek üsttekilere
   let x=0;
-  main.forEach(i=>{ e[i]=x; x+=L*(z.edges[i+1]-z.edges[i])/tot; });
-  above.forEach(i=>{ e[i]=x; x+=wA; });
-  e[6]=S;
-  return e;
+  for(let i=0;i<zi;i++){ e[i]=x; x+=L/below; }
+  e[zi]=x; x+=S-L-Rr;                                                    // aktif bölge: 90° (bir taraf boşsa 135°, ikisi de boşsa 180°)
+  for(let i=zi+1;i<6;i++){ e[i]=x; x+=Rr/above; }
+  e[6]=S; return e;
+}
+// Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, çentik + sınır nabızları (dar dilimde yazı gizli), hedef çizgisi
+function redrawLayout(){
+  for(let i=0;i<6;i++) $("gArc"+i).setAttribute("d", gSeg(GU.e[i],GU.e[i+1],0));
+  // sınır nabızları: önce aktif bölgenin iki sınırı, sonra kalanlar; gösterilen bir yazıya 18 birimden yakın düşenler gizlenir
+  const zi=GU.zi, pri=i=>(i===zi||i===zi+1) ? 0 : 1, order=[1,2,3,4,5].sort((a,b)=>pri(a)-pri(b)||a-b), shown=[];
+  order.forEach(i=>{ if(shown.every(j=>Math.abs(GU.e[j]-GU.e[i])>=18)) shown.push(i); });
+  for(let i=1;i<6;i++){
+    const s=GU.e[i], a=gP(s,-11), b=gP(s,11), c=gP(s,0), t=$("gTick"+i), l=$("gEdge"+i);
+    t.setAttribute("x1",a.x.toFixed(1)); t.setAttribute("y1",a.y.toFixed(1)); t.setAttribute("x2",b.x.toFixed(1)); t.setAttribute("y2",b.y.toFixed(1));
+    l.setAttribute("x",c.x.toFixed(1)); l.setAttribute("y",c.y.toFixed(1));
+    l.style.display = shown.includes(i) ? "" : "none";
+  }
+  const tgt=currentTarget(), tp=$("gTgt");
+  if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
+}
+// İşaretleri (anlık, tepe, ortalama) güncel düzene göre yola taşır
+function placeMarkers(z){ gPlace($("gCur"), HR.bpm, z); gPlace($("gPeak"), HRS.max, z); gPlace($("gAvgMk"), hrAvg(), z); }
+// Düzeni zi bölgesine göre yeniden kurar; yaylar ve işaretler LAY_MORPH ms'de yumuşakça akar
+function setLayout(zi,z){
+  const from=GU.e.slice(), to=gLayout(zi), t0=performance.now();
+  GU.zi=zi; GU.pend=null; cancelAnimationFrame(GU.anim);
+  const step=now=>{ const k=Math.min(1,(now-t0)/LAY_MORPH), u=k*k*(3-2*k);
+    GU.e=from.map((a,i)=>a+(to[i]-a)*u); redrawLayout(); placeMarkers(z);
+    GU.anim = k<1 ? requestAnimationFrame(step) : 0; };
+  GU.anim=requestAnimationFrame(step);
 }
 function gS(bpm,z){                                 // nabız → yol konumu
   const b=z.edges, e=GU.e;
@@ -1579,50 +1610,36 @@ function gS(bpm,z){                                 // nabız → yol konumu
   for(let i=0;i<6;i++) if(bpm<b[i+1]) return e[i]+(e[i+1]-e[i])*(bpm-b[i])/(b[i+1]-b[i]);
   return GU.S;
 }
-// ∩ içindeki satırlar: [id, sınıf, önceki taban çizgisinden aralık, yazı boyu] — ikisi de iç boşluğa göre k ile ölçeklenir.
-// Bölge+yön en üstte, sonra nabız; kilo girildiyse altta iki satır yağ/KH ve kcal. (Ortalama ve tepe sayıları işaretlerin üstünde.)
-const GAUGE_ROWS=[["gZone","gzone",17,16],["gBpm","gbpm",52,48]];
-const GAUGE_FUEL_ROWS=[["gF1","gf",15,10.5],["gF2","gf",13,10.5]];   // "Yağ … · KH …" satırı iki bacağın arasına sığacak kadar
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; GU=null; return; }
-  const cx=100;
-  // viewBox: genişlik 200, yükseklik kutunun oranından. R genişlikten gelir (bacaklar kenarlarda); kutu alçaksa yükseklikten.
-  const measureH=()=>Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
-  const geo=H=>{ const R=Math.min(100-G_PAD-G_RIM, H-6-G_RIM-G_PAD-10), cy=G_PAD+G_RIM+R, yb=H-6;
-                 return { R, cy, yb, Lg:Math.max(0,yb-cy), Ri:R-G_IN, avail:yb-(cy-R+G_IN+4) }; };   // Ri: iç boş yarıçap; avail: iç yazı boyu
-  const fin=kcalPerMin(100)>0;                     // kilo girildiyse yağ/KH/kcal satırları ∩'ün içinde (en altta, küçük)
-  const H=measureH(), {R,cy,yb,Lg,Ri,avail}=geo(H), arc=Math.PI*R;
-  GU={ cx, cy, R, H, yb, Lg, arc, S:2*Lg+arc, fin };
-  GU.e=gLayout(tgtOk(settings.tgt[1],4), z);      // Yüklen hedefinin üstündeki bölgeler sıkışık
+  // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında); kutu alçaksa
+  // yükseklikten — çapın altında yağ/KH yazısı için 28 birim pay. Kutu daha yüksekse artan yer çapın altına kalır.
+  const cx=100, H=Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
+  const R=Math.max(40, Math.min(100-G_PAD-G_RIM, H-G_PAD-G_RIM-11-28)), cy=G_PAD+G_RIM+R, arc=Math.PI*R;
+  GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin:kcalPerMin(100)>0, zi:-1, pend:null, anim:0 };
+  GU.e=gLayout(-1);
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
-  for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d="${gSeg(GU.e[i],GU.e[i+1],0)}"/>`;
+  for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d=""/>`;
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
-  // bölge sınırları: bant boyunca koyu çentik + geçiş nabzı bandın üstünde (komşu dilim darsa yazı gizlenir)
-  for(let i=1;i<6;i++){
-    const s=GU.e[i], a=gP(s,-11), b=gP(s,11), c=gP(s,0);
-    p+=`<line class="gtick" x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"/>`;
-    if(Math.min(GU.e[i]-GU.e[i-1], GU.e[i+1]-GU.e[i])>=12) p+=`<text class="gedge" x="${c.x.toFixed(1)}" y="${c.y.toFixed(1)}">${z.edges[i]}</text>`;
-  }
-  // yazılar ∩'ün içinde, alt alta; iç boşlukta dikey ortalanır. k: satır aralığı ve yazı boyu ölçeği (iç boşluğa sığdırır)
-  const rows = fin ? GAUGE_ROWS.concat(GAUGE_FUEL_ROWS) : GAUGE_ROWS;
-  const total=rows.reduce((a,r)=>a+r[2],0), k=Math.max(.55, Math.min(1, avail/total));
-  const t0=cy-Ri+4, top=Math.max(t0, (t0+yb)/2-total*k/2);
-  let yy=top; const texts=rows.map(([id,cls,adv,fs])=>{ yy+=adv*k; return `<text class="${cls}" x="100" y="${yy.toFixed(1)}" style="font-size:${(fs*k).toFixed(1)}px" id="${id}"></text>`; }).join("");
-  // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); updateGauge yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
+  for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
+  // yarım diskin içinde: bölge + yön, altında kcal; çapın altındaki şeritte yağ/KH dağılımı (şeritte dikey ortalı)
+  const texts=`<text class="gzone" id="gZone" x="100" y="${(cy-22).toFixed(1)}"></text>`+
+              `<text class="gkcal" id="gKcal" x="100" y="${(cy-3).toFixed(1)}"></text>`+
+              `<text class="gfuelt" id="gFuelT" x="100" y="${((cy+12+H)/2+3).toFixed(1)}"></text>`;
+  // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,12 -9,17 9,17"/>
       <path class="arr r" d="M11 14.5H17M14.5 12L17 14.5 14.5 17"/><path class="arr l" d="M-11 14.5H-17M-14.5 12L-17 14.5 -14.5 17"/>
       <g class="upright"><text class="gavgn" id="gAvgN" y="25.5"></text></g></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="8.5" fill="#991b1b" stroke="#000" stroke-width="2"/>
       <g class="upright"><text class="gpeakn" id="gPeakN" y="2.6"></text></g></g>
-    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="9" fill="none" stroke="#fff"/>
-      <g class="upright"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" transform="translate(-7.2,-7.3) scale(.6)" fill="#ff2d3a" stroke="rgba(0,0,0,.4)" stroke-width="1"/></g></g></g>
+    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="5.5" fill="#ff2d3a" stroke="rgba(0,0,0,.55)" stroke-width="1.2"/></g></g>
     ${texts}
   </svg>`;
-  $("gBpm").textContent="—";
+  redrawLayout();
 }
 // İşareti nabzın yol üzerindeki yerine taşır ve dış yöne çevirir; ilk görünüşte uçarak gelmesin diye geçiş kapalı
 function gPlace(el,bpm,z){
@@ -1637,30 +1654,34 @@ function updateGauge(){
   const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild || !GU) return;
   const bpm=HR.bpm, fresh = bpm!=null && (performance.now()-HR.at)<HR_STALE_MS;
   g.classList.toggle("stale", !fresh);
-  gPlace($("gCur"), bpm, z);
-  gPlace($("gPeak"), HRS.max, z);                  // oturumun tepe nabzı: kırmızı nokta kalır
+  const zi = bpm!=null ? zoneOf(bpm,z) : -1, tgt=currentTarget();
+  // bölge düzeni nabzın bölgesini tepeye alır; yeni bölgeye histerezisle geçilir: sınırı LAY_MARGIN bpm geçince
+  // ya da LAY_HOLD ms kalınca (sınırda salınan nabız kadranı ileri-geri akıtmasın). İlk nabızda hemen.
+  if(zi!==GU.zi){
+    const now=performance.now();
+    if(!GU.pend || GU.pend.z!==zi) GU.pend={ z:zi, since:now };
+    const past = zi<0 || GU.zi<0 || (zi>GU.zi ? bpm>=z.edges[zi]+LAY_MARGIN : bpm<=z.edges[zi+1]-LAY_MARGIN);
+    if(past || now-GU.pend.since>=LAY_HOLD) setLayout(zi,z);
+  } else GU.pend=null;
+  if(!GU.anim){ redrawLayout(); placeMarkers(z); }   // morf sürerken kareleri setLayout çizer
   const avg=hrAvg(), am=$("gAvgMk");
-  gPlace(am, avg, z);
   // ortalama üçgeni ve altındaki sayı, ortalamanın bulunduğu bölgenin asıl renginde; eğilim oluşunca (↗ yükseliyor,
   // ↘ düşüyor) üçgenin nabız-artan tarafında yol boyunca bakan küçük ok, sabitken ok yok. Tepe noktasının içinde maks. nabız.
   const ac = avg!=null ? ZONE_COLOR[zoneOf(avg,z)] : "#ffb300", tr=hrTrendArrow();
   am.firstElementChild.style.fill=ac; $("gAvgN").style.fill=ac; $("gAvgN").textContent = avg!=null ? avg : "";
   am.classList.toggle("up", tr==="↗"); am.classList.toggle("down", tr==="↘");
   $("gPeakN").textContent = HRS.max>0 ? HRS.max : "";
-  // yay parlaklığı nabzı izler: nabzın bulunduğu bölge asıl ton + hafif ışıma, diğerleri aynı rengin soluk tonu.
-  // O anki segmentin hedefi bandın dış kenarında beyaz çizgi; nabız rakamı ve ok yönü gösterir
-  const zi = bpm!=null ? zoneOf(bpm,z) : -1, tgt=currentTarget();
+  // yay parlaklığı nabzı izler: nabzın bulunduğu bölge asıl ton + hafif ışıma, diğerleri aynı rengin soluk tonu
   for(let i=0;i<6;i++){ const a=$("gArc"+i); if(!a) continue; const on=i===zi;
     a.setAttribute("stroke", on ? ZONE_COLOR[i] : ZONE_PALE[i]);
     a.style.filter = on ? `drop-shadow(0 0 4px ${ZONE_COLOR[i]})` : "drop-shadow(0 0 0 rgba(0,0,0,0))"; }
-  // anlık nabız işareti: halka nabzın bölgesinin renginde, kalp gerçek nabız hızında atar
-  const cur=$("gCur"); cur.querySelector("circle").setAttribute("stroke", zi>=0 ? ZONE_COLOR[zi] : "#fff");
-  cur.style.setProperty("--beat", (bpm>0 ? 60/bpm : .8).toFixed(3)+"s");
-  const tp=$("gTgt");
-  if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
+  // anlık nabız noktası gerçek nabız hızında atar
+  $("gCur").style.setProperty("--beat", (bpm>0 ? 60/bpm : .8).toFixed(3)+"s");
+  // üst sıranın sağında anlık nabız (hedefe göre renk: yukarı çık sarı, aşağı in açık mavi) + ort
   const dir = (tgt<0 || zi<0) ? "" : zi===tgt ? "ok" : zi<tgt ? "up" : "down";
-  const bp=$("gBpm"); bp.textContent = bpm!=null ? bpm : "—";
-  bp.setAttribute("class", "gbpm"+(dir==="up"||dir==="down" ? " "+dir : ""));
+  const ph=$("pHR");
+  ph.innerHTML=`<span class="big${dir==="up"||dir==="down" ? " "+dir : ""}">${bpm!=null ? bpm : "—"}</span><span class="avg">${avg!=null ? "ort "+avg : ""}</span>`;
+  ph.classList.toggle("stale", !fresh);
   // bölge + yön tek satırda: "Z2 ▲ Z3" (hedefe çık), "Z4 ▼ Z3" (in), "Z3 ✓" (hedefte), hedef yoksa "Z1"
   const gz=$("gZone");
   gz.textContent = zi<0 ? "" : tgt<0 ? `Z${zi}` : dir==="ok" ? `Z${zi} ✓` : `Z${zi} ${dir==="up" ? "▲" : "▼"} Z${tgt}`;
@@ -1676,12 +1697,12 @@ function updateGauge(){
     const a=gP(GU.S*fs, FUEL_D-7), b=gP(GU.S*fs, FUEL_D+7); mk.style.display="";
     mk.querySelectorAll("line").forEach(l=>{ l.setAttribute("x1",a.x.toFixed(1)); l.setAttribute("y1",a.y.toFixed(1)); l.setAttribute("x2",b.x.toFixed(1)); l.setAttribute("y2",b.y.toFixed(1)); });
   } else mk.style.display="none";
+  // yarım diskte kcal; çapın altında yağ/KH dağılımı (gram + enerji payı). Kilo girilmediyse boş.
   if(GU.fin){
-    const f1=$("gF1"); f1.innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g</tspan> · <tspan class="c">KH ${tr1(HRS.carb)} g</tspan>`; $("gF2").textContent=`${Math.round(HRS.kcal)} kcal`;
-    // satır iki bacağın arasına sığmıyorsa yatayda sıkıştırılır (yazı tipi/haneler değişse de taşmaz)
-    const maxW=2*(GU.R-G_IN+1.5)-6; f1.removeAttribute("textLength");
-    if(f1.getBBox().width>maxW){ f1.setAttribute("textLength", maxW.toFixed(1)); f1.setAttribute("lengthAdjust","spacingAndGlyphs"); }
-  }
+    $("gKcal").textContent=`${Math.round(HRS.kcal)} kcal`;
+    const pf=Math.round(fs*100);
+    $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g · %${pf}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g · %${100-pf}</tspan>`;
+  } else { $("gKcal").textContent=""; $("gFuelT").textContent=""; }
 }
 
 function renderHR(){
