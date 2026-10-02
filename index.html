@@ -179,8 +179,7 @@
   #player .pgauge svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.45);stroke-width:28}
   #player .pgauge .zarc{fill:none;stroke-width:22;transition:stroke .5s ease,filter .5s ease}
-  #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}
-  #player .pgauge .gedge{font-size:11.5px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}
+  #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}   /* bölge sınırı çentiği (sayı yok) */
   /* yağ/KH halkası: yağ altın sarısı, karbonhidrat mor (JS: FAT_COLOR / CARB_COLOR ile aynı); enerji yokken nötr soluk beyaz */
   #player .pgauge .fuel{fill:none;stroke-width:9}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28);transition:stroke .5s}
@@ -206,9 +205,7 @@
   #player .pgauge .gpeakn{font-size:7px;fill:#fff}             /* tepe noktasının içindeki maks. nabız */
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
                        filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
-  /* yazı boyları buildGauge'da şerit yüksekliğine göre satır içi verilir */
-  #player .pgauge .gzone{font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
-  #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
+  /* yazı boyları buildGauge'da şerit yüksekliğine göre satır içi verilir; yarım diskin içinde yazı yok */
   #player .pgauge .gfuelt{font-weight:700}                     /* tek satır: yağ (sarı) · KH (mor), gram + pay */
   #player .pgauge .gfuelt .f{fill:#ffd54a}
   #player .pgauge .gfuelt .c{fill:#b388ff}
@@ -226,13 +223,11 @@
   #player .pzones .zc.cur{z-index:1;transform:translateZ(16px) scale(1.3);background:var(--zc);color:#0b1120;   /* ~1,34 kat: komşularının üstüne taşar */
                           box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
   #player .pzones .zc.cur b{color:rgba(0,0,0,.65)}
-  /* uzun ekranlarda (iPhone Safari/ana ekran) kulakçıklar 3×2 ızgara: daha geniş çip, daha büyük yazı */
-  @media (min-height:740px){
-    #player.hr .pzones{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:min(94vw,470px)}
-    #player.hr .pzones .zc{padding:11px 4px 10px}
-    #player.hr .pzones .zc b{font-size:clamp(16px,4.6vw,20px)}
-    #player.hr .pzones .zc span{font-size:clamp(22px,6.8vw,30px)}
-  }
+  /* uzun ekranlarda (iPhone Safari/ana ekran; renderHR innerHeight'a göre .tall verir) kulakçıklar 3×2 ızgara: geniş çip, büyük yazı */
+  #player.hr.tall .pzones{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:min(94vw,470px)}
+  #player.hr.tall .pzones .zc{padding:11px 4px 10px}
+  #player.hr.tall .pzones .zc b{font-size:clamp(16px,4.6vw,20px)}
+  #player.hr.tall .pzones .zc span{font-size:clamp(22px,6.8vw,30px)}
   /* nabız göstergesi açıkken dikey yeri göstergeye ver: profil şeridi ve alt satır küçülür */
   #player.hr .pprofile{height:44px;padding:5px 6px}
   #player.hr .goalmsg{display:none}
@@ -1609,14 +1604,9 @@ function gLayout(zi){
 // Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, çentik + sınır nabızları (dar dilimde yazı gizli), hedef çizgisi
 function redrawLayout(){
   for(let i=0;i<6;i++) $("gArc"+i).setAttribute("d", gSeg(GU.e[i],GU.e[i+1],0));
-  // sınır nabızları: önce aktif bölgenin iki sınırı, sonra kalanlar; gösterilen bir yazıya 18 birimden yakın düşenler gizlenir
-  const zi=GU.zi, pri=i=>(i===zi||i===zi+1) ? 0 : 1, order=[1,2,3,4,5].sort((a,b)=>pri(a)-pri(b)||a-b), shown=[];
-  order.forEach(i=>{ if(shown.every(j=>Math.abs(GU.e[j]-GU.e[i])>=18)) shown.push(i); });
-  for(let i=1;i<6;i++){
-    const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), c=gP(s,0), t=$("gTick"+i), l=$("gEdge"+i);
+  for(let i=1;i<6;i++){                               // bölge sınırı çentikleri (bant boyunca)
+    const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), t=$("gTick"+i);
     t.setAttribute("x1",a.x.toFixed(1)); t.setAttribute("y1",a.y.toFixed(1)); t.setAttribute("x2",b.x.toFixed(1)); t.setAttribute("y2",b.y.toFixed(1));
-    l.setAttribute("x",c.x.toFixed(1)); l.setAttribute("y",c.y.toFixed(1));
-    l.style.display = shown.includes(i) ? "" : "none";
   }
   const tgt=currentTarget(), tp=$("gTgt");
   if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
@@ -1643,13 +1633,12 @@ function gS(bpm,z){                                 // nabız → yol konumu
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; GU=null; return; }
-  // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında).
-  // Kutu yüksekse ("wide") kcal + yağ/KH bloğu çapın altında ve halka + blok dikeyde ortalanır; alçaksa kcal yarım
-  // diskin içinde, yalnız yağ/KH satırı çapın altında.
+  // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında); kutu alçaksa
+  // yükseklikten. kcal + yağ/KH bloğu çapın altında (kutu yüksekse büyük); halka + blok dikeyde ortalanır. İç disk boş.
   const cx=100, H=Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
-  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62;
-  const R=Math.max(40, Math.min(100-top, H-top-G_HW-(wide ? 62 : 20))), arc=Math.PI*R;
-  const contentH=top+R+G_HW+(wide ? 6+52 : 20), off=Math.max(0,(H-contentH)/2), cy=top+R+off;
+  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62, blockH = fin ? (wide ? 58 : 36) : 4;
+  const R=Math.max(40, Math.min(100-top, H-top-G_HW-blockH)), arc=Math.PI*R;
+  const contentH=top+R+G_HW+blockH, off=Math.max(0,(H-contentH)/2), cy=top+R+off;
   GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin, zi:-1, pend:null, anim:0 };
   GU.e=gLayout(-1);
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
@@ -1657,17 +1646,14 @@ function buildGauge(){
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
-  for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
-  // "wide": bölge + yön yarım diskin içinde, kcal + tek satır yağ/KH çapın hemen altında (büyük).
-  // dar: bölge + yön ve kcal yarım diskin içinde, yağ/KH satırı çapın altında (küçük).
+  for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/>`;   // bölge sınırı çentikleri (redrawLayout yerleştirir)
+  // kcal + tek satır yağ/KH çapın hemen altında; kutu yüksekse büyük, alçaksa küçük
   const y0=cy+G_HW;
   const texts = wide
-    ? `<text class="gzone" id="gZone" x="100" y="${(cy-10).toFixed(1)}" style="font-size:20px"></text>`+
-      `<text class="gkcal" id="gKcal" x="100" y="${(y0+30).toFixed(1)}" style="font-size:26px"></text>`+
+    ? `<text class="gkcal" id="gKcal" x="100" y="${(y0+30).toFixed(1)}" style="font-size:26px"></text>`+
       `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+48).toFixed(1)}" style="font-size:12px"></text>`
-    : `<text class="gzone" id="gZone" x="100" y="${(cy-19).toFixed(1)}" style="font-size:13px"></text>`+
-      `<text class="gkcal" id="gKcal" x="100" y="${(cy-2).toFixed(1)}" style="font-size:17px"></text>`+
-      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+12).toFixed(1)}" style="font-size:9.5px"></text>`;
+    : `<text class="gkcal" id="gKcal" x="100" y="${(y0+19).toFixed(1)}" style="font-size:17px"></text>`+
+      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+31).toFixed(1)}" style="font-size:9.5px"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,15 -9,20 9,20"/>
@@ -1720,10 +1706,6 @@ function updateGauge(){
   const ph=$("pHR");
   ph.innerHTML=`<span class="big${dir==="up"||dir==="down" ? " "+dir : ""}">${bpm!=null ? bpm : "—"}</span><span class="avg">${avg!=null ? "ort "+avg : ""}</span>`;
   ph.classList.toggle("stale", !fresh);
-  // bölge + yön tek satırda: "Z2 ▲ Z3" (hedefe çık), "Z4 ▼ Z3" (in), "Z3 ✓" (hedefte), hedef yoksa "Z1"
-  const gz=$("gZone");
-  gz.textContent = zi<0 ? "" : tgt<0 ? `Z${zi}` : dir==="ok" ? `Z${zi} ✓` : `Z${zi} ${dir==="up" ? "▲" : "▼"} Z${tgt}`;
-  gz.setAttribute("class", "gzone "+dir);
   renderZoneChips(HRS.zone.map(fmt), zi, tgt);
   // iç halka: birikimli enerjinin yağ payı (altın sarısı, sol dipten başlar); kalanı karbonhidrat (mor); sınırda beyaz çentik.
   // Henüz enerji yoksa halka nötr soluk beyaz. Kilo girilmediyse yok.
@@ -1748,6 +1730,7 @@ function renderHR(){
   const stale = HR.bpm==null || (performance.now()-HR.at)>HR_STALE_MS;
   const txt = HR.bpm!=null ? String(HR.bpm) : "—";
   $("player").classList.toggle("hr", on && !!z);
+  $("player").classList.toggle("tall", window.innerHeight>=720);   // uzun ekran: kulakçıklar 3×2 (medya sorgusu iPhone'da tutmadı)
   const p=$("pHR");
   if(on && !z){                              // profil yoksa yalnız sayı (+ ortalama)
     const avg=hrAvg();
