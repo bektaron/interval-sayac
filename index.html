@@ -1656,8 +1656,8 @@ function buildGauge(){
   // halka önce: R genişlikten (alçak kutuda yükseklikten, Y/K için en az 36 birim pay); Y/K yazı boyu kalan şeride göre (13..26)
   const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0;
   const R=Math.max(40, Math.min(100-top, H-top-G_HW-36)), arc=Math.PI*R;
-  const avail=H-(top+R+G_HW), fs=Math.max(13, Math.min(26, (avail-8)/2.5)), blockH = fin ? fs*2.5+4 : 4;
-  const contentH=top+R+G_HW+blockH, off=Math.max(0,(H-contentH)/2), cy=top+R+off;
+  const avail=H-(top+R+G_HW), fs=Math.max(13, Math.min(26, (avail-8)/2.5)), blockH = fin ? fs*2.2+2 : 4;
+  const contentH=top+R+G_HW+blockH, off=Math.max(0,(H-contentH)/2-4), cy=top+R+off;   // grup ortanın biraz üstünde; Y/K bandın hemen altında
   GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin, zi:-1, pend:null, anim:0 };
   GU.e=gLayout(-1);
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
@@ -1674,8 +1674,8 @@ function buildGauge(){
   const y0=cy+G_HW;
   const texts = `<text class="gkcal" id="gKcal" x="100" y="${(cy-13).toFixed(1)}" style="font-size:24px"></text>`+
                 `<text class="gkcalu" id="gKcalU" x="100" y="${(cy-2).toFixed(1)}" style="font-size:9px"></text>`+
-                `<text class="gfuelt f" id="gFuelF" x="100" y="${(y0+fs*1.2).toFixed(1)}" style="font-size:${fs.toFixed(1)}px"></text>`+
-                `<text class="gfuelt c" id="gFuelC" x="100" y="${(y0+fs*2.4).toFixed(1)}" style="font-size:${fs.toFixed(1)}px"></text>`;
+                `<text class="gfuelt f" id="gFuelF" x="100" y="${(y0+fs*1.0).toFixed(1)}" style="font-size:${fs.toFixed(1)}px"></text>`+
+                `<text class="gfuelt c" id="gFuelC" x="100" y="${(y0+fs*2.1).toFixed(1)}" style="font-size:${fs.toFixed(1)}px"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,15 -9,20 9,20"/>
