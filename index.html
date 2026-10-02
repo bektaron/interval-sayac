@@ -568,7 +568,8 @@
     <div class="row tight" style="margin-top:8px">
       <button id="hrBtn" class="ghost">Bağlan</button>
       <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
-      <button id="hrSimBtn" class="ghost" title="Bluetooth olmadan dene: 30 sn'de inip çıkan hayali nabız (Geçmiş'e yazılmaz)">🧪 Deneme</button>
+      <button id="hrSimBtn" class="ghost hidden" title="Bluetooth olmadan dene: hayali nabız (Geçmiş'e yazılmaz)">🧪 Deneme</button>   <!-- şimdilik gizli (Üstadım, 2026-10-02); kod duruyor -->
+
       <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
     </div>
     <details id="hrHelp"><summary class="hint">Bant bağlanmıyor mu?</summary><div class="hint" id="hrHint"></div></details>
@@ -1770,8 +1771,7 @@ function renderHR(){
   const b=$("hrBpm"); if(b) b.textContent = on ? `♥ ${txt}` : "";
   $("hrBtn").classList.toggle("hidden", on);
   $("hrAllBtn").classList.toggle("hidden", on || !hrSupported);
-  $("hrSimBtn").classList.toggle("hidden", on);
-  $("hrOffBtn").classList.toggle("hidden", !on);
+  $("hrOffBtn").classList.toggle("hidden", !on);   // (deneme bandı düğmesi şimdilik hep gizli)
 }
 
 /* ------------------------------------------------------------------ */
@@ -2207,7 +2207,7 @@ $("hrOffBtn").onclick=hrDisconnect;
 $("hrSimBtn").onclick=simStart;
 if(!hrSupported){
   $("hrBtn").disabled=true; $("hrAllBtn").classList.add("hidden"); $("hrHelp").open=true;   // Bluefy yönlendirmesi görünür kalsın
-  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı. Bluetooth olmadan göstergeyi denemek için 🧪 Deneme.";
+  $("hrHint").textContent="Bu tarayıcıda Web Bluetooth yok. iPhone'da Safari ve ana ekran uygulaması desteklemez; App Store'daki Bluefy tarayıcısıyla bu sayfayı açın. Android ve masaüstünde Chrome/Edge çalışır. Buradaki kayıtlar Bluefy'ye kendiliğinden geçmez; üstteki ⇅ ile taşı.";
 } else {
   $("hrHint").textContent="Bandı tak, elektrotları ıslat, Bağlan'a basıp listeden bandı seç. Sayaç ekranında canlı nabız görünür; bağlantı koparsa kendiliğinden yeniden dener. "+
     "Listede görünmüyorsa: iPhone Ayarlar › Bluetooth'ta bant bağlı görünüyorsa 'Bu Aygıtı Unut', Polar Flow/Beat gibi uygulamaları kapat; yine yoksa 🔍 Tüm cihazlar ile bak.";
