@@ -1703,7 +1703,7 @@ function updateGauge(){
   // yarım diskte kcal; çapın altında yağ/KH dağılımı (gram + enerji payı). Kilo girilmediyse boş.
   if(GU.fin){
     $("gKcal").textContent=`${Math.round(HRS.kcal)} kcal`;
-    const pf=Math.round(fs*100), pc=(fk+ck)>0;   // enerji birikmeden yüzde yazılmaz ("%0 / %100" yanıltmasın)
+    const pf=Math.round(fs*100), pc=HRS.kcal>=1;   // en az 1 kcal birikmeden yüzde yazılmaz ("0 kcal · %68" yanıltmasın)
     $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}</tspan>`;
   } else { $("gKcal").textContent=""; $("gFuelT").textContent=""; }
 }
