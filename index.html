@@ -180,6 +180,7 @@
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.45);stroke-width:28}
   #player .pgauge .zarc{fill:none;stroke-width:22;transition:stroke .5s ease,filter .5s ease}
   #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}   /* bölge sınırı çentiği (sayı yok) */
+  #player .pgauge .gsub line{stroke:rgba(0,0,0,.5);stroke-width:1.2;stroke-linecap:round}   /* aktif bölge içi ara çentikler (her bpm; 5'in katı uzun) */
   /* yağ/KH halkası: yağ altın sarısı, karbonhidrat mor (JS: FAT_COLOR / CARB_COLOR ile aynı); enerji yokken nötr soluk beyaz */
   #player .pgauge .fuel{fill:none;stroke-width:9}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28);transition:stroke .5s}
@@ -1601,13 +1602,20 @@ function gLayout(zi){
   for(let i=0;i<6;i++){ e[i]=x; x+= i===zi ? wA : w; }
   e[6]=S; return e;
 }
-// Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, çentik + sınır nabızları (dar dilimde yazı gizli), hedef çizgisi
-function redrawLayout(){
+// Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, sınır çentikleri, aktif bölge içi ara çentikler, hedef çizgisi
+function redrawLayout(z){
   for(let i=0;i<6;i++) $("gArc"+i).setAttribute("d", gSeg(GU.e[i],GU.e[i+1],0));
   for(let i=1;i<6;i++){                               // bölge sınırı çentikleri (bant boyunca)
     const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), t=$("gTick"+i);
     t.setAttribute("x1",a.x.toFixed(1)); t.setAttribute("y1",a.y.toFixed(1)); t.setAttribute("x2",b.x.toFixed(1)); t.setAttribute("y2",b.y.toFixed(1));
   }
+  // aktif bölgenin içinde ara çentikler: her bpm'de kısa, 5'in katlarında uzun; bandın dış kenarından içeri
+  const zi=GU.zi; let h="";
+  if(zi>=0 && z) for(let b=z.edges[zi]+1; b<z.edges[zi+1]; b++){
+    const s=gS(b,z), L=b%5 ? 5 : 9, a=gP(s,G_HW-1), c=gP(s,G_HW-1-L);
+    h+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${c.x.toFixed(1)}" y2="${c.y.toFixed(1)}"/>`;
+  }
+  $("gSub").innerHTML=h;
   const tgt=currentTarget(), tp=$("gTgt");
   if(tgt>=0){ tp.style.display=""; tp.setAttribute("d", gSeg(GU.e[tgt], GU.e[tgt+1], TGT_D)); } else tp.style.display="none";
 }
@@ -1620,7 +1628,7 @@ function setLayout(zi,z){
   // morf boyunca işaretler kare kare doğrudan konumlanır (kendi CSS geçişleri kapalı; yoksa bandın ardından sürüklenirler)
   const step=now=>{ const k=Math.min(1,(now-t0)/LAY_MORPH), u=k*k*(3-2*k);
     GU.morphing = k<1;
-    GU.e=from.map((a,i)=>a+(to[i]-a)*u); redrawLayout(); placeMarkers(z);
+    GU.e=from.map((a,i)=>a+(to[i]-a)*u); redrawLayout(z); placeMarkers(z);
     GU.anim = k<1 ? requestAnimationFrame(step) : 0; };
   GU.anim=requestAnimationFrame(step);
 }
@@ -1647,6 +1655,7 @@ function buildGauge(){
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
   for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/>`;   // bölge sınırı çentikleri (redrawLayout yerleştirir)
+  p+=`<g class="gsub" id="gSub"></g>`;                                   // aktif bölge içi ara çentikler (redrawLayout kurar)
   // kcal + tek satır yağ/KH çapın hemen altında; kutu yüksekse büyük, alçaksa küçük
   const y0=cy+G_HW;
   const texts = wide
@@ -1664,7 +1673,7 @@ function buildGauge(){
     <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="3.5" fill="#0b0f14"/></g></g>
     ${texts}
   </svg>`;
-  redrawLayout();
+  redrawLayout(z);
 }
 // İşareti nabzın yol üzerindeki yerine taşır ve dış yöne çevirir; ilk görünüşte uçarak gelmesin diye geçiş kapalı
 function gPlace(el,bpm,z){
@@ -1689,7 +1698,7 @@ function updateGauge(){
     const past = zi<0 || GU.zi<0 || (zi>GU.zi ? bpm>=z.edges[zi]+LAY_MARGIN : bpm<=z.edges[zi+1]-LAY_MARGIN);
     if(past || now-GU.pend.since>=LAY_HOLD) setLayout(zi,z);
   } else GU.pend=null;
-  if(!GU.anim){ redrawLayout(); placeMarkers(z); }   // morf sürerken kareleri setLayout çizer
+  if(!GU.anim){ redrawLayout(z); placeMarkers(z); }   // morf sürerken kareleri setLayout çizer
   const avg=hrAvg(), am=$("gAvgMk");
   // ortalama üçgeni ve altındaki sayı, ortalamanın bulunduğu bölgenin asıl renginde; eğilim oluşunca (↗ yükseliyor,
   // ↘ düşüyor) üçgenin nabız-artan tarafında yol boyunca bakan küçük ok, sabitken ok yok. Tepe noktasının içinde maks. nabız.
