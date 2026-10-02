@@ -194,7 +194,7 @@
   #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.5))}
   #player .pgauge .gcur .beat{transform-box:fill-box;transform-origin:center;animation:gbeat var(--beat,.8s) ease-in-out infinite}
   #player .pgauge.stale .gcur .beat{animation-play-state:paused}
-  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.3)}}
+  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.45)}}
   /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
   #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -1382,7 +1382,7 @@ function hrDisconnect(){
 /* --- Deneme bandı: Bluetooth olmadan gösterge/kulakçık denemesi. Sabit tohumlu seri: SIM_SEC saniyede Z0 altından
    maks.'a çıkış (S-eğrisi + küçük titreşim), sonra aynı yoldan iniş, döngü (2·SIM_SEC sn). Saniyede bir örnek,
    gerçek banttaki gibi HR.bpm/HR.at üstünden akar. Deneme bandıyla koşan antrenman Geçmiş'e yazılmaz. --- */
-const SIM_SEC=15;                                   // 15 sn çıkış + 15 sn iniş = 30 sn'lik döngü
+const SIM_SEC=90;                                   // 90 sn çıkış + 90 sn iniş = 3 dk döngü (~0,8 bpm/sn, gerçekçi)
 function simSeries(){
   const z=hrZones(), lo = z ? z.edges[0]-8 : 90, hi = z ? z.max-2 : 170;
   let seed=7; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };   // sabit tohum: her seferinde aynı seri
@@ -1539,8 +1539,9 @@ function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND
 
 /* --- Yarım halka nabız göstergesi ---------------------------------------------------------------
    Yol: sol uç (çap çizgisi) → tepe → sağ uç; s yol uzunluğu, S = π·R (bacak yok: Lg = 0). Bölge dilimleri
-   ("A" düzeni, gLayout): nabzın bulunduğu bölge tepede 90°, altındakiler sol çeyreği, üstündekiler sağ çeyreği
-   eşit paylaşır (bir tarafta bölge yoksa o çeyrek de aktif bölgeye kalır); nabız yokken 6 × 30°. Bölge değişince
+   ("A" düzeni, gLayout): nabzın bulunduğu bölge tepede LAY_ACTIVE°, kalan açı iki yana eşit bölünür: altındakiler
+   sol yanı, üstündekiler sağ yanı eşit paylaşır (bir tarafta bölge yoksa o yan da aktif bölgeye kalır); nabız yokken
+   6 × 30°. Bölge değişince
    düzen histerezisle (sınırı LAY_MARGIN bpm geçince ya da LAY_HOLD ms kalınca) yeniden kurulur, yaylar ve
    işaretler LAY_MORPH ms'de morflanır. Bölge içinde nabız doğrusal; Z0 altı sol uca, maks. üstü sağ uca sabitlenir.
    Dıştan içe: bant (kırmızı nokta anlık, koyu rozet tepe) → bandın iç kenarına dayalı ortalama üçgeni →
@@ -1550,6 +1551,7 @@ let GU=null;                                       // geometri + bölge yerleşi
 const FUEL_D=-33, TGT_D=12.5;                      // yağ/KH halkası (kalınlık 9) üçgen + ortalama sayısının ardında (iç), hedef çizgisi bandın dış kenarında
 const G_RIM=14, G_PAD=3, G_IN=39;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + sayı + halka)
 const LAY_MARGIN=2, LAY_HOLD=3000, LAY_MORPH=600;  // bölge düzeni histerezisi (bpm, ms) ve morf süresi (ms)
+const LAY_ACTIVE=60;                               // aktif bölgenin tepedeki açısı (derece); kalan 180° iki yana eşit
 // s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
 function gP(s,d){
   const g=GU, r=g.R+(d||0);
@@ -1571,10 +1573,10 @@ function gSeg(s0,s1,d){
 function gLayout(zi){
   const S=GU.S, e=new Array(7);
   if(zi<0){ for(let i=0;i<=6;i++) e[i]=S*i/6; return e; }
-  const below=zi, above=5-zi, L=below ? S/4 : 0, Rr=above ? S/4 : 0;   // sol çeyrek alttakilere, sağ çeyrek üsttekilere
+  const below=zi, above=5-zi, side=(S-S*LAY_ACTIVE/180)/2, L=below ? side : 0, Rr=above ? side : 0;   // sol yan alttakilere, sağ yan üsttekilere
   let x=0;
   for(let i=0;i<zi;i++){ e[i]=x; x+=L/below; }
-  e[zi]=x; x+=S-L-Rr;                                                    // aktif bölge: 90° (bir taraf boşsa 135°, ikisi de boşsa 180°)
+  e[zi]=x; x+=S-L-Rr;                                                    // aktif bölge: LAY_ACTIVE° (bir taraf boşsa o yan da ona kalır)
   for(let i=zi+1;i<6;i++){ e[i]=x; x+=Rr/above; }
   e[6]=S; return e;
 }
@@ -1599,7 +1601,9 @@ function placeMarkers(z){ gPlace($("gCur"), HR.bpm, z); gPlace($("gPeak"), HRS.m
 function setLayout(zi,z){
   const from=GU.e.slice(), to=gLayout(zi), t0=performance.now();
   GU.zi=zi; GU.pend=null; cancelAnimationFrame(GU.anim);
+  // morf boyunca işaretler kare kare doğrudan konumlanır (kendi CSS geçişleri kapalı; yoksa bandın ardından sürüklenirler)
   const step=now=>{ const k=Math.min(1,(now-t0)/LAY_MORPH), u=k*k*(3-2*k);
+    GU.morphing = k<1;
     GU.e=from.map((a,i)=>a+(to[i]-a)*u); redrawLayout(); placeMarkers(z);
     GU.anim = k<1 ? requestAnimationFrame(step) : 0; };
   GU.anim=requestAnimationFrame(step);
@@ -1636,7 +1640,7 @@ function buildGauge(){
       <g class="upright"><text class="gavgn" id="gAvgN" y="25.5"></text></g></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="8.5" fill="#991b1b" stroke="#000" stroke-width="2"/>
       <g class="upright"><text class="gpeakn" id="gPeakN" y="2.6"></text></g></g>
-    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="5.5" fill="#ff2d3a" stroke="rgba(0,0,0,.55)" stroke-width="1.2"/></g></g>
+    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="3" fill="#ff2d3a" stroke="rgba(0,0,0,.6)" stroke-width="1"/></g></g>
     ${texts}
   </svg>`;
   redrawLayout();
@@ -1645,10 +1649,11 @@ function buildGauge(){
 function gPlace(el,bpm,z){
   if(!(bpm>0)){ el.style.display="none"; return; }
   const q=gP(gS(bpm,z),0), tf=`translate(${q.x.toFixed(1)}px,${q.y.toFixed(1)}px) rotate(${q.a.toFixed(1)}deg)`;
-  const u=el.querySelector(".upright"), ut=`rotate(${(-q.a).toFixed(1)}deg)`;   // içindeki simge (kalp) dik kalsın: ters yönde döner
+  const u=el.querySelector(".upright"), ut=`rotate(${(-q.a).toFixed(1)}deg)`;   // içindeki simge (sayı) dik kalsın: ters yönde döner
   if(el.style.display==="none"){ el.style.transition="none"; if(u) u.style.transition="none"; el.style.display=""; el.style.transform=tf; if(u) u.style.transform=ut;
                                  el.getBoundingClientRect(); el.style.transition=""; if(u) u.style.transition=""; }
-  else { el.style.transform=tf; if(u) u.style.transform=ut; }
+  else { const tr = GU && GU.morphing ? "none" : "";                       // morf sürerken geçişsiz (setLayout kare kare konumlar)
+         el.style.transition=tr; if(u) u.style.transition=tr; el.style.transform=tf; if(u) u.style.transform=ut; }
 }
 function updateGauge(){
   const z=hrZones(), g=$("pGauge"); if(!z || !g.firstChild || !GU) return;
