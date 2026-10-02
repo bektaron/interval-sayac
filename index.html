@@ -563,7 +563,7 @@
     <div class="row tight" style="margin-top:8px">
       <button id="hrBtn" class="ghost">Bağlan</button>
       <button id="hrAllBtn" class="ghost" title="Listede bant görünmüyorsa: filtresiz tüm Bluetooth cihazları">🔍 Tüm cihazlar</button>
-      <button id="hrSimBtn" class="ghost" title="Bluetooth olmadan dene: 30 sn yükselen nabız serisi (Geçmiş'e yazılmaz)">🧪 Deneme</button>
+      <button id="hrSimBtn" class="ghost" title="Bluetooth olmadan dene: 30 sn'de inip çıkan hayali nabız (Geçmiş'e yazılmaz)">🧪 Deneme</button>
       <button id="hrOffBtn" class="ghost danger hidden">Kes</button>
     </div>
     <details id="hrHelp"><summary class="hint">Bant bağlanmıyor mu?</summary><div class="hint" id="hrHint"></div></details>
@@ -1379,10 +1379,10 @@ function hrDisconnect(){
   HR.chr=null; HR.bpm=null; HR.at=0;
   hrSetStatus("Bağlı değil"); renderHR();
 }
-/* --- Deneme bandı: Bluetooth olmadan gösterge/kulakçık denemesi. Sabit tohumlu 30 sn'lik yükselen seri
-   (Z0 altından maks.'a, S-eğrisi + küçük titreşim), sonra aynı yoldan iniş, döngü. Saniyede bir örnek,
+/* --- Deneme bandı: Bluetooth olmadan gösterge/kulakçık denemesi. Sabit tohumlu seri: SIM_SEC saniyede Z0 altından
+   maks.'a çıkış (S-eğrisi + küçük titreşim), sonra aynı yoldan iniş, döngü (2·SIM_SEC sn). Saniyede bir örnek,
    gerçek banttaki gibi HR.bpm/HR.at üstünden akar. Deneme bandıyla koşan antrenman Geçmiş'e yazılmaz. --- */
-const SIM_SEC=30;
+const SIM_SEC=15;                                   // 15 sn çıkış + 15 sn iniş = 30 sn'lik döngü
 function simSeries(){
   const z=hrZones(), lo = z ? z.edges[0]-8 : 90, hi = z ? z.max-2 : 170;
   let seed=7; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };   // sabit tohum: her seferinde aynı seri
@@ -1398,7 +1398,7 @@ function simStart(){
   const tick=()=>{ HR.bpm=series[i]; HR.at=performance.now(); renderHR();
     i+=dir; if(i>=series.length){ i=series.length-2; dir=-1; } else if(i<0){ i=1; dir=1; } };
   tick(); HR.sim=setInterval(tick,1000);
-  hrSetStatus(`Deneme bandı: ${series[0]}→${series[series.length-1]} bpm, ${SIM_SEC} sn çıkış, sonra iniş (döngü)`);
+  hrSetStatus(`Deneme bandı: ${series[0]}→${series[series.length-1]} bpm, ${SIM_SEC} sn çıkış + ${SIM_SEC} sn iniş (${2*SIM_SEC} sn döngü)`);
   renderHR();
 }
 function simStop(){ if(HR.sim){ clearInterval(HR.sim); HR.sim=0; } }
