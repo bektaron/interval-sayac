@@ -165,7 +165,7 @@
   #player.hr .pclock{grid-column:2;grid-row:1;font-size:min(15vw,9vh);line-height:.9}
   #player.hr .phr{grid-column:3;grid-row:1;justify-self:end;flex-direction:column;align-items:flex-end;gap:0;margin:0;font-size:clamp(40px,12.5vw,60px)}
   #player.hr .phr .big.up{color:#fde68a} #player.hr .phr .big.down{color:#bae6fd}
-  #player.hr .phr .avg{font-size:clamp(14px,4vw,18px);font-weight:700;opacity:.9;margin-top:2px}
+  #player.hr .phr .avg{font-size:clamp(18px,5.2vw,24px);font-weight:700;opacity:.9;margin-top:2px}
   /* gösterge kutusu satırı doldurur: yarım halka üstte, çapın altındaki şeritte kcal + yağ/KH (şerit büyüdükçe yazılar büyür) */
   #player.hr .pgauge{grid-column:1/4;grid-row:2;align-self:stretch}
   #player.hr .pzones{grid-column:1/4;grid-row:3;justify-self:center}
@@ -1652,7 +1652,7 @@ function buildGauge(){
   // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında); kutu alçaksa
   // yükseklikten. kcal + yağ/KH bloğu çapın altında (kutu yüksekse büyük); halka + blok dikeyde ortalanır. İç disk boş.
   const cx=100, H=Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
-  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62, blockH = fin ? (wide ? 50 : 36) : 4;
+  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62, blockH = fin ? (wide ? 56 : 38) : 4;
   const R=Math.max(40, Math.min(100-top, H-top-G_HW-blockH)), arc=Math.PI*R;
   const contentH=top+R+G_HW+blockH, off=Math.max(0,(H-contentH)/2), cy=top+R+off;
   GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin, zi:-1, pend:null, anim:0 };
@@ -1668,11 +1668,11 @@ function buildGauge(){
   for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
   p+=`<g class="gsub" id="gSub"></g>`;                                   // aktif bölge içi ara çentikler (redrawLayout kurar)
   // yarım diskin merkezinde kcal (rakam büyük, birim küçük); çapın altında alt alta yağ ve KH (kutu yüksekse büyük)
-  const y0=cy+G_HW, fs = wide ? 15 : 11;
+  const y0=cy+G_HW, fs = wide ? 19 : 13;
   const texts = `<text class="gkcal" id="gKcal" x="100" y="${(cy-13).toFixed(1)}" style="font-size:24px"></text>`+
                 `<text class="gkcalu" id="gKcalU" x="100" y="${(cy-2).toFixed(1)}" style="font-size:9px"></text>`+
-                `<text class="gfuelt f" id="gFuelF" x="100" y="${(y0+(wide ? 21 : 15)).toFixed(1)}" style="font-size:${fs}px"></text>`+
-                `<text class="gfuelt c" id="gFuelC" x="100" y="${(y0+(wide ? 40 : 29)).toFixed(1)}" style="font-size:${fs}px"></text>`;
+                `<text class="gfuelt f" id="gFuelF" x="100" y="${(y0+(wide ? 24 : 16)).toFixed(1)}" style="font-size:${fs}px"></text>`+
+                `<text class="gfuelt c" id="gFuelC" x="100" y="${(y0+(wide ? 47 : 31)).toFixed(1)}" style="font-size:${fs}px"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,15 -9,20 9,20"/>
@@ -1742,7 +1742,7 @@ function updateGauge(){
     $("gKcal").textContent=Math.round(HRS.kcal); $("gKcalU").textContent="kcal";
     const pf=Math.round(fs*100), pc=HRS.kcal>=1;   // en az 1 kcal birikmeden yüzde yazılmaz ("0 kcal · %68" yanıltmasın)
     $("gFuelF").textContent=`Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}`;
-    $("gFuelC").textContent=`KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}`;
+    $("gFuelC").textContent=`K ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}`;
   } else { $("gKcal").textContent=""; $("gKcalU").textContent=""; $("gFuelF").textContent=""; $("gFuelC").textContent=""; }
 }
 
