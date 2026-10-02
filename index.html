@@ -177,10 +177,10 @@
   #player .pgauge:empty,#player .pzones:empty{display:none}
   #player.hr .pgauge:empty{display:block}      /* kurulmadan önce de ölçülebilsin */
   #player .pgauge svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
-  #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.45);stroke-width:22}
-  #player .pgauge .zarc{fill:none;stroke-width:16;transition:stroke .5s ease,filter .5s ease}
+  #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.45);stroke-width:28}
+  #player .pgauge .zarc{fill:none;stroke-width:22;transition:stroke .5s ease,filter .5s ease}
   #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}
-  #player .pgauge .gedge{font-size:10px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}
+  #player .pgauge .gedge{font-size:11.5px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}
   /* yağ/KH halkası: yağ altın sarısı, karbonhidrat mor (JS: FAT_COLOR / CARB_COLOR ile aynı); enerji yokken nötr soluk beyaz */
   #player .pgauge .fuel{fill:none;stroke-width:9}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28);transition:stroke .5s}
@@ -190,8 +190,9 @@
   #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  /* anlık nabız işareti: küçük kenarsız siyah nokta (atış animasyonu yok — bant bildirimleriyle senkron tutulamıyordu) */
-  #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.5))}
+  /* anlık nabız işareti: küçük kenarsız siyah nokta; her vuruşta (bandın RR aralıkları, yoksa 60000/bpm) kısa beyaz parlama (JS: beatLoop) */
+  #player .pgauge .gcur circle{transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 2px rgba(0,0,0,.5));transition:fill .12s,transform .12s}
+  #player .pgauge .gcur circle.flash{fill:#fff;transform:scale(1.5)}
   /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
   #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -226,14 +227,14 @@
                           box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 2px rgba(255,255,255,.9)}
   #player .pzones .zc.cur b{color:rgba(0,0,0,.65)}
   /* uzun ekranlarda (iPhone Safari/ana ekran) kulakçıklar 3×2 ızgara: daha geniş çip, daha büyük yazı */
-  @media (min-height:800px){
-    #player.hr .pzones{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(92vw,460px)}
-    #player.hr .pzones .zc{padding:9px 4px 8px}
-    #player.hr .pzones .zc b{font-size:clamp(15px,4.2vw,18px)}
-    #player.hr .pzones .zc span{font-size:clamp(20px,6vw,26px)}
+  @media (min-height:740px){
+    #player.hr .pzones{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:min(94vw,470px)}
+    #player.hr .pzones .zc{padding:11px 4px 10px}
+    #player.hr .pzones .zc b{font-size:clamp(16px,4.6vw,20px)}
+    #player.hr .pzones .zc span{font-size:clamp(22px,6.8vw,30px)}
   }
   /* nabız göstergesi açıkken dikey yeri göstergeye ver: profil şeridi ve alt satır küçülür */
-  #player.hr .pprofile{height:34px;padding:4px 6px}
+  #player.hr .pprofile{height:44px;padding:5px 6px}
   #player.hr .goalmsg{display:none}
   #player.hr .binfo .val{font-size:clamp(18px,5.5vw,32px)}
   #player.hr .pbtns button{padding:10px}
@@ -1275,16 +1276,38 @@ const hrSupported = !!(navigator.bluetooth && navigator.bluetooth.requestDevice)
 function hrConnected(){ return !!(HR.dev && HR.dev.gatt && HR.dev.gatt.connected && HR.chr); }
 function hrSetStatus(txt){ const el=$("hrStatus"); if(el) el.textContent=txt; }
 
-// 0x2A37 Heart Rate Measurement: bit0=1 ise 16-bit, değilse 8-bit nabız
+// 0x2A37 Heart Rate Measurement: bit0=1 ise 16-bit, değilse 8-bit nabız; bit3 harcanan enerji alanı (atlanır);
+// bit4 RR aralıkları (uint16, 1/1024 sn; pakette birden çok olabilir) → vuruşa senkron atış için
 function parseHR(dv){
-  if(!dv || dv.byteLength<2) return 0;
-  const flags=dv.getUint8(0);
-  return (flags & 0x01) ? dv.getUint16(1,true) : dv.getUint8(1);
+  if(!dv || dv.byteLength<2) return { bpm:0, rr:[] };
+  const flags=dv.getUint8(0), hr16=flags&0x01; let o=1;
+  const bpm = hr16 ? dv.getUint16(o,true) : dv.getUint8(o); o+=hr16 ? 2 : 1;
+  if(flags&0x08) o+=2;
+  const rr=[]; if(flags&0x10) for(;o+1<dv.byteLength;o+=2) rr.push(dv.getUint16(o,true)*1000/1024);
+  return { bpm, rr };
 }
+/* --- Vuruş atışı: nokta her kalp vuruşunda kısa beyaz parlar. Bandın RR aralıkları (Polar H10 gönderir) kuyruğa alınır
+   ve sırayla kullanılır; RR yoksa (deneme bandı, bazı bantlar) aralık 60000/bpm. Zamanlayıcı kendini yeniler, bildirim
+   gelince yeniden başlamaz (ritim kesilmez). Nabız bayatlayınca durur. --- */
+const BEAT={ q:[], t:0 };
+function beatFlash(){ const c=document.querySelector("#gCur circle"); if(!c) return; c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),110); }
+function beatLoop(){
+  clearTimeout(BEAT.t); BEAT.t=0;
+  if(!hrFresh()){ BEAT.q.length=0; return; }
+  beatFlash();
+  const iv = BEAT.q.length ? BEAT.q.shift() : 60000/HR.bpm;
+  BEAT.t=setTimeout(beatLoop, Math.min(2000, Math.max(250, iv)));
+}
+function beatFeed(rr){
+  if(rr.length){ BEAT.q.push(...rr); if(BEAT.q.length>8) BEAT.q.splice(0, BEAT.q.length-8); }   // gecikmiş yığın birikmesin
+  if(!BEAT.t && hrFresh()) beatLoop();
+}
+function beatStop(){ clearTimeout(BEAT.t); BEAT.t=0; BEAT.q.length=0; }
 function onHR(e){
-  const bpm=parseHR(e.target.value);
+  const {bpm,rr}=parseHR(e.target.value);
   if(!(bpm>0)) return;                 // 0 = sensör temas etmiyor
   HR.bpm=bpm; HR.at=performance.now();
+  beatFeed(rr);
   renderHR();
   const p=$("pHR");
   if(p && !p.classList.contains("hidden")){ p.classList.remove("beat"); void p.offsetWidth; p.classList.add("beat"); }
@@ -1378,7 +1401,7 @@ async function hrOnDisconnect(gen){
   HR.want=false; hrSetStatus("Yeniden bağlanamadı. Bağlan'a tekrar bas."); renderHR();
 }
 function hrDisconnect(){
-  HR.gen++; HR.want=false; HR.connecting=false; simStop();
+  HR.gen++; HR.want=false; HR.connecting=false; simStop(); beatStop();
   try{ if(HR.dev && HR.dev.gatt.connected) HR.dev.gatt.disconnect(); }catch(e){}
   HR.chr=null; HR.bpm=null; HR.at=0;
   hrSetStatus("Bağlı değil"); renderHR();
@@ -1399,7 +1422,7 @@ function simStart(){
   const series=simSeries(); let i=0, dir=1;
   HR.dev={ name:"Deneme bandı", gatt:{ connected:true, disconnect(){ this.connected=false; } }, addEventListener(){} };
   HR.chr={ sim:true };
-  const tick=()=>{ HR.bpm=series[i]; HR.at=performance.now(); renderHR();
+  const tick=()=>{ HR.bpm=series[i]; HR.at=performance.now(); beatFeed([]); renderHR();
     i+=dir; if(i>=series.length){ i=series.length-2; dir=-1; } else if(i<0){ i=1; dir=1; } };
   tick(); HR.sim=setInterval(tick,1000);
   hrSetStatus(`Deneme bandı: ${series[0]}→${series[series.length-1]} bpm, ${SIM_SEC} sn çıkış + ${SIM_SEC} sn iniş (${2*SIM_SEC} sn döngü)`);
@@ -1551,8 +1574,9 @@ function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND
    birikimli yağ payı halkası. Hedef, bandın dış kenarına yapışık beyaz çizgi. Yarım diskin içinde bölge+yön ve
    kcal; çapın altında yağ/KH dağılımı. Üst sıradaki anlık nabız + ort (.phr) updateGauge'dan yazılır. */
 let GU=null;                                       // geometri + bölge yerleşimi (buildGauge kurar)
-const FUEL_D=-33, TGT_D=12.5;                      // yağ/KH halkası (kalınlık 9) üçgen + ortalama sayısının ardında (iç), hedef çizgisi bandın dış kenarında
-const G_RIM=14, G_PAD=3, G_IN=39;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + sayı + halka)
+const G_HW=14;                                     // bant yarı genişliği (ray 28, bölge yayı 22)
+const FUEL_D=-36, TGT_D=15.5;                      // yağ/KH halkası (kalınlık 9) üçgen + ortalama sayısının ardında (iç), hedef çizgisi bandın dış kenarında
+const G_RIM=17, G_PAD=3, G_IN=42;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + sayı + halka)
 const LAY_MARGIN=2, LAY_HOLD=3000, LAY_MORPH=600;  // bölge düzeni histerezisi (bpm, ms) ve morf süresi (ms)
 const LAY_ACTIVE=60;                               // aktif bölgenin açısı (derece); kalan açı diğer beş bölgeye eşit
 // s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
@@ -1589,7 +1613,7 @@ function redrawLayout(){
   const zi=GU.zi, pri=i=>(i===zi||i===zi+1) ? 0 : 1, order=[1,2,3,4,5].sort((a,b)=>pri(a)-pri(b)||a-b), shown=[];
   order.forEach(i=>{ if(shown.every(j=>Math.abs(GU.e[j]-GU.e[i])>=18)) shown.push(i); });
   for(let i=1;i<6;i++){
-    const s=GU.e[i], a=gP(s,-11), b=gP(s,11), c=gP(s,0), t=$("gTick"+i), l=$("gEdge"+i);
+    const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), c=gP(s,0), t=$("gTick"+i), l=$("gEdge"+i);
     t.setAttribute("x1",a.x.toFixed(1)); t.setAttribute("y1",a.y.toFixed(1)); t.setAttribute("x2",b.x.toFixed(1)); t.setAttribute("y2",b.y.toFixed(1));
     l.setAttribute("x",c.x.toFixed(1)); l.setAttribute("y",c.y.toFixed(1));
     l.style.display = shown.includes(i) ? "" : "none";
@@ -1619,11 +1643,14 @@ function gS(bpm,z){                                 // nabız → yol konumu
 function buildGauge(){
   const z=hrZones(), g=$("pGauge");
   if(!z){ g.innerHTML=""; GU=null; return; }
-  // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında); kutu alçaksa
-  // yükseklikten — çapın altında yağ/KH yazısı için 28 birim pay. Kutu daha yüksekse artan yer çapın altına kalır.
+  // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında).
+  // Kutu yüksekse ("wide") kcal + yağ/KH bloğu çapın altında ve halka + blok dikeyde ortalanır; alçaksa kcal yarım
+  // diskin içinde, yalnız yağ/KH satırı çapın altında.
   const cx=100, H=Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
-  const R=Math.max(40, Math.min(100-G_PAD-G_RIM, H-G_PAD-G_RIM-11-28)), cy=G_PAD+G_RIM+R, arc=Math.PI*R;
-  GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin:kcalPerMin(100)>0, zi:-1, pend:null, anim:0 };
+  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62;
+  const R=Math.max(40, Math.min(100-top, H-top-G_HW-(wide ? 62 : 20))), arc=Math.PI*R;
+  const contentH=top+R+G_HW+(wide ? 6+52 : 20), off=Math.max(0,(H-contentH)/2), cy=top+R+off;
+  GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin, zi:-1, pend:null, anim:0 };
   GU.e=gLayout(-1);
   let p=`<path class="track" d="${gSeg(0,GU.S,0)}"/>`;
   for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d=""/>`;
@@ -1631,21 +1658,21 @@ function buildGauge(){
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
   for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
-  // Çapın altındaki şerit (y0..H) yeterince yüksekse kcal + tek satır yağ/KH orada, büyük; şerit darsa kcal yarım diskin
-  // içinde (bölge satırının altında), yağ/KH küçük. Bölge + yön satırı hep yarım diskin içinde.
-  const y0=cy+12, sh=H-y0, wide=sh>=48, mid=y0+sh/2;
+  // "wide": bölge + yön yarım diskin içinde, kcal + tek satır yağ/KH çapın hemen altında (büyük).
+  // dar: bölge + yön ve kcal yarım diskin içinde, yağ/KH satırı çapın altında (küçük).
+  const y0=cy+G_HW;
   const texts = wide
     ? `<text class="gzone" id="gZone" x="100" y="${(cy-10).toFixed(1)}" style="font-size:20px"></text>`+
-      `<text class="gkcal" id="gKcal" x="100" y="${(mid-2).toFixed(1)}" style="font-size:${Math.min(28, 14+sh/5).toFixed(1)}px"></text>`+
-      `<text class="gfuelt" id="gFuelT" x="100" y="${(mid+14).toFixed(1)}" style="font-size:${Math.min(13, 8+sh/16).toFixed(1)}px"></text>`
-    : `<text class="gzone" id="gZone" x="100" y="${(cy-22).toFixed(1)}" style="font-size:15px"></text>`+
-      `<text class="gkcal" id="gKcal" x="100" y="${(cy-3).toFixed(1)}" style="font-size:18px"></text>`+
-      `<text class="gfuelt" id="gFuelT" x="100" y="${(mid+3).toFixed(1)}" style="font-size:9.5px"></text>`;
+      `<text class="gkcal" id="gKcal" x="100" y="${(y0+30).toFixed(1)}" style="font-size:26px"></text>`+
+      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+48).toFixed(1)}" style="font-size:12px"></text>`
+    : `<text class="gzone" id="gZone" x="100" y="${(cy-19).toFixed(1)}" style="font-size:13px"></text>`+
+      `<text class="gkcal" id="gKcal" x="100" y="${(cy-2).toFixed(1)}" style="font-size:17px"></text>`+
+      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+12).toFixed(1)}" style="font-size:9.5px"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
-    <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,12 -9,17 9,17"/>
-      <path class="arr r" d="M11 14.5H17M14.5 12L17 14.5 14.5 17"/><path class="arr l" d="M-11 14.5H-17M-14.5 12L-17 14.5 -14.5 17"/>
-      <g class="upright"><text class="gavgn" id="gAvgN" y="25.5"></text></g></g>
+    <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,15 -9,20 9,20"/>
+      <path class="arr r" d="M11 17.5H17M14.5 15L17 17.5 14.5 20"/><path class="arr l" d="M-11 17.5H-17M-14.5 15L-17 17.5 -14.5 20"/>
+      <g class="upright"><text class="gavgn" id="gAvgN" y="28.5"></text></g></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="8.5" fill="#991b1b" stroke="#000" stroke-width="2"/>
       <g class="upright"><text class="gpeakn" id="gPeakN" y="2.6"></text></g></g>
     <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="3.5" fill="#0b0f14"/></g></g>
