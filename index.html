@@ -179,8 +179,10 @@
   #player .pgauge svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
   #player .pgauge .track{fill:none;stroke:rgba(0,0,0,.45);stroke-width:28}
   #player .pgauge .zarc{fill:none;stroke-width:22;transition:stroke .5s ease,filter .5s ease}
-  #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}   /* bölge sınırı çentiği (sayı yok) */
+  #player .pgauge .gtick{stroke:rgba(0,0,0,.55);stroke-width:2}   /* bölge sınırı çentiği */
+  #player .pgauge .gedge{font-size:11.5px;stroke:rgba(0,0,0,.6);stroke-width:3;paint-order:stroke;dominant-baseline:central}   /* sınır nabzı */
   #player .pgauge .gsub line{stroke:rgba(0,0,0,.5);stroke-width:1.2;stroke-linecap:round}   /* aktif bölge içi ara çentikler (her bpm; 5'in katı uzun) */
+  #player .pgauge .gftick line{stroke:rgba(0,0,0,.45);stroke-width:1.2}   /* yağ/KH halkasında %10 çentikleri */
   /* yağ/KH halkası: yağ altın sarısı, karbonhidrat mor (JS: FAT_COLOR / CARB_COLOR ile aynı); enerji yokken nötr soluk beyaz */
   #player .pgauge .fuel{fill:none;stroke-width:9}
   #player .pgauge .fuel.bg{stroke:rgba(255,255,255,.28);transition:stroke .5s}
@@ -206,10 +208,11 @@
   #player .pgauge .gpeakn{font-size:7px;fill:#fff}             /* tepe noktasının içindeki maks. nabız */
   #player .pgauge text{fill:#fff;font-family:inherit;font-weight:800;text-anchor:middle;font-variant-numeric:tabular-nums;
                        filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
-  /* yazı boyları buildGauge'da şerit yüksekliğine göre satır içi verilir; yarım diskin içinde yazı yok */
-  #player .pgauge .gfuelt{font-weight:700}                     /* tek satır: yağ (sarı) · KH (mor), gram + pay */
-  #player .pgauge .gfuelt .f{fill:#ffd54a}
-  #player .pgauge .gfuelt .c{fill:#b388ff}
+  /* yazı boyları buildGauge'da satır içi verilir: yarım diskin merkezinde kcal (rakam + küçük birim), çapın altında iki satır yağ/KH */
+  #player .pgauge .gkcalu{font-weight:700;opacity:.85}
+  #player .pgauge .gfuelt{font-weight:700}
+  #player .pgauge .gfuelt.f{fill:#ffd54a}
+  #player .pgauge .gfuelt.c{fill:#b388ff}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gcur{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(90vw,440px);margin-top:4px;perspective:500px}   /* kenar payı: öne çıkan uç çip ekrandan taşmasın */
@@ -1073,6 +1076,7 @@ async function startPlayer(){
   P.segLeft=P.timeline[0].sec;
   P.totalSec=P.timeline.reduce((a,t)=>a+t.sec,0);
   HRS=newHRS(); HRW=newHRS(); HRC=newHRS(); $("pGauge").innerHTML="";
+  if(HR.sim){ HRS.kcal=234; HRS.fat=9.3; HRS.carb=35.7; }   // deneme bandı: üç haneli kcal ile başla (yerleşim denemesi; kayıt tutulmaz)
   enterIdx();
   $("player").classList.remove("hidden","done","cool");
   $("builder").style.display="none";
@@ -1605,12 +1609,16 @@ function gLayout(zi){
 // Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, sınır çentikleri, aktif bölge içi ara çentikler, hedef çizgisi
 function redrawLayout(z){
   for(let i=0;i<6;i++) $("gArc"+i).setAttribute("d", gSeg(GU.e[i],GU.e[i+1],0));
-  for(let i=1;i<6;i++){                               // bölge sınırı çentikleri (bant boyunca)
-    const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), t=$("gTick"+i);
+  // sınır çentikleri + sınır nabızları: önce aktif bölgenin iki sınırı, sonra kalanlar; gösterilen bir yazıya 18 birimden yakın düşenler gizli
+  const zi=GU.zi, pri=i=>(i===zi||i===zi+1) ? 0 : 1, order=[1,2,3,4,5].sort((a,b)=>pri(a)-pri(b)||a-b), shown=[];
+  order.forEach(i=>{ if(shown.every(j=>Math.abs(GU.e[j]-GU.e[i])>=18)) shown.push(i); });
+  for(let i=1;i<6;i++){
+    const s=GU.e[i], a=gP(s,-G_HW), b=gP(s,G_HW), c=gP(s,0), t=$("gTick"+i), l=$("gEdge"+i);
     t.setAttribute("x1",a.x.toFixed(1)); t.setAttribute("y1",a.y.toFixed(1)); t.setAttribute("x2",b.x.toFixed(1)); t.setAttribute("y2",b.y.toFixed(1));
+    l.setAttribute("x",c.x.toFixed(1)); l.setAttribute("y",c.y.toFixed(1)); l.style.display = shown.includes(i) ? "" : "none";
   }
   // aktif bölgenin içinde ara çentikler: her bpm'de kısa, 5'in katlarında uzun; bandın dış kenarından içeri
-  const zi=GU.zi; let h="";
+  let h="";
   if(zi>=0 && z) for(let b=z.edges[zi]+1; b<z.edges[zi+1]; b++){
     const s=gS(b,z), L=b%5 ? 5 : 9, a=gP(s,G_HW-1), c=gP(s,G_HW-1-L);
     h+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${c.x.toFixed(1)}" y2="${c.y.toFixed(1)}"/>`;
@@ -1644,7 +1652,7 @@ function buildGauge(){
   // viewBox: genişlik 200, yükseklik kutunun oranından. Yarım halka: R genişlikten (uçlar ekran kenarında); kutu alçaksa
   // yükseklikten. kcal + yağ/KH bloğu çapın altında (kutu yüksekse büyük); halka + blok dikeyde ortalanır. İç disk boş.
   const cx=100, H=Math.round(Math.max(120, Math.min(340, 200*(g.clientHeight||300)/(g.clientWidth||300))));
-  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62, blockH = fin ? (wide ? 58 : 36) : 4;
+  const top=G_PAD+G_RIM, fin=kcalPerMin(100)>0, wide = H >= top+80+G_HW+62, blockH = fin ? (wide ? 50 : 36) : 4;
   const R=Math.max(40, Math.min(100-top, H-top-G_HW-blockH)), arc=Math.PI*R;
   const contentH=top+R+G_HW+blockH, off=Math.max(0,(H-contentH)/2), cy=top+R+off;
   GU={ cx, cy, R, H, yb:cy, Lg:0, arc, S:arc, fin, zi:-1, pend:null, anim:0 };
@@ -1653,16 +1661,18 @@ function buildGauge(){
   for(let i=0;i<6;i++) p+=`<path class="zarc" id="gArc${i}" stroke="${ZONE_PALE[i]}" d=""/>`;
   p+=`<path class="tgt" id="gTgt" d="" style="display:none"/>`;
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
-  p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
-  for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/>`;   // bölge sınırı çentikleri (redrawLayout yerleştirir)
+  // yağ/KH halkasında %10 çentikleri (enerji payı okunsun) + yağ|KH sınır çentiği (updateGauge yerleştirir)
+  let ft=""; for(let k=1;k<10;k++){ const a=gP(GU.S*k/10, FUEL_D-3), b=gP(GU.S*k/10, FUEL_D+3); ft+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"/>`; }
+  p+=`<g class="gftick" id="gFTick" style="display:none">${ft}</g>`;
+  p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;
+  for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
   p+=`<g class="gsub" id="gSub"></g>`;                                   // aktif bölge içi ara çentikler (redrawLayout kurar)
-  // kcal + tek satır yağ/KH çapın hemen altında; kutu yüksekse büyük, alçaksa küçük
-  const y0=cy+G_HW;
-  const texts = wide
-    ? `<text class="gkcal" id="gKcal" x="100" y="${(y0+30).toFixed(1)}" style="font-size:26px"></text>`+
-      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+48).toFixed(1)}" style="font-size:12px"></text>`
-    : `<text class="gkcal" id="gKcal" x="100" y="${(y0+19).toFixed(1)}" style="font-size:17px"></text>`+
-      `<text class="gfuelt" id="gFuelT" x="100" y="${(y0+31).toFixed(1)}" style="font-size:9.5px"></text>`;
+  // yarım diskin merkezinde kcal (rakam büyük, birim küçük); çapın altında alt alta yağ ve KH (kutu yüksekse büyük)
+  const y0=cy+G_HW, fs = wide ? 15 : 11;
+  const texts = `<text class="gkcal" id="gKcal" x="100" y="${(cy-13).toFixed(1)}" style="font-size:24px"></text>`+
+                `<text class="gkcalu" id="gKcalU" x="100" y="${(cy-2).toFixed(1)}" style="font-size:9px"></text>`+
+                `<text class="gfuelt f" id="gFuelF" x="100" y="${(y0+(wide ? 21 : 15)).toFixed(1)}" style="font-size:${fs}px"></text>`+
+                `<text class="gfuelt c" id="gFuelC" x="100" y="${(y0+(wide ? 40 : 29)).toFixed(1)}" style="font-size:${fs}px"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,15 -9,20 9,20"/>
@@ -1720,18 +1730,20 @@ function updateGauge(){
   // Henüz enerji yoksa halka nötr soluk beyaz. Kilo girilmediyse yok.
   const has=kcalPerMin(100)>0, fk=HRS.fat*9.4, ck=HRS.carb*4.1, fs=(fk+ck)>0 ? fk/(fk+ck) : 0;
   const bg=$("gFuelBg"); bg.style.display = has ? "" : "none"; bg.classList.toggle("on", has && (fk+ck)>0);
+  $("gFTick").style.display = has ? "" : "none";
   const fat=$("gFat"), mk=$("gFuelMk");
   if(has && fs>0.002){ fat.style.display=""; fat.setAttribute("d", gSeg(0, GU.S*fs, FUEL_D)); } else fat.style.display="none";
   if(has && fs>0.002 && fs<0.998){
     const a=gP(GU.S*fs, FUEL_D-7), b=gP(GU.S*fs, FUEL_D+7); mk.style.display="";
     mk.querySelectorAll("line").forEach(l=>{ l.setAttribute("x1",a.x.toFixed(1)); l.setAttribute("y1",a.y.toFixed(1)); l.setAttribute("x2",b.x.toFixed(1)); l.setAttribute("y2",b.y.toFixed(1)); });
   } else mk.style.display="none";
-  // kcal + tek satır yağ/KH (gram + enerji payı). Kilo girilmediyse boş.
+  // merkezde kcal (rakam + birim); çapın altında yağ ve KH (gram + enerji payı). Kilo girilmediyse boş.
   if(GU.fin){
-    $("gKcal").textContent=`${Math.round(HRS.kcal)} kcal`;
+    $("gKcal").textContent=Math.round(HRS.kcal); $("gKcalU").textContent="kcal";
     const pf=Math.round(fs*100), pc=HRS.kcal>=1;   // en az 1 kcal birikmeden yüzde yazılmaz ("0 kcal · %68" yanıltmasın)
-    $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}</tspan>`;
-  } else { $("gKcal").textContent=""; $("gFuelT").textContent=""; }
+    $("gFuelF").textContent=`Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}`;
+    $("gFuelC").textContent=`KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}`;
+  } else { $("gKcal").textContent=""; $("gKcalU").textContent=""; $("gFuelF").textContent=""; $("gFuelC").textContent=""; }
 }
 
 function renderHR(){
