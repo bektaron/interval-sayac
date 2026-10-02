@@ -190,11 +190,11 @@
   #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  /* anlık nabız işareti: küçük siyah nokta (ince beyaz kenar), gerçek nabız hızında atar (--beat = 60/bpm sn) */
-  #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.5))}
-  #player .pgauge .gcur .beat{transform-box:fill-box;transform-origin:center;animation:gbeat var(--beat,.8s) ease-in-out infinite}
-  #player .pgauge.stale .gcur .beat{animation-play-state:paused}
-  @keyframes gbeat{0%,45%,100%{transform:scale(1)}20%{transform:scale(1.45)}}
+  /* anlık nabız işareti: küçük nokta, her atışta beyaz parlayıp hızla siyaha söner (+ hafif büyüme); süre --beat = 60/bpm sn */
+  #player .pgauge .gcur circle{transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 2px rgba(0,0,0,.5));
+                               animation:gbeat var(--beat,.8s) ease-out infinite}
+  #player .pgauge.stale .gcur circle{animation-play-state:paused}
+  @keyframes gbeat{0%{fill:#fff;transform:scale(1.35)}40%,100%{fill:#0b0f14;transform:scale(1)}}
   /* işaretin içindeki simge (kalp) işaret yol boyunca dönerken dik kalır: aynı sürede ters yönde döner */
   #player .pgauge .upright{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   #player .pgauge .gpk,#player .pgauge .gavgmk{transition:transform .8s ease}
@@ -211,9 +211,9 @@
   #player .pgauge .gzone{font-size:15px;font-weight:800;fill:#fff;stroke:rgba(0,0,0,.35);stroke-width:1;paint-order:stroke}
   #player .pgauge .gzone.up{fill:#fde68a} #player .pgauge .gzone.down{fill:#bae6fd}
   #player .pgauge .gkcal{font-size:18px}                       /* yarım diskin ortasında enerji */
-  #player .pgauge .gfuelt{font-size:9.5px;font-weight:700}     /* çapın altında yağ/KH dağılımı (gram + pay) */
-  #player .pgauge .gfuelt .f{fill:#ffd54a}
-  #player .pgauge .gfuelt .c{fill:#b388ff}
+  #player .pgauge .gfuelt{font-size:9.5px;font-weight:700}     /* kcal'ın altında alt alta yağ ve KH (gram + pay) */
+  #player .pgauge .gfuelt.f{fill:#ffd54a}
+  #player .pgauge .gfuelt.c{fill:#b388ff}
   #player .pgauge .tgt{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}
   #player .pgauge.stale .gcur{opacity:.45}
   #player .pzones{display:flex;gap:5px;width:min(90vw,440px);margin-top:4px;perspective:500px}   /* kenar payı: öne çıkan uç çip ekrandan taşmasın */
@@ -1627,10 +1627,11 @@ function buildGauge(){
   p+=`<path class="fuel bg" id="gFuelBg" d="${gSeg(0,GU.S,FUEL_D)}" style="display:none"/><path class="fuel fat" id="gFat" d="" style="display:none"/>`;
   p+=`<g class="gfuelmk" id="gFuelMk" style="display:none"><line class="mkd"/><line class="mkw"/></g>`;   // yağ|KH sınır çentiği (updateGauge yerleştirir)
   for(let i=1;i<6;i++) p+=`<line class="gtick" id="gTick${i}"/><text class="gedge" id="gEdge${i}">${z.edges[i]}</text>`;   // bölge sınırları (redrawLayout yerleştirir)
-  // yarım diskin içinde: bölge + yön, altında kcal; çapın altındaki şeritte yağ/KH dağılımı (şeritte dikey ortalı)
+  // yarım diskin içinde: bölge + yön, altında kcal; kcal'ın hemen altında (çapın altında) alt alta yağ ve KH
   const texts=`<text class="gzone" id="gZone" x="100" y="${(cy-22).toFixed(1)}"></text>`+
               `<text class="gkcal" id="gKcal" x="100" y="${(cy-3).toFixed(1)}"></text>`+
-              `<text class="gfuelt" id="gFuelT" x="100" y="${((cy+12+H)/2+3).toFixed(1)}"></text>`;
+              `<text class="gfuelt f" id="gFuelF" x="100" y="${(cy+13).toFixed(1)}"></text>`+
+              `<text class="gfuelt c" id="gFuelC" x="100" y="${(cy+25).toFixed(1)}"></text>`;
   // işaretler orijinde tanımlı (dış yön = −y, iç yön = +y); gPlace yola taşıyıp döndürür. Yan oklar: +x = nabız artan yön
   g.innerHTML=`<svg viewBox="0 0 200 ${H}">${p}
     <g class="gavgmk" id="gAvgMk" style="display:none"><polygon points="0,12 -9,17 9,17"/>
@@ -1700,12 +1701,13 @@ function updateGauge(){
     const a=gP(GU.S*fs, FUEL_D-7), b=gP(GU.S*fs, FUEL_D+7); mk.style.display="";
     mk.querySelectorAll("line").forEach(l=>{ l.setAttribute("x1",a.x.toFixed(1)); l.setAttribute("y1",a.y.toFixed(1)); l.setAttribute("x2",b.x.toFixed(1)); l.setAttribute("y2",b.y.toFixed(1)); });
   } else mk.style.display="none";
-  // yarım diskte kcal; çapın altında yağ/KH dağılımı (gram + enerji payı). Kilo girilmediyse boş.
+  // yarım diskte kcal; altında alt alta yağ ve KH (gram + enerji payı). Kilo girilmediyse boş.
   if(GU.fin){
     $("gKcal").textContent=`${Math.round(HRS.kcal)} kcal`;
     const pf=Math.round(fs*100), pc=HRS.kcal>=1;   // en az 1 kcal birikmeden yüzde yazılmaz ("0 kcal · %68" yanıltmasın)
-    $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}</tspan>`;
-  } else { $("gKcal").textContent=""; $("gFuelT").textContent=""; }
+    $("gFuelF").textContent=`Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}`;
+    $("gFuelC").textContent=`KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}`;
+  } else { $("gKcal").textContent=""; $("gFuelF").textContent=""; $("gFuelC").textContent=""; }
 }
 
 function renderHR(){
