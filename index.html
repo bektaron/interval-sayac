@@ -190,7 +190,7 @@
   #player .pgauge .gfuelmk .mkw{stroke:#fff;stroke-width:2;stroke-linecap:round}
   #player .pgauge .gcur,#player .pgauge .gpk,#player .pgauge .gavgmk{transform-box:view-box;transform-origin:0 0}
   #player .pgauge .gcur{transition:transform .5s cubic-bezier(.2,.8,.3,1)}
-  /* anlık nabız işareti: küçük kırmızı nokta, gerçek nabız hızında atar (--beat = 60/bpm sn) */
+  /* anlık nabız işareti: küçük siyah nokta (ince beyaz kenar), gerçek nabız hızında atar (--beat = 60/bpm sn) */
   #player .pgauge .gcur circle{filter:drop-shadow(0 0 2px rgba(0,0,0,.5))}
   #player .pgauge .gcur .beat{transform-box:fill-box;transform-origin:center;animation:gbeat var(--beat,.8s) ease-in-out infinite}
   #player .pgauge.stale .gcur .beat{animation-play-state:paused}
@@ -1539,9 +1539,8 @@ function hrTrendArrow(){ if(HRS.t<TREND_MIN_T) return ""; return HRS.trend>TREND
 
 /* --- Yarım halka nabız göstergesi ---------------------------------------------------------------
    Yol: sol uç (çap çizgisi) → tepe → sağ uç; s yol uzunluğu, S = π·R (bacak yok: Lg = 0). Bölge dilimleri
-   ("A" düzeni, gLayout): nabzın bulunduğu bölge tepede LAY_ACTIVE°, kalan açı iki yana eşit bölünür: altındakiler
-   sol yanı, üstündekiler sağ yanı eşit paylaşır (bir tarafta bölge yoksa o yan da aktif bölgeye kalır); nabız yokken
-   6 × 30°. Bölge değişince
+   (gLayout): nabzın bulunduğu bölge LAY_ACTIVE°, kalan açı diğer beş bölgeye sırayla eşit (aktif bölge tepede
+   değil, sırasındaki yerde genişler); nabız yokken 6 × 30°. Bölge değişince
    düzen histerezisle (sınırı LAY_MARGIN bpm geçince ya da LAY_HOLD ms kalınca) yeniden kurulur, yaylar ve
    işaretler LAY_MORPH ms'de morflanır. Bölge içinde nabız doğrusal; Z0 altı sol uca, maks. üstü sağ uca sabitlenir.
    Dıştan içe: bant (kırmızı nokta anlık, koyu rozet tepe) → bandın iç kenarına dayalı ortalama üçgeni →
@@ -1551,7 +1550,7 @@ let GU=null;                                       // geometri + bölge yerleşi
 const FUEL_D=-33, TGT_D=12.5;                      // yağ/KH halkası (kalınlık 9) üçgen + ortalama sayısının ardında (iç), hedef çizgisi bandın dış kenarında
 const G_RIM=14, G_PAD=3, G_IN=39;                  // bandın dış uzantısı (hedef çizgisi dahil), kenar payı, iç boşluk payı (üçgen + sayı + halka)
 const LAY_MARGIN=2, LAY_HOLD=3000, LAY_MORPH=600;  // bölge düzeni histerezisi (bpm, ms) ve morf süresi (ms)
-const LAY_ACTIVE=60;                               // aktif bölgenin tepedeki açısı (derece); kalan 180° iki yana eşit
+const LAY_ACTIVE=60;                               // aktif bölgenin açısı (derece); kalan açı diğer beş bölgeye eşit
 // s (yol uzunluğu) → nokta; d: yola paralel kayma (+ dış, − iç); a: dış yön açısı (0 yukarı, −90 sol, 90 sağ)
 function gP(s,d){
   const g=GU, r=g.R+(d||0);
@@ -1573,11 +1572,10 @@ function gSeg(s0,s1,d){
 function gLayout(zi){
   const S=GU.S, e=new Array(7);
   if(zi<0){ for(let i=0;i<=6;i++) e[i]=S*i/6; return e; }
-  const below=zi, above=5-zi, side=(S-S*LAY_ACTIVE/180)/2, L=below ? side : 0, Rr=above ? side : 0;   // sol yan alttakilere, sağ yan üsttekilere
+  // aktif bölge LAY_ACTIVE°, kalan açı diğer beş bölgeye sırayla eşit (aktif bölge tepede değil, sırasındaki yerde)
+  const wA=S*LAY_ACTIVE/180, w=(S-wA)/5;
   let x=0;
-  for(let i=0;i<zi;i++){ e[i]=x; x+=L/below; }
-  e[zi]=x; x+=S-L-Rr;                                                    // aktif bölge: LAY_ACTIVE° (bir taraf boşsa o yan da ona kalır)
-  for(let i=zi+1;i<6;i++){ e[i]=x; x+=Rr/above; }
+  for(let i=0;i<6;i++){ e[i]=x; x+= i===zi ? wA : w; }
   e[6]=S; return e;
 }
 // Düzene bağlı çizimleri GU.e'ye göre yeniler: bölge yayları, çentik + sınır nabızları (dar dilimde yazı gizli), hedef çizgisi
@@ -1640,7 +1638,7 @@ function buildGauge(){
       <g class="upright"><text class="gavgn" id="gAvgN" y="25.5"></text></g></g>
     <g class="gpk" id="gPeak" style="display:none"><circle r="8.5" fill="#991b1b" stroke="#000" stroke-width="2"/>
       <g class="upright"><text class="gpeakn" id="gPeakN" y="2.6"></text></g></g>
-    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="3" fill="#ff2d3a" stroke="rgba(0,0,0,.6)" stroke-width="1"/></g></g>
+    <g class="gcur" id="gCur" style="display:none"><g class="beat"><circle r="3.5" fill="#0b0f14" stroke="rgba(255,255,255,.75)" stroke-width=".8"/></g></g>
     ${texts}
   </svg>`;
   redrawLayout();
@@ -1705,8 +1703,8 @@ function updateGauge(){
   // yarım diskte kcal; çapın altında yağ/KH dağılımı (gram + enerji payı). Kilo girilmediyse boş.
   if(GU.fin){
     $("gKcal").textContent=`${Math.round(HRS.kcal)} kcal`;
-    const pf=Math.round(fs*100);
-    $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g · %${pf}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g · %${100-pf}</tspan>`;
+    const pf=Math.round(fs*100), pc=(fk+ck)>0;   // enerji birikmeden yüzde yazılmaz ("%0 / %100" yanıltmasın)
+    $("gFuelT").innerHTML=`<tspan class="f">Yağ ${tr1(HRS.fat)} g${pc ? ` · %${pf}` : ""}</tspan>   <tspan class="c">KH ${tr1(HRS.carb)} g${pc ? ` · %${100-pf}` : ""}</tspan>`;
   } else { $("gKcal").textContent=""; $("gFuelT").textContent=""; }
 }
 
